@@ -5,12 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     // Intégration (base PostgreSQL) : vitest.integration.config.ts. Bout en bout : Playwright.
-    exclude: [
-      "**/node_modules/**",
-      "**/.next/**",
-      "e2e/**",
-      "**/*.integration.test.ts",
-    ],
+    exclude: ["**/node_modules/**", "**/.next/**", "e2e/**", "**/*.integration.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts", "src/moteur/**/*.ts"],
