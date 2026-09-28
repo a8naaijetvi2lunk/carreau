@@ -1,0 +1,43 @@
+# Dépendances
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Production
+build/
+dist/
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Environnement (seul le modèle est versionné)
+.env
+.env.*
+!.env.example
+
+# Stockage local des fichiers téléversés
+/storage/
+
+# Journaux
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Systèmes et éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Outillage local (non publié)
+CLAUDE.md
+.claude/
+.codegraph/
