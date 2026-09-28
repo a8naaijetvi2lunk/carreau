@@ -2,6 +2,18 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-28 — Lot 0 : socle technique
+
+### Ajouté
+- Projet Next.js 16 (TypeScript strict, standalone), ESLint avec frontières d'architecture, Prettier.
+- Contrats d'erreur, enveloppes d'actions, de routes d'API et de pages ; lecture JSON bornée.
+- Environnement validé au démarrage, chiffrement AES-256-GCM, IP client, horloge injectable.
+- CSP à nonce (`src/proxy.ts`) et en-têtes de sécurité.
+- Page d'accueil, pages 404 et d'erreur, jetons de design et polices auto-hébergées.
+- PostgreSQL 17, Drizzle, migration initiale (limiteur, journal) ; limiteur générique, journal d'audit, point de santé.
+- Tests unitaires, d'intégration (base isolée par fichier) et de bout en bout (ordinateur, iPhone, Android).
+- Image Docker de production et intégration continue GitHub Actions.
+
 ## 2026-09-28 — Cadrage technique
 
 ### Ajouté

@@ -8,7 +8,8 @@ Les étudiants rejoignent l’examen en scannant un QR code et répondent questi
 
 [Fonctionnement](#fonctionnement) · [Anti-triche](#anti-triche--ce-que-carreau-détecte-et-ce-quil-ne-peut-pas-détecter) · [Données personnelles](#données-personnelles) · [Architecture](#architecture) · [Feuille de route](#feuille-de-route) · [Licence](#licence)
 
-![Statut : en conception](https://img.shields.io/badge/statut-en%20conception-orange)
+![Statut : en développement](https://img.shields.io/badge/statut-en%20d%C3%A9veloppement-orange)
+[![Intégration continue](https://github.com/a8naaijetvi2lunk/carreau/actions/workflows/ci.yml/badge.svg)](https://github.com/a8naaijetvi2lunk/carreau/actions/workflows/ci.yml)
 ![Licence : MIT](https://img.shields.io/badge/licence-MIT-blue)
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-black)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-336791)
@@ -16,7 +17,7 @@ Les étudiants rejoignent l’examen en scannant un QR code et répondent questi
 </div>
 
 > [!NOTE]
-> Carreau est en cours de conception. Les captures d’écran et les instructions d’installation arriveront avec la première version fonctionnelle.
+> Carreau est en cours de développement. Les captures d’écran arriveront avec la première version fonctionnelle.
 
 ## Pourquoi Carreau
 
@@ -103,6 +104,25 @@ flowchart LR
 | Déploiement | Docker, Coolify |
 
 Les choix techniques et leurs raisons sont consignés dans [`docs/choix.csv`](docs/choix.csv), l’architecture dans [`docs/memory.md`](docs/memory.md) et l’historique dans [`docs/changelog.md`](docs/changelog.md).
+
+## Démarrer en local
+
+Prérequis : Node.js 24 et Docker.
+
+```bash
+npm install
+cp .env.example .env    # puis renseigner CHIFFREMENT_CLE et NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+npm run db:up           # PostgreSQL de développement (50170) et de test (50171)
+npm run db:migrate
+npm run dev             # http://localhost:50173
+```
+
+| Commande | Rôle |
+| --- | --- |
+| `npm run lint`, `npm run typecheck` | Qualité du code, frontières d’architecture et types |
+| `npm test` | Tests unitaires et couverture |
+| `npm run test:integration` | Tests d’intégration sur une base PostgreSQL isolée |
+| `npm run build && npm run test:e2e` | Tests de bout en bout sur le build de production (ordinateur, iPhone, Android) |
 
 ## Feuille de route
 

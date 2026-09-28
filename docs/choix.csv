@@ -29,3 +29,8 @@ date,catégorie,choix,pourquoi
 2026-09-28,rgpd,Lancement de session refusé tant que conservation et contact ne sont pas renseignés,"L'écran d'information étudiant n'affiche jamais de valeur provisoire"
 2026-09-28,emails,Modèles d'e-mails dans le code avec envoi de test,"Édition en base jugée superflue pour trois modèles"
 2026-09-28,méthode,Un spec d'architecture global puis un plan par lot (11 lots),"Décisions transverses centralisées, livraisons testées une à une"
+2026-09-28,qualité,ESLint + eslint-plugin-boundaries v7 + Prettier,"Frontières d'architecture vérifiées automatiquement ; un import interdit volontaire prouve que les règles mordent"
+2026-09-28,architecture,Instants SQL passés en paramètre depuis l'horloge applicative,"Temps déterministe dans les tests (horloge figée) ; jamais now() ni Date brute dans sql"
+2026-09-28,interface,Polices Bricolage Grotesque / Atkinson Hyperlegible / JetBrains Mono via next/font,"Auto-hébergées au build : CSP font-src 'self', aucune requête vers Google"
+2026-09-28,tests,Playwright sur trois projets (ordinateur Chromium / iPhone 15 WebKit / Pixel 7),"Le public étudiant est sur téléphone : WebKit et Android testés dès le socle"
+2026-09-28,ci,GitHub Actions avec PostgreSQL 17 en service,"Dépôt public : chaque push sur main prouve lint, types, tests et build"
