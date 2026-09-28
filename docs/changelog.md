@@ -2,6 +2,15 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-28 — Cadrage technique
+
+### Ajouté
+- `docs/specs/2026-09-28-carreau-architecture-design.md` : architecture, modèle de données, moteur d'examen, surveillance et indice, sécurité, tests, lots de livraison.
+
+### Modifié
+- `docs/memory.md` : renvoi vers le spec d'architecture, ports locaux réservés.
+- `docs/choix.csv` : 14 décisions issues du cadrage.
+
 ## 2026-09-28 — Initialisation
 
 ### Ajouté

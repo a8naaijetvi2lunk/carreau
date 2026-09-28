@@ -33,9 +33,19 @@ Application web unique (Next.js 16) servant trois publics :
 8. **Rôles.** `super-admin` : tout, dont les rôles et les paramètres (Resend, invitations, conservation). `admin` : inviter, relancer, désactiver des enseignants. `enseignant` : ses classes, QCM, sessions et résultats.
 9. **Conservation.** Durées des événements et des résultats laissées vides à l’initialisation, renseignées par le super-admin ; suppression automatique à l’échéance.
 
-## Arborescence
+## Architecture technique
 
-À définir lors du cadrage technique.
+Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/2026-09-28-carreau-architecture-design.md) : arborescence, modèle de données, moteur d'examen, surveillance, sécurité, tests et lots de livraison.
+
+## Ports locaux
+
+| Usage | Port |
+| --- | --- |
+| PostgreSQL de développement | 50170 |
+| PostgreSQL de test | 50171 |
+| Serveur des tests de bout en bout | 50172 |
+
+Bloc réservé : 50170-50179 (hors des plages réservées par Hyper-V).
 
 ## Maquettes
 
