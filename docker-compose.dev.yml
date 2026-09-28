@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: carreau
       POSTGRES_DB: carreau
     ports:
-      - "50170:5432"
+      - "127.0.0.1:50170:5432"
     volumes:
       - carreau_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +26,7 @@ services:
       POSTGRES_PASSWORD: carreau
       POSTGRES_DB: carreau_test
     ports:
-      - "50171:5432"
+      - "127.0.0.1:50171:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
