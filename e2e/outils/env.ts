@@ -37,7 +37,11 @@ export function urlBaseE2e(): string {
   return url.toString();
 }
 
-/** Variables du serveur de test : aucune ne vient du .env de développement, sauf l'adresse PostgreSQL. */
+/**
+ * Variables imposées au serveur de test. Les autres variables de .env sont héritées (Playwright
+ * fusionne process.env), dont NEXT_SERVER_ACTIONS_ENCRYPTION_KEY, qui doit rester celle du build.
+ * Un secret réel du .env de développement n'a rien à faire ici : CRON_SECRET est vidé.
+ */
 export function envServeur(): Record<string, string> {
   return {
     NODE_ENV: "production",
@@ -51,5 +55,6 @@ export function envServeur(): Record<string, string> {
     IMAGES_DIR: path.join(os.tmpdir(), "carreau-e2e-images"),
     // Clé de test (32 octets à 7), sans valeur réelle.
     CHIFFREMENT_CLE: Buffer.alloc(32, 7).toString("base64"),
+    CRON_SECRET: "",
   };
 }
