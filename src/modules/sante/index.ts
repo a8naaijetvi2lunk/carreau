@@ -1,0 +1,1 @@
+export { verifierBase } from "./sante";
