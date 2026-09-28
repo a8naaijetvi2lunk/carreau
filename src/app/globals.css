@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/*
+ * Jetons de design de Carreau (maquettes du 28/09/2026). Les composants n'utilisent
+ * QUE ces jetons : les couleurs par défaut de Tailwind sont retirées.
+ */
+@theme {
+  --color-*: initial;
+  --color-papier: #f4f1ea;
+  --color-carte: #fffdf8;
+  --color-blanc: #ffffff;
+  --color-encre: #15171c;
+  --color-encre-2: #3d434d;
+  --color-muet: #4e5561;
+  --color-ligne: #d9d3c7;
+  --color-ligne-douce: #ece7dd;
+  --color-ligne-forte: #c9c2b4;
+  --color-bleu: #2344c4;
+  --color-bleu-fonce: #1b3597;
+  --color-bleu-pale: #e4e9fb;
+  --color-orange: #b3470a;
+  --color-orange-fonce: #8a3606;
+  --color-orange-pale: #fdf3ea;
+  --color-ambre: #d08a2e;
+
+  --font-titre: var(--police-titre), system-ui, sans-serif;
+  --font-texte: var(--police-texte), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: var(--police-code), ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-papier font-texte text-encre antialiased;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-bleu);
+    outline-offset: 2px;
+  }
+}
