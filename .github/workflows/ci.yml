@@ -1,0 +1,59 @@
+name: Intégration continue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Lint, types, tests et build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: carreau
+          POSTGRES_PASSWORD: carreau
+          POSTGRES_DB: carreau_test
+        ports:
+          - 50171:5432
+        options: >-
+          --health-cmd "pg_isready -U carreau -d carreau_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://carreau:carreau@localhost:50171/carreau_test
+      DATABASE_URL_TEST: postgres://carreau:carreau@localhost:50171/carreau_test
+      APP_URL: http://localhost:50173
+      IMAGES_DIR: /tmp/carreau-images
+      # Clé de test (octets 0 à 31), sans valeur réelle.
+      CHIFFREMENT_CLE: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:integration
+      - name: Build de production
+        run: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(openssl rand -base64 32)" npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: rapport-playwright
+          path: playwright-report
+          retention-days: 7
