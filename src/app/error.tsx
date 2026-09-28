@@ -8,10 +8,10 @@ import { Bouton, LienBouton } from "@/components/ui";
  */
 export default function PageErreur({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-4 px-5 py-12">
@@ -22,7 +22,7 @@ export default function PageErreur({
       </p>
       {error.digest ? <p className="text-sm text-muet">Référence : {error.digest}</p> : null}
       <div className="flex flex-wrap gap-2">
-        <Bouton onClick={() => reset()}>Réessayer</Bouton>
+        <Bouton onClick={() => retry()}>Réessayer</Bouton>
         <LienBouton href="/" variante="secondaire">
           Revenir à l’accueil
         </LienBouton>
