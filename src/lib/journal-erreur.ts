@@ -13,7 +13,7 @@
 export type ResumeErreur = {
   nom: string;
   message: string;
-  /** SQLSTATE PostgreSQL trouvé dans l'erreur ou dans sa chaîne de causes. */
+  /** Code trouvé dans l'erreur ou dans sa chaîne de causes : SQLSTATE PostgreSQL le plus souvent, parfois un code système (ECONNREFUSED) ou métier. */
   code?: string;
   contrainte?: string;
   table?: string;
