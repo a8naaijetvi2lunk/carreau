@@ -14,6 +14,12 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Tests unitaires, d'intégration (base isolée par fichier) et de bout en bout (ordinateur, iPhone, Android).
 - Image Docker de production et intégration continue GitHub Actions.
 
+### Corrigé (vérification et revue du lot)
+- `executerPage` relance une erreur de remplacement porteuse de la seule référence : l'erreur d'origine, journalisée brute par Next, exposait les paramètres SQL.
+- Tests d'intégration : seul `.env` est lu (plus de `.env.local` via `loadEnv`) et la base isolée est ciblée dès la collecte des tests.
+- `error.tsx` utilise `retry` (rechargement des Server Components).
+- Bases PostgreSQL de développement liées à `127.0.0.1` ; secret des purges vidé dans le serveur de bout en bout ; `.flotte` exclu du contexte Docker.
+
 ## 2026-09-28 — Cadrage technique
 
 ### Ajouté

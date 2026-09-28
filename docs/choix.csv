@@ -34,3 +34,6 @@ date,catégorie,choix,pourquoi
 2026-09-28,interface,Polices Bricolage Grotesque / Atkinson Hyperlegible / JetBrains Mono via next/font,"Auto-hébergées au build : CSP font-src 'self', aucune requête vers Google"
 2026-09-28,tests,Playwright sur trois projets (ordinateur Chromium / iPhone 15 WebKit / Pixel 7),"Le public étudiant est sur téléphone : WebKit et Android testés dès le socle"
 2026-09-28,ci,GitHub Actions avec PostgreSQL 17 en service,"Dépôt public : chaque push sur main prouve lint, types, tests et build"
+2026-09-28,sécurité,executerPage ne relance jamais l'erreur d'origine,"Next journalise brute toute erreur relancée : le message d'une erreur SQL contient ses paramètres (données personnelles)"
+2026-09-28,tests,Tests d'intégration : lecture du seul .env et bascule immédiate sur la base isolée,"loadEnv de Vite lit aussi .env.local ; une base isolée branchée dans beforeAll laisse la phase de collecte écrire en base de dev"
+2026-09-28,sécurité,Bases PostgreSQL locales liées à 127.0.0.1,"Docker Desktop publie sinon sur toutes les interfaces avec une règle de pare-feu permissive ; identifiants de dev publics"
