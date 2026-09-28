@@ -23,8 +23,8 @@ blob-report/
 .env.*
 !.env.example
 
-# Stockage local des fichiers téléversés
-/storage/
+# Données locales (images téléversées en développement)
+.donnees/
 
 # Journaux
 *.log
