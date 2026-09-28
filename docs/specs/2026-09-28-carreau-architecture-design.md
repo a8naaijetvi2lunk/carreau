@@ -89,7 +89,7 @@ Assistant IA (MCP) ──┘                                  │
 
 | Élément | Choix |
 | --- | --- |
-| Exécution | Node 24, Next.js 16 (App Router), React 19, TypeScript strict, pnpm |
+| Exécution | Node 24, Next.js 16 (App Router), React 19, TypeScript strict, npm |
 | Interface | Tailwind CSS 4 ; jetons de design repris des maquettes ; polices auto-hébergées par `next/font` (Bricolage Grotesque, Atkinson Hyperlegible, JetBrains Mono) |
 | Données | PostgreSQL 17, Drizzle ORM, node-postgres |
 | Validation | Zod 4 (`z.strictObject` sur toutes les entrées) |
@@ -117,10 +117,10 @@ src/
       sante/             healthcheck
   modules/               un dossier par domaine, index.ts public
     auth/  comptes/  parametres/  classes/  qcm/  images/  sessions/
-    examen/  surveillance/  resultats/  mcp/  journal/  purges/
+    examen/  surveillance/  resultats/  mcp/  journal/  limiteur/  sante/  purges/
   moteur/                logique pure, sans I/O : melange, notation, echeances, indice, code-session, recherche
   db/schema/             un fichier par domaine
-  lib/                   erreurs, action, reponse-api, page, env, horloge, ip, chiffrement, limiteur, journal
+  lib/                   erreurs, journal-erreur, action, reponse-api, page, env, horloge, ip, chiffrement, csp (sans accès à la base)
   components/ui/         composants partagés
 scripts/                 migrer, admin-creer, admin-reinitialiser-totp, purger
 drizzle/                 migrations SQL versionnées
@@ -136,7 +136,7 @@ e2e/                     Playwright
 
 ### 3.3 Contrats partagés
 
-- `lib/erreurs.ts` : `ErreurService` avec un code (`NON_TROUVE`, `INTERDIT`, `INVALIDE`, `CONFLIT`, `TROP_DE_REQUETES`, `EXPIRE`, `ETAT_INVALIDE`). `INTERDIT` et `NON_TROUVE` produisent tous deux une réponse 404.
+- `lib/erreurs.ts` : `ErreurService` avec un code (`NON_CONNECTE` 401, `ACCES_REFUSE` 403, `INTROUVABLE` 404, `VALIDATION` 422, `ETAT` 409, `CONFLIT` 409, `LIMITE_ATTEINTE` 429), repris d'iut-tc. Une ressource d'autrui lève `INTROUVABLE` (on ne révèle pas qu'elle existe) ; un rôle insuffisant lève `ACCES_REFUSE`, rendu en 404 dans les pages.
 - `lib/action.ts` : enveloppe des Server Actions (validation Zod, acteur, conversion des erreurs).
 - `lib/reponse-api.ts` : enveloppe des routes d'API (JSON exigé, limiteur, conversion des erreurs, `Cache-Control: no-store`).
 - `lib/horloge.ts` : horloge injectable ; **aucun appel direct à `Date.now()`** dans `modules` et `moteur`.
@@ -146,7 +146,7 @@ Variables d'environnement (noms) : `DATABASE_URL`, `DATABASE_URL_TEST`, `APP_URL
 
 ## 4. Modèle de données
 
-Noms de tables et de colonnes en français, `snake_case`. Identifiants UUID v7 (triables), sauf `evenement` (bigserial). Toutes les dates en `timestamptz` ; affichage en `Europe/Paris`.
+Noms de tables et de colonnes en français, `snake_case`. Identifiants UUID v4 (`gen_random_uuid()`), sauf `evenement` (bigserial) ; les tris se font sur les dates. Toutes les dates en `timestamptz` ; affichage en `Europe/Paris`.
 
 ### 4.1 Comptes et administration
 
@@ -195,7 +195,7 @@ Une session de **rattrapage** reprend l'instantané de sa session d'origine (et 
 
 ## 5. Authentification et comptes
 
-- **Premier compte** : `pnpm admin:creer <email>` crée le super-admin et affiche un lien d'activation à usage unique (Resend n'est pas encore configuré). Ordre d'installation : créer le super-admin, l'activer (mot de passe + TOTP), renseigner Resend et les paramètres RGPD, inviter.
+- **Premier compte** : `npm run admin:creer -- <email>` crée le super-admin et affiche un lien d'activation à usage unique (Resend n'est pas encore configuré). Ordre d'installation : créer le super-admin, l'activer (mot de passe + TOTP), renseigner Resend et les paramètres RGPD, inviter.
 - **Invitation** : lien à usage unique, valable `validite_invitation_jours` (7 par défaut), jeton en base haché. « Relancer » révoque l'ancien lien et en émet un nouveau. L'activation fait choisir un mot de passe (12 caractères minimum) puis enrôle le TOTP.
 - **Connexion** : e-mail + mot de passe, puis code TOTP. La session n'est pleinement valide qu'après la double authentification (`double_auth_validee`). Durée : 12 h au maximum, 30 min d'inactivité (le polling du tableau de bord compte comme activité) ; option « Rester connecté » à 30 jours sur un appareil personnel.
 - **Réinitialisation du mot de passe** : lien d'une heure, usage unique ; révoque toutes les sessions de l'utilisateur. Le TOTP est conservé.
@@ -336,7 +336,7 @@ Côté étudiant, aucun indice n'est affiché. Au retour d'une sortie, un bandea
 
 - Liste des comptes, invitations, relances, désactivation, réactivation, réinitialisation du TOTP (l'enseignant ré-enrôle à la connexion suivante ; ses sessions sont révoquées).
 - Rôles modifiables par le super-admin uniquement. Il reste toujours au moins un super-admin actif.
-- Le super-admin qui perd son TOTP utilise `pnpm admin:reinitialiser-totp <email>` sur le serveur.
+- Le super-admin qui perd son TOTP utilise `npm run admin:reinitialiser-totp -- <email>` sur le serveur.
 
 ### 9.3 E-mails
 
@@ -398,7 +398,7 @@ Tant que `conservation_evenements_jours`, `conservation_resultats_jours` et `con
 - Les services lèvent `ErreurService` ; les enveloppes (`action`, `reponse-api`, `page`) les convertissent. Aucune pile d'appels ni requête SQL n'est exposée en production.
 - Côté étudiant, les requêtes sont rejouées avec un délai croissant ; l'écran indique « Connexion perdue, tes réponses sont enregistrées » et reprend seul. Les validations sont idempotentes.
 - Toute erreur Resend, tout refus d'accès et tout déclenchement du limiteur est journalisé (sans donnée personnelle en clair).
-- Les états impossibles (session terminée, question déjà validée, demande déjà traitée) renvoient `ETAT_INVALIDE` avec un message compréhensible, jamais une erreur 500.
+- Les états impossibles (session terminée, question déjà validée, demande déjà traitée) renvoient `ETAT` avec un message compréhensible, jamais une erreur 500.
 
 ## 13. Tests
 
@@ -419,7 +419,7 @@ Scénario de bout en bout principal : un enseignant crée une classe et un QCM, 
 
 Horloge injectée à des valeurs réalistes. Aucun fichier `.env.local` chargé avant Vitest. Intégration continue GitHub Actions à chaque push sur `main` : lint, types, tests unitaires, tests d'intégration (service PostgreSQL), build, tests de bout en bout.
 
-Ports locaux : base de développement **50170**, base de test **50171**, serveur de bout en bout **50172** (bloc 50170-50179, disjoint d'iut-tc).
+Ports locaux : base de développement **50170**, base de test **50171**, serveur de bout en bout **50172**, serveur de développement **50173** (bloc 50170-50179, disjoint d'iut-tc).
 
 ## 14. Lots de livraison
 

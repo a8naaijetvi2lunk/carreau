@@ -44,6 +44,7 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 | PostgreSQL de développement | 50170 |
 | PostgreSQL de test | 50171 |
 | Serveur des tests de bout en bout | 50172 |
+| Serveur de développement (`next dev`) | 50173 |
 
 Bloc réservé : 50170-50179 (hors des plages réservées par Hyper-V).
 
