@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+.env*
+.donnees
+docs
+coverage
+e2e
+playwright.config.ts
+test-results
+playwright-report
+CLAUDE.md
+.claude
+.codegraph
