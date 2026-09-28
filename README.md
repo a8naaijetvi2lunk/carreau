@@ -17,7 +17,7 @@ Les étudiants rejoignent l’examen en scannant un QR code et répondent questi
 </div>
 
 > [!NOTE]
-> Carreau est en cours de développement. Les captures d’écran arriveront avec la première version fonctionnelle.
+> Carreau est en cours de développement. Le socle technique est en place ; les fonctionnalités arrivent lot par lot (voir la [feuille de route](#feuille-de-route)). Les captures d’écran arriveront avec la première version fonctionnelle.
 
 ## Pourquoi Carreau
 
@@ -101,9 +101,26 @@ flowchart LR
 | Emails | Resend |
 | Assistant IA | Serveur MCP (`mcp-handler`) |
 | Tests | Vitest (unitaires et intégration), Playwright (parcours complets, dont téléphone) |
-| Déploiement | Docker, Coolify |
+| Intégration continue | GitHub Actions : lint, format, types, tests unitaires et d’intégration, build, tests de bout en bout |
+| Déploiement | Image Docker autonome (build `standalone`), Coolify |
 
-Les choix techniques et leurs raisons sont consignés dans [`docs/choix.csv`](docs/choix.csv), l’architecture dans [`docs/memory.md`](docs/memory.md) et l’historique dans [`docs/changelog.md`](docs/changelog.md).
+### Organisation du code
+
+```
+src/
+  app/          pages et routes d’API (App Router)
+  modules/      un dossier par domaine métier, exposé par son index.ts ; les droits sont vérifiés dans les services
+  moteur/       logique pure, sans accès à la base : mélange, notation, échéances, indice (à partir du lot 4)
+  lib/          contrats partagés : erreurs, enveloppes, environnement, horloge, chiffrement, CSP
+  db/           schéma Drizzle
+  components/   composants d’interface partagés
+drizzle/        migrations SQL versionnées
+e2e/            tests de bout en bout (Playwright)
+```
+
+Ces frontières sont vérifiées par ESLint : une page n’atteint un domaine que par son point d’entrée public, un domaine n’importe jamais une page, et le moteur reste testable sans base de données.
+
+Les choix techniques et leurs raisons sont consignés dans [`docs/choix.csv`](docs/choix.csv), l’architecture dans [`docs/memory.md`](docs/memory.md), la conception détaillée dans [`docs/specs/`](docs/specs/) et l’historique dans [`docs/changelog.md`](docs/changelog.md).
 
 ## Démarrer en local
 
@@ -119,28 +136,43 @@ npm run dev             # http://localhost:50173
 
 | Commande | Rôle |
 | --- | --- |
-| `npm run lint`, `npm run typecheck` | Qualité du code, frontières d’architecture et types |
+| `npm run lint`, `npm run format:check`, `npm run typecheck` | Qualité du code, frontières d’architecture, mise en forme et types |
 | `npm test` | Tests unitaires et couverture |
-| `npm run test:integration` | Tests d’intégration sur une base PostgreSQL isolée |
+| `npm run test:integration` | Tests d’intégration, chaque fichier sur sa propre base PostgreSQL clonée |
 | `npm run build && npm run test:e2e` | Tests de bout en bout sur le build de production (ordinateur, iPhone, Android) |
+
+L’image Docker de production applique les migrations au démarrage, puis lance le serveur ; son état est exposé sur `/api/sante`. La procédure de mise en ligne sera documentée avec le dernier lot.
 
 ## Feuille de route
 
-- [ ] Administration : invitations, rôles, paramètres
-- [ ] Classes et étudiants, import CSV / Excel
-- [ ] Éditeur de QCM : types de questions, images, code, barème, questions liées
-- [ ] Sessions : QR code renouvelé, salle d’attente, démarrage commun
-- [ ] Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps
-- [ ] Détection des écarts et indice de suspicion
-- [ ] Suivi en direct pour l’enseignant
-- [ ] Résultats, exports et rapports par étudiant
-- [ ] Connexion MCP
-- [ ] PWA installable
-- [ ] Déploiement
+Chaque lot est livré avec ses tests, sa documentation et une intégration continue verte.
+
+| Lot | Contenu | État |
+| --- | --- | --- |
+| 0 | Socle technique : Next.js 16 autonome, PostgreSQL et migrations, CSP à nonce, limiteur de débit, journal d’audit, tests et intégration continue | ✅ Livré |
+| 1 | Comptes : super-administrateur, invitations par email, double authentification (TOTP) obligatoire, rôles, paramètres d’envoi et de conservation | À venir |
+| 2 | Classes et étudiants : import CSV / Excel ou collage, tiers-temps | À venir |
+| 3 | Éditeur de QCM : types de questions, images, code, barème, questions liées, chrono | À venir |
+| 4 | Sessions : QR code renouvelé, écran projeté, salle d’attente, démarrage commun | À venir |
+| 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | À venir |
+| 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | À venir |
+| 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | À venir |
+| 8 | Connexion MCP : jetons par enseignant, création de brouillons | À venir |
+| 9 | PWA et identité visuelle : installation, scanner intégré, icônes | À venir |
+| 10 | Mise en production : Coolify, purges automatiques, sauvegardes | À venir |
 
 ## Sécurité
 
-Carreau sert à évaluer : une faille peut fausser des notes ou exposer des données d’étudiants. Merci de signaler toute vulnérabilité de façon privée, comme décrit dans [`SECURITY.md`](SECURITY.md).
+Carreau sert à évaluer : une faille peut fausser des notes ou exposer des données d’étudiants. Le code part donc du principe que certains utilisateurs chercheront à contourner les règles.
+
+- **En-têtes stricts** : Content Security Policy à nonce générée à chaque requête, interdiction d’affichage dans un cadre, HSTS en production.
+- **Entrées contrôlées** : chaque entrée est validée côté serveur (Zod), les corps JSON sont bornés en taille, les requêtes SQL sont toujours paramétrées.
+- **Limitation de débit** : compteurs stockés en base, par compte, par adresse IP ou par participation.
+- **Secrets chiffrés** : les secrets conservés en base, comme la clé d’envoi des emails, sont chiffrés en AES-256-GCM.
+- **Erreurs sans fuite** : aucune pile d’appels ni requête SQL n’est renvoyée, et les journaux ne contiennent pas de données personnelles.
+- **Droits vérifiés côté serveur** : dans chaque service, jamais seulement dans l’interface ; la ressource d’un autre enseignant répond « introuvable ».
+
+Merci de signaler toute vulnérabilité de façon privée, comme décrit dans [`SECURITY.md`](SECURITY.md).
 
 ## Contribuer
 

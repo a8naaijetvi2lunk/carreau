@@ -20,6 +20,9 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - `error.tsx` utilise `retry` (rechargement des Server Components).
 - Bases PostgreSQL de développement liées à `127.0.0.1` ; secret des purges vidé dans le serveur de bout en bout ; `.flotte` exclu du contexte Docker.
 
+### Modifié
+- `README.md` : état d'avancement, organisation du code et frontières, mesures de sécurité transverses, image Docker, feuille de route par lot (lot 0 livré).
+
 ## 2026-09-28 — Cadrage technique
 
 ### Ajouté
