@@ -1,5 +1,4 @@
 import path from "node:path";
-import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -7,7 +6,6 @@ export default defineConfig({
     environment: "node",
     include: ["**/*.integration.test.ts"],
     exclude: ["**/node_modules/**", "**/.next/**"],
-    env: loadEnv("", process.cwd(), ""),
     // Base modèle migrée une fois (src/test/global-setup.ts), puis une base isolée par
     // fichier (src/test/base-isolee.ts) : les fichiers tournent en parallèle.
     globalSetup: ["src/test/global-setup.ts"],

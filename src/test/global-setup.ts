@@ -9,8 +9,8 @@ import path from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
-import { loadEnv } from "vite";
 import { BASE_MODELE, sousVerrou, urlBase } from "./bases";
+import { appliquerFichierEnv } from "./env-fichier";
 
 const DOSSIER_MIGRATIONS = path.resolve(process.cwd(), "drizzle");
 
@@ -31,10 +31,8 @@ function empreinteMigrations(): string {
 }
 
 export default async function setup(): Promise<void> {
-  // `test.env` ne s'applique qu'aux workers : charger .env ici aussi.
-  for (const [cle, valeur] of Object.entries(loadEnv("", process.cwd(), ""))) {
-    process.env[cle] ??= valeur;
-  }
+  // Seul .env est lu (jamais .env.local) ; les variables déjà posées gardent la priorité.
+  appliquerFichierEnv();
 
   const empreinte = empreinteMigrations();
 
