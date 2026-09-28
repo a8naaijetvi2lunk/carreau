@@ -2,6 +2,9 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { db } from "./index";
 
+// Relevé pendant la collecte, avant tout hook : la base isolée doit déjà être la cible.
+const URL_A_LA_COLLECTE = process.env.DATABASE_URL ?? "http://x/";
+
 describe("base de test isolée", () => {
   it("répond et contient les tables du socle", async () => {
     const resultat = await db().execute<{ nom: string }>(
@@ -12,5 +15,9 @@ describe("base de test isolée", () => {
 
   it("n'est jamais la base de développement", () => {
     expect(new URL(process.env.DATABASE_URL ?? "http://x/").pathname).toMatch(/^\/carreau_t_[0-9a-f]{32}$/);
+  });
+
+  it("vise la base isolée dès la collecte, avant tout hook", () => {
+    expect(new URL(URL_A_LA_COLLECTE).pathname).toMatch(/^\/carreau_t_[0-9a-f]{32}$/);
   });
 });

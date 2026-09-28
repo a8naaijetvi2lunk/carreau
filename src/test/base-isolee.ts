@@ -1,6 +1,8 @@
 /**
  * Base PostgreSQL isolée par fichier de test d'intégration, branchée automatiquement par
  * src/test/setup-integration.ts : un test ne peut pas écrire par oubli dans la base de dev.
+ * La bascule de DATABASE_URL est immédiate (avant la collecte des tests) : un db() appelé hors
+ * d'un hook échoue (base pas encore créée) au lieu d'atteindre la base de développement.
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll } from "vitest";
@@ -17,12 +19,14 @@ export function utiliserBaseIsolee(): void {
   const nomBase = `carreau_t_${randomUUID().replaceAll("-", "")}`;
   const urlPrecedente = process.env.DATABASE_URL;
 
+  process.env.DATABASE_URL = urlBase(nomBase);
+  reinitialiserEnvPourLesTests();
+
   beforeAll(async () => {
     await sousVerrou(async (client) => {
       await client.query(`CREATE DATABASE ${nomBase} TEMPLATE ${BASE_MODELE}`);
     });
-    process.env.DATABASE_URL = urlBase(nomBase);
-    reinitialiserEnvPourLesTests();
+    // Un pool ouvert pendant la collecte visait une base encore inexistante : on repart de zéro.
     await fermerDbPourLesTests();
   });
 
