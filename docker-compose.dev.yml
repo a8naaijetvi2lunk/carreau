@@ -1,0 +1,39 @@
+services:
+  # Base de développement (npm run db:up ; DATABASE_URL de .env.example)
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carreau
+      POSTGRES_PASSWORD: carreau
+      POSTGRES_DB: carreau
+    ports:
+      - "50170:5432"
+    volumes:
+      - carreau_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carreau -d carreau"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # Base des tests d'intégration et de bout en bout : données en mémoire, jamais persistées
+  db-test:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carreau
+      POSTGRES_PASSWORD: carreau
+      POSTGRES_DB: carreau_test
+    ports:
+      - "50171:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carreau -d carreau_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  carreau_db_data:
