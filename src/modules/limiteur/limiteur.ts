@@ -2,8 +2,9 @@ import "server-only";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { limiteur } from "@/db/schema";
-import { erreurs } from "@/lib/erreurs";
+import { ErreurService, erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
+import { journaliser } from "@/modules/journal";
 
 /** Règle d'une clé du limiteur (spec §11.2). */
 export type RegleLimite = {
@@ -124,4 +125,24 @@ export async function purgerLimiteur(ageSecondes: number): Promise<number> {
     )
     .returning({ cle: l.cle });
   return supprimees.length;
+}
+
+/**
+ * `reserver`, et journalise le refus avant de relancer LIMITE_ATTEINTE (spec §12 : tout
+ * déclenchement du limiteur est journalisé). `cible` ne contient jamais de donnée personnelle
+ * en clair (identifiant technique uniquement).
+ */
+export async function reserverJournalise(
+  cle: string,
+  regle: RegleLimite,
+  journal: { action: string; cible?: string },
+): Promise<void> {
+  try {
+    await reserver(cle, regle);
+  } catch (erreur) {
+    if (erreur instanceof ErreurService && erreur.code === "LIMITE_ATTEINTE") {
+      await journaliser({ acteur: { type: "anonyme" }, action: journal.action, cible: journal.cible });
+    }
+    throw erreur;
+  }
 }
