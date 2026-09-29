@@ -29,3 +29,8 @@ export function LienBouton({
 }: ComponentProps<typeof Link> & { variante?: Variante }) {
   return <Link className={`${BASE} ${VARIANTES[variante]} ${className}`} {...props} />;
 }
+
+/** Classes d'un bouton, pour un lien qui en prend l'apparence (ex. `LienSansPerte` de l'éditeur). */
+export function classesBouton(variante: Variante = "primaire"): string {
+  return `${BASE} ${VARIANTES[variante]}`;
+}
