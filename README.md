@@ -54,7 +54,10 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 ### Pour l’administration
 
 - Un super-administrateur et des administrateurs invitent, relancent et désactivent les comptes enseignants.
-- Le super-administrateur règle l’envoi des emails, la validité des invitations et la durée de conservation des données.
+- **Invitations** : lien personnel à usage unique, valable 7 jours par défaut. « Relancer » révoque l’ancien lien et en émet un nouveau, que l’email soit parti ou non.
+- **Désactivation** : ferme aussitôt les sessions ouvertes et les jetons MCP de l’enseignant ; ses données sont conservées et redeviennent accessibles à la réactivation.
+- **Double authentification perdue** : un admin la réinitialise pour un enseignant depuis l’administration (nouvel enrôlement à la connexion suivante) ; le super-admin passe par `npm run admin:reinitialiser-totp -- <email>` sur le serveur.
+- Le super-administrateur règle en plus les rôles, l’envoi des emails, la validité des invitations et la durée de conservation des données.
 
 ## Anti-triche : ce que Carreau détecte, et ce qu’il ne peut pas détecter
 
@@ -131,8 +134,11 @@ npm install
 cp .env.example .env    # puis renseigner CHIFFREMENT_CLE et NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 npm run db:up           # PostgreSQL de développement (50170) et de test (50171)
 npm run db:migrate
+npm run admin:creer -- ton.adresse@exemple.fr   # lien d'activation du premier compte (super-admin)
 npm run dev             # http://localhost:50173
 ```
+
+Ouvre le lien, choisis ton mot de passe et configure la double authentification ; renseigne ensuite Resend et la conservation des données dans Paramètres, puis invite tes collègues.
 
 | Commande | Rôle |
 | --- | --- |
@@ -140,6 +146,8 @@ npm run dev             # http://localhost:50173
 | `npm test` | Tests unitaires et couverture |
 | `npm run test:integration` | Tests d’intégration, chaque fichier sur sa propre base PostgreSQL clonée |
 | `npm run build && npm run test:e2e` | Tests de bout en bout sur le build de production (ordinateur, iPhone, Android) |
+| `npm run admin:creer -- <email>` | Invitation du premier super-admin, lien affiché une fois |
+| `npm run admin:reinitialiser-totp -- <email>` | Double authentification perdue : nouvel enrôlement à la prochaine connexion |
 
 L’image Docker de production applique les migrations au démarrage, puis lance le serveur ; son état est exposé sur `/api/sante`. La procédure de mise en ligne sera documentée avec le dernier lot.
 
@@ -150,7 +158,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | Lot | Contenu | État |
 | --- | --- | --- |
 | 0 | Socle technique : Next.js 16 autonome, PostgreSQL et migrations, CSP à nonce, limiteur de débit, journal d’audit, tests et intégration continue | ✅ Livré |
-| 1 | Comptes : super-administrateur, invitations par email, double authentification (TOTP) obligatoire, rôles, paramètres d’envoi et de conservation | À venir |
+| 1 | Comptes : super-administrateur, invitations par email, double authentification (TOTP) obligatoire, rôles, paramètres d’envoi et de conservation | ✅ Livré |
 | 2 | Classes et étudiants : import CSV / Excel ou collage, tiers-temps | À venir |
 | 3 | Éditeur de QCM : types de questions, images, code, barème, questions liées, chrono | À venir |
 | 4 | Sessions : QR code renouvelé, écran projeté, salle d’attente, démarrage commun | À venir |
@@ -171,6 +179,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Secrets chiffrés** : les secrets conservés en base, comme la clé d’envoi des emails, sont chiffrés en AES-256-GCM.
 - **Erreurs sans fuite** : aucune pile d’appels ni requête SQL n’est renvoyée, et les journaux ne contiennent pas de données personnelles.
 - **Droits vérifiés côté serveur** : dans chaque service, jamais seulement dans l’interface ; la ressource d’un autre enseignant répond « introuvable ».
+- **Comptes protégés** : mots de passe argon2id, double authentification TOTP obligatoire, sessions de 12 h (30 min d’inactivité) révoquées à la désactivation et à la réinitialisation du mot de passe, limitation des tentatives.
 
 Merci de signaler toute vulnérabilité de façon privée, comme décrit dans [`SECURITY.md`](SECURITY.md).
 

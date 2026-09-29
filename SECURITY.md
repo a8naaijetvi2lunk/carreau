@@ -16,6 +16,7 @@ Sont notamment concernés :
 - accès à une bonne réponse ou à une question avant son affichage prévu ;
 - usurpation de l’identité d’un étudiant, participation à une session sans y être invité ;
 - accès aux données d’une autre classe ou d’un autre enseignant, élévation de privilèges ;
+- prise de contrôle d’un compte : contournement de la double authentification, détournement d’une invitation, d’une réinitialisation de mot de passe ou d’une session ;
 - injection (SQL, XSS), téléversement de fichiers malveillants, fuite de secrets ;
 - abus du serveur MCP ou d’un jeton d’enseignant.
 

@@ -48,7 +48,7 @@ Appliquées sans nouvelle discussion. Source principale : le projet voisin « Pl
 | --- | --- |
 | Code organisé en modules par domaine ; droits vérifiés **uniquement dans les services**, qui reçoivent l'acteur en premier paramètre ; pages, actions, API et MCP appellent les mêmes services | Architecture iut-tc |
 | Refus d'accès rendu en 404 | `choix.csv` iut-tc |
-| Authentification maison : argon2id (`@node-rs/argon2`), sessions en base (jeton 256 bits haché SHA-256), cookie `__Host-`, TOTP (`@oslojs/otp`) avec anti-rejeu, secret chiffré AES-256-GCM, premier compte créé par script | Architecture iut-tc ; notes « better-auth : limiteur IP partagé derrière nginx » (26/08/2026) et « better-auth : la réinitialisation ne révoque pas sessions ni jetons » (28/07/2026) |
+| Authentification maison : argon2id (`@node-rs/argon2`), sessions en base (jeton 256 bits haché SHA-256), cookie `__Host-`, TOTP écrit dans le projet (RFC 4226 et 6238, `node:crypto` ; `@oslojs/otp` écarté le 29/09/2026, paquet signalé par npm) avec anti-rejeu, secret chiffré AES-256-GCM, premier compte créé par script | Architecture iut-tc ; notes « better-auth : limiteur IP partagé derrière nginx » (26/08/2026) et « better-auth : la réinitialisation ne révoque pas sessions ni jetons » (28/07/2026) |
 | Limiteur en table SQL, clés séparées par compte, IP et rôle ; la salle entière partage une IP ; IP lue dans `X-Real-IP`, sinon la **dernière** valeur de `X-Forwarded-For` | Architecture iut-tc ; note « limiteur IP partagé derrière nginx » |
 | Temps réel par polling, pas de WebSocket ni SSE derrière Nginx Proxy Manager | `choix.csv` iut-tc |
 | Routes d'API (et non Server Actions) pour les écritures fréquentes : Next met en file les actions d'un même client | `choix.csv` iut-tc |

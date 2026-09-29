@@ -2,6 +2,31 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-29 — Lot 1 : comptes
+
+### Ajouté
+- Authentification maison : mots de passe argon2id, sessions en deux temps (mot de passe puis TOTP), cookie `__Host-carreau_session` selon le protocole d'`APP_URL`.
+- TOTP écrit dans le projet (HOTP et TOTP des RFC 4226 et 6238, base32 de la RFC 4648, `node:crypto`) avec anti-rejeu, QR code et clé à saisir à la main.
+- Comptes : invitations par lien à usage unique portant seulement l'email et le rôle, activation (mot de passe puis enrôlement du TOTP), gestion des comptes (lister, désactiver, réactiver, réinitialiser la double authentification, changer le rôle), mot de passe oublié.
+- Rôles `super_admin` / `admin` / `enseignant` ; droits vérifiés dans les services ; au moins un super-admin actif garanti sous verrou.
+- Paramètres de l'installation : envoi Resend (clé chiffrée, adresse et nom d'expéditeur), validité des invitations, conservation RGPD (ligne unique, créée par upsert).
+- Module `emails` : modèles écrits dans le code (invitation, relance, réinitialisation, test), transport Resend injectable, limite de 3 envois par heure et par destinataire.
+- Scripts serveur `admin:creer` (premier super-admin, lien d'activation affiché une fois) et `admin:reinitialiser-totp` (double authentification perdue).
+- Pages `(auth)` (connexion, double authentification, activation, mot de passe oublié, réinitialisation) et `(espace)` (tableau de bord enseignant, administration des comptes et des paramètres).
+- Tests unitaires et d'intégration des modules `auth`, `comptes`, `parametres`, `emails` ; tests de bout en bout de l'invitation et de l'activation d'un enseignant.
+
+### Corrigé (vérification du lot)
+- `admin:creer` acceptait des adresses que la connexion refuse (accents, tiret bas dans le domaine) : `normaliserEmail` utilise désormais la même regex que `z.email()`.
+- La demande de réinitialisation répondait plus lentement pour un compte actif (écriture puis envoi), ce qui permettait d'énumérer les comptes : la recherche du compte et l'envoi s'exécutent maintenant après la réponse, avec `after()`.
+- Aucun refus d'accès n'était journalisé alors que la spec l'exige : `journaliserLesRefus` écrit désormais `acces.refus` hors transaction pour chaque service à acteur.
+- Un admin pouvait remplacer l'invitation d'un futur admin posée par le super-admin : le rôle de l'invitation en attente est maintenant contrôlé avant tout remplacement.
+
+### Modifié
+- `README.md` : lot 1 marqué livré, premier compte par `npm run admin:creer`, ordre d'installation, commandes d'administration, sécurité des comptes.
+- `SECURITY.md` : prise de contrôle d'un compte ajoutée au périmètre des vulnérabilités.
+- `docs/specs/2026-09-28-carreau-architecture-design.md` : §2, TOTP écrit dans le projet plutôt que `@oslojs/otp` (amendement A1).
+- `docs/memory.md`, `docs/choix.csv` : décisions du plan du lot 1 (D1 à D13) et décisions prises pendant le run.
+
 ## 2026-09-28 — Lot 0 : socle technique
 
 ### Ajouté

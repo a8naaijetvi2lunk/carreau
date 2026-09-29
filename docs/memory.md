@@ -37,6 +37,31 @@ Application web unique (Next.js 16) servant trois publics :
 
 Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/2026-09-28-carreau-architecture-design.md) : arborescence, modèle de données, moteur d'examen, surveillance, sécurité, tests et lots de livraison.
 
+## Comptes (lot 1)
+
+- **Connexion en deux temps** : le mot de passe (ou l'activation) ouvre une session en attente (`double_auth_validee = false`), valable 10 min. Le code TOTP la valide : le jeton change (rotation), la session devient complète pour 12 h (30 min d'inactivité) ou, avec « Rester connecté », 30 jours sans limite d'inactivité.
+- **Enrôlement du TOTP** : porté par la session en attente. Le secret à enrôler est tiré à l'affichage de l'écran de double authentification et stocké chiffré sur la session (`session_connexion.totp_en_attente_chiffre`) ; il ne rejoint le compte (`utilisateur.totp_secret_chiffre`) qu'à la validation du premier code.
+- **Cookie de session** : nom et attribut `Secure` déduits du protocole de `APP_URL`, jamais de `NODE_ENV` — `__Host-carreau_session` + `Secure` en HTTPS, `carreau_session` sans `Secure` sinon.
+- **Invitation** : ne porte que l'email et le rôle ; nom et prénom sont saisis à l'activation. Le lien d'activation, à usage unique, est affiché une fois à l'inviteur (résultat de l'invitation ou de la relance), que l'email soit parti ou non. Une seule invitation en attente par adresse.
+- **Premier compte** : créé hors interface par `npm run admin:creer -- <email>` (script serveur). Au moins un super-admin actif en permanence : toute action de gestion par un super-admin verrouille d'abord la liste des super-admins actifs et vérifie qu'il en fait toujours partie.
+- **TOTP écrit dans le projet** (amendement A1 au plan du lot 1) : `@oslojs/otp` signalé « no longer supported » par npm le 29/07/2026 ; HOTP (RFC 4226) et TOTP (RFC 6238) réécrits avec `node:crypto`, base32 (RFC 4648) inclus, testés contre les vecteurs officiels des trois RFC.
+
+### Modules du lot
+
+- `auth` : hachage argon2id, sessions (ouverture en attente, validation, révocation), TOTP (génération, vérification, anti-rejeu par pas), acteur de la session courante.
+- `comptes` : activation, invitations (créer, relancer, annuler), gestion des comptes (lister, désactiver, réactiver, réinitialiser la double authentification, changer le rôle), mot de passe oublié.
+- `parametres` : ligne unique de configuration (envoi Resend chiffré, validité des invitations, conservation RGPD) ; ne renvoie jamais la clé Resend à une page.
+- `emails` : modèles écrits dans le code (invitation, relance, réinitialisation, test), transport Resend injectable, limite par destinataire.
+
+### Décisions prises pendant le run (en plus de D1 à D13 du plan)
+
+1. TOTP écrit dans le projet plutôt que `@oslojs/otp` (amendement A1).
+2. `journaliserLesRefus` (module `journal`) : chaque service à acteur journalise `acces.refus` hors transaction quand il lève `ACCES_REFUSE` (spec §12).
+3. Mot de passe oublié : la demande ne fait que valider et compter la limite par IP ; recherche du compte, écriture du jeton et envoi s'exécutent après la réponse (`after()` de Next), pour une durée de réponse identique que le compte existe ou non.
+4. Réinviter une adresse ne remplace l'invitation en attente que si l'acteur gère le rôle de cette invitation (sinon `ACCES_REFUSE`) ; le journal garde l'identifiant de l'invitation remplacée.
+5. `admin:creer` valide l'adresse avec la même règle que la connexion (regex de `z.email()`).
+6. Les tests de `src/modules` sont en `*.integration.test.ts` : seule la suite d'intégration mesure la couverture des modules.
+
 ## Ports locaux
 
 | Usage | Port |
