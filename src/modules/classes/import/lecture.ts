@@ -48,7 +48,7 @@ export function detecterSeparateur(texte: string): "\t" | ";" | "," {
 
 /** Texte tabulaire → cellules. Un guillemet mal fermé refuse tout le fichier (il a pu avaler des lignes). */
 export function lireTexteTabulaire(texte: string): Cellule[][] {
-  const sansBom = texte.replace(/^﻿/, "");
+  const sansBom = texte.replace(/^\uFEFF/, "");
   const resultat = Papa.parse<string[]>(sansBom, {
     delimiter: detecterSeparateur(sansBom),
     skipEmptyLines: false,

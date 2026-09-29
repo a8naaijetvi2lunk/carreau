@@ -5,25 +5,33 @@
  */
 
 /**
- * Minuscules, accents retirés (NFD), ligatures « œ » et « æ » développées, apostrophes et
- * tirets remplacés par une espace, espaces réduits, rognée. « Jean-Pierre D’Arc » → « jean pierre d arc ».
+ * Minuscules, accents et caractères invisibles retirés (NFD, puis catégorie Unicode Cf : traits
+ * d'union conditionnels, espaces de largeur nulle, BOM…), ligatures « œ » et « æ » développées,
+ * apostrophes (dont ‘ et ´) et tirets remplacés par une espace, espaces réduits, rognée.
+ * « Jean-Pierre D’Arc » → « jean pierre d arc ».
  */
 export function normaliserNom(texte: string): string {
   return texte
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/\p{Cf}/gu, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/œ/g, "oe")
     .replace(/æ/g, "ae")
-    .replace(/['’ʼ`]/g, " ")
-    .replace(/[-‐-―−]/g, " ")
+    .replace(/['\u2019\u02bc\u2018\u00b4`]/g, " ")
+    .replace(/[-\u2010-\u2015\u2212]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
+/** Clé d'homonymie à partir de nom et prénom déjà normalisés (colonnes `nom_normalise` et `prenom_normalise`). */
+export function cleNormalisee(nomNormalise: string, prenomNormalise: string): string {
+  return JSON.stringify([nomNormalise, prenomNormalise]);
+}
+
 /** Clé d'homonymie d'un étudiant dans sa classe : nom et prénom normalisés. */
 export function cleEtudiant(nom: string, prenom: string): string {
-  return `${normaliserNom(nom)}|${normaliserNom(prenom)}`;
+  return cleNormalisee(normaliserNom(nom), normaliserNom(prenom));
 }
 
 /**

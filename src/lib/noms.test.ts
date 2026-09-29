@@ -19,6 +19,10 @@ describe("normaliserNom", () => {
     ["-", ""],
     ["’", ""],
     ["", ""],
+    ["O\u2018Neil", "o neil"],
+    ["D\u00b4Arc", "d arc"],
+    ["Jean\u00adPierre", "jeanpierre"],
+    ["L\u200be\u0301a", "lea"],
   ])("« %s » → « %s »", (entree, attendu) => {
     expect(normaliserNom(entree)).toBe(attendu);
   });
@@ -32,6 +36,14 @@ describe("cleEtudiant", () => {
 
   it("distingue nom et prénom", () => {
     expect(cleEtudiant("Léa", "Dupont")).not.toBe(cleEtudiant("Dupont", "Léa"));
+  });
+
+  it("ignore les caractères invisibles", () => {
+    expect(cleEtudiant("Du\u200bpont", "Léa")).toBe(cleEtudiant("Dupont", "Lea"));
+  });
+
+  it("neutralise le séparateur « | » : pas de collision entre nom et prénom", () => {
+    expect(cleEtudiant("a|b", "c")).not.toBe(cleEtudiant("a", "b|c"));
   });
 });
 

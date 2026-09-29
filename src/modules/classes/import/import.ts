@@ -12,7 +12,7 @@ import { etudiant } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
-import { cleEtudiant, normaliserNom } from "@/lib/noms";
+import { cleEtudiant, cleNormalisee, normaliserNom } from "@/lib/noms";
 import { journaliser, journaliserLesRefus } from "@/modules/journal";
 import {
   classeDeLActeur,
@@ -73,7 +73,10 @@ async function existantsParCle(executeur: Executeur, classeId: string): Promise<
     .from(etudiant)
     .where(eq(etudiant.classeId, classeId));
   return new Map(
-    lignes.map((l) => [`${l.nomNormalise}|${l.prenomNormalise}`, { id: l.id, tiersTemps: l.tiersTemps }]),
+    lignes.map((l) => [
+      cleNormalisee(l.nomNormalise, l.prenomNormalise),
+      { id: l.id, tiersTemps: l.tiersTemps },
+    ]),
   );
 }
 

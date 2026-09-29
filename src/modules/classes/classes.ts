@@ -6,7 +6,7 @@ import "server-only";
 import { count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { classe, etudiant } from "@/db/schema";
+import { classe, etudiant, utilisateur } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { erreurDepuisDetails, erreurs, type ErreurService } from "@/lib/erreurs";
 import { estViolationUnicite } from "@/lib/erreurs-sql";
@@ -97,6 +97,12 @@ export async function creerClasse(
     const { nom } = valider(schemaCreation, saisie, "Classe");
     try {
       return await db().transaction(async (tx) => {
+        // Sérialise les créations d'un même compte : la limite de 200 reste juste en concurrence.
+        await tx
+          .select({ id: utilisateur.id })
+          .from(utilisateur)
+          .where(eq(utilisateur.id, acteur.id))
+          .for("update");
         const [compte] = await tx
           .select({ total: count() })
           .from(classe)

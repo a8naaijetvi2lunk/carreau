@@ -94,6 +94,31 @@ describe("creerClasse", () => {
     });
   });
 
+  it("deux créations simultanées à la limite : une seule réussit", async () => {
+    const a = await acteur();
+    await db()
+      .insert(classe)
+      .values(
+        Array.from({ length: MAX_CLASSES_PAR_COMPTE - 1 }, (_, i) => ({
+          enseignantId: a.id,
+          nom: `C${i}`,
+          creeLe: maintenant(),
+        })),
+      );
+    const resultats = await Promise.allSettled([
+      creerClasse(a, { nom: "Concurrente A" }),
+      creerClasse(a, { nom: "Concurrente B" }),
+    ]);
+    expect(resultats.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const rejet = resultats.find((r) => r.status === "rejected");
+    expect(rejet?.status === "rejected" ? rejet.reason : null).toMatchObject({
+      code: "ETAT",
+      message: MESSAGE_LIMITE_CLASSES,
+    });
+    const lignes = await db().select({ id: classe.id }).from(classe).where(eq(classe.enseignantId, a.id));
+    expect(lignes).toHaveLength(MAX_CLASSES_PAR_COMPTE);
+  });
+
   it("refuse une saisie qui porte un champ inconnu", async () => {
     const a = await acteur();
     await expect(creerClasse(a, { nom: "TD1", enseignantId: a.id } as { nom: string })).rejects.toMatchObject(
