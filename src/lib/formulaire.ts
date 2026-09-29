@@ -1,0 +1,29 @@
+/** Lecture des formulaires envoyés aux Server Actions. Les services valident ensuite les valeurs. */
+
+/** Valeur texte d'un champ ; chaîne vide si le champ est absent ou si c'est un fichier. */
+export function lireChamp(formulaire: FormData, nom: string): string {
+  const valeur = formulaire.get(nom);
+  return typeof valeur === "string" ? valeur : "";
+}
+
+/** Case à cocher : vraie si elle est présente dans le formulaire. */
+export function lireCase(formulaire: FormData, nom: string): boolean {
+  return formulaire.get(nom) !== null;
+}
+
+/**
+ * Messages d'erreur par champ, à partir des `details` d'une erreur VALIDATION
+ * (`[{ chemin: "email", message }]`, voir `erreurDepuisZod`). Premier message de chaque champ.
+ */
+export function erreursParChamp(details: unknown): Record<string, string> {
+  if (!Array.isArray(details)) return {};
+  const resultat: Record<string, string> = {};
+  for (const detail of details) {
+    if (typeof detail !== "object" || detail === null) continue;
+    const { chemin, message } = detail as { chemin?: unknown; message?: unknown };
+    if (typeof chemin !== "string" || typeof message !== "string") continue;
+    const champ = chemin.split(".")[0] ?? "";
+    if (champ !== "" && !(champ in resultat)) resultat[champ] = message;
+  }
+  return resultat;
+}
