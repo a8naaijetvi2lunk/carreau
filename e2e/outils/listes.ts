@@ -1,7 +1,8 @@
 /** Listes de classe des tests de bout en bout : un CSV d'Excel et un classeur XLSX. */
 import writeExcelFile from "write-excel-file/node";
 
-const ETUDIANTS = [
+/** Les 30 étudiants valides de la liste du TD2 (nom en majuscules, prénom), dans l'ordre du fichier. */
+export const ETUDIANTS = [
   ["DUPONT", "Léa"],
   ["MARTIN", "Inès"],
   ["BERNARD", "Tom"],
