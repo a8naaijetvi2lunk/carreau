@@ -12,6 +12,7 @@ import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { LIMITES_SESSION, type StatutDemande, type StatutSession } from "@/lib/regles-session";
 import { lireIdentifiant, valider } from "@/lib/validation";
+import { preparerDepart } from "@/modules/examen";
 import { journaliser, journaliserLesRefus } from "@/modules/journal";
 import { parametresRgpdComplets } from "@/modules/parametres";
 import { MESSAGES_SESSION, messageStatut, sessionDeLActeur } from "./commun";
@@ -21,8 +22,8 @@ const schemaParticipation = z.strictObject({ participationId: z.string() });
 const schemaDemande = z.strictObject({ demandeId: z.string() });
 
 /**
- * « Démarrer » (spec §6.3, décision D12) : tout le monde commence dans 5 s. Aucun instantané au lot 4 :
- * le lot 5 complétera ce service (instantané, mélange, échéances).
+ * « Démarrer » (spec §6.3, décision D12) : tout le monde commence dans 5 s. Le départ fige
+ * l'instantané et prépare le passage de chacun (lot 5).
  */
 export async function demarrerSession(
   acteur: ActeurUtilisateur,
@@ -52,16 +53,14 @@ export async function demarrerSession(
         .update(sessionExamen)
         .set({ statut: "en_cours", demarreLe })
         .where(eq(sessionExamen.id, sessionId));
-      await tx
-        .update(participation)
-        .set({ statut: "en_cours" })
-        .where(eq(participation.sessionId, sessionId));
+      // Instantané, ordres et échéances de chaque participation (spec §6.3, lot 5).
+      const { questions } = await preparerDepart(tx, { sessionId, qcmId: lue.qcmId, demarreLe });
       await journaliser(
         {
           acteur: { type: "utilisateur", id: acteur.id },
           action: "sessions.demarrer",
           cible: `session:${sessionId}`,
-          details: { participants },
+          details: { participants, questions },
         },
         tx,
       );

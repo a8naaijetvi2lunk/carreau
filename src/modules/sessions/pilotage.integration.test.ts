@@ -100,7 +100,7 @@ describe("demarrerSession", () => {
       .where(eq(participation.sessionId, session.id));
     expect(participations.map((p) => p.statut)).toEqual(["en_cours", "en_cours"]);
     expect(await entree("sessions.demarrer", `session:${session.id}`)).toMatchObject({
-      details: { participants: 2 },
+      details: { participants: 2, questions: 2 },
     });
   });
 

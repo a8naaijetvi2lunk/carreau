@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { demandeAppareil, parametres, participation, sessionExamen } from "@/db/schema";
 import { maintenant } from "@/lib/horloge";
 import { genererJeton, sha256Hex } from "@/lib/jetons";
+import type { ModeChrono } from "@/lib/regles-qcm";
 import type { MotifDemande, StatutDemande, StatutParticipation, StatutSession } from "@/lib/regles-session";
 import { creerClasseTest, creerEtudiantTest } from "./classes";
 import { acteurDe, creerUtilisateur, exiger } from "./comptes";
@@ -109,7 +110,7 @@ const ETUDIANTS_PAR_DEFAUT: EtudiantAPreparer[] = [
 /**
  * Enseignante « Claire Arnaud », classe « TD2 » (Léa Dupont, Sacha Dupré, Hugo Dupuis par défaut),
  * QCM prêt « Algorithmique — Contrôle 2 » de deux questions (chrono global de 20 min, −0,25 par
- * erreur) et session.
+ * erreur) et session. `qcm` et `questions` remplacent le QCM par défaut (tests de l'examen).
  */
 export async function preparerSession(
   options: {
@@ -117,6 +118,8 @@ export async function preparerSession(
     statut?: StatutSession;
     codeSecret?: string;
     demarreLe?: Date | null;
+    qcm?: { modeChrono?: ModeChrono; dureeGlobaleS?: number | null; dureeQuestionS?: number | null };
+    questions?: Parameters<typeof creerQuestionTest>[1][];
   } = {},
 ) {
   const enseignant = await creerUtilisateur({ prenom: "Claire", nom: "Arnaud" });
@@ -128,11 +131,13 @@ export async function preparerSession(
   const qcm = await creerQcmTest(enseignant.id, {
     titre: "Algorithmique — Contrôle 2",
     statut: "pret",
-    modeChrono: "global",
-    dureeGlobaleS: 1200,
+    modeChrono: options.qcm?.modeChrono ?? "global",
+    dureeGlobaleS: options.qcm?.dureeGlobaleS === undefined ? 1200 : options.qcm.dureeGlobaleS,
+    dureeQuestionS: options.qcm?.dureeQuestionS ?? null,
   });
-  await creerQuestionTest(qcm.id, { pointsMauvaise: -0.25 });
-  await creerQuestionTest(qcm.id, { pointsMauvaise: -0.25 });
+  for (const q of options.questions ?? [{ pointsMauvaise: -0.25 }, { pointsMauvaise: -0.25 }]) {
+    await creerQuestionTest(qcm.id, q);
+  }
   const session = await creerSessionTest(enseignant.id, qcm.id, classe.id, {
     statut: options.statut,
     codeSecret: options.codeSecret,

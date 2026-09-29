@@ -1,0 +1,1 @@
+export { preparerDepart } from "./depart";
