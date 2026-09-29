@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LienBouton } from "@/components/ui";
 import { executerPage } from "@/lib/page";
 import { exigerActeur } from "@/modules/auth";
 
@@ -19,8 +20,12 @@ export default async function AccueilEnseignant() {
           Ton compte est prêt
         </h2>
         <p className="text-encre-2">
-          La création des classes, des QCM et des sessions arrive avec les prochaines versions de Carreau.
+          Commence par créer tes classes et importer la liste de tes étudiants. Les QCM et les sessions
+          arrivent avec les prochaines versions de Carreau.
         </p>
+        <LienBouton href="/enseignant/classes" className="self-start">
+          Mes classes
+        </LienBouton>
       </section>
     </>
   );

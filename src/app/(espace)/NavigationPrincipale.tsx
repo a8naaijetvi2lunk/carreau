@@ -7,7 +7,9 @@ import type { ReactNode } from "react";
 export type LienNavigation = {
   href: string;
   libelle: string;
-  icone: "accueil" | "enseignants" | "parametres";
+  icone: "accueil" | "classes" | "enseignants" | "parametres";
+  /** Actif seulement sur son adresse exacte (l'accueil /enseignant ne doit pas l'être sur /enseignant/classes). */
+  exact?: boolean;
 };
 
 function Icone({ children }: { children: ReactNode }) {
@@ -33,6 +35,14 @@ const ICONES: Record<LienNavigation["icone"], ReactNode> = {
     <Icone>
       <path d="M3 10.5L12 3l9 7.5" />
       <path d="M5 9.5V20h5v-6h4v6h5V9.5" />
+    </Icone>
+  ),
+  classes: (
+    <Icone>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
+      <path d="M16 4.5a3.5 3.5 0 0 1 0 7" />
+      <path d="M18 14.5c2.2.6 3.5 2.7 3.5 5.5" />
     </Icone>
   ),
   enseignants: (
@@ -63,7 +73,9 @@ export function NavigationPrincipale({ liens }: { liens: LienNavigation[] }) {
   return (
     <ul className="flex flex-wrap gap-1 md:flex-col">
       {liens.map((lien) => {
-        const actif = chemin === lien.href || chemin.startsWith(`${lien.href}/`);
+        const actif = lien.exact
+          ? chemin === lien.href
+          : chemin === lien.href || chemin.startsWith(`${lien.href}/`);
         return (
           <li key={lien.href}>
             <Link

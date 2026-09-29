@@ -16,7 +16,10 @@ export default async function LayoutEspace({ children }: Readonly<{ children: Re
     const acteur = await exigerActeur();
     return { acteur, rgpdIncomplet: acteur.role === "super_admin" && !(await parametresRgpdComplets()) };
   });
-  const liens: LienNavigation[] = [{ href: "/enseignant", libelle: "Accueil", icone: "accueil" }];
+  const liens: LienNavigation[] = [
+    { href: "/enseignant", libelle: "Accueil", icone: "accueil", exact: true },
+    { href: "/enseignant/classes", libelle: "Classes", icone: "classes" },
+  ];
   const liensAdministration: LienNavigation[] = [];
   if (estAdministrateur(acteur.role)) {
     liensAdministration.push({ href: "/admin/enseignants", libelle: "Enseignants", icone: "enseignants" });
