@@ -18,3 +18,14 @@ export {
   modifierEtudiant,
   retirerEtudiant,
 } from "./etudiants";
+export {
+  analyserImport,
+  importerEtudiants,
+  type ApercuImport,
+  type BilanImport,
+  type LigneApercu,
+  type StatutLigneImport,
+} from "./import/import";
+export type { RejetImport } from "./import/analyse";
+export type { SourceImport } from "./import/lecture";
+export { MESSAGES_IMPORT, TAILLE_MAX_IMPORT_OCTETS } from "./import/messages";
