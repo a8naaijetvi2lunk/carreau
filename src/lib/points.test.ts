@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formaterPoints, libellePoints, lirePoints, MESSAGE_POINTS_NOMBRE, problemePoints } from "./points";
+import {
+  formaterNote,
+  formaterPoints,
+  libellePoints,
+  lirePoints,
+  MESSAGE_POINTS_NOMBRE,
+  problemePoints,
+} from "./points";
 
 const MOINS = String.fromCharCode(0x2212);
 
@@ -86,5 +93,14 @@ describe("libellePoints", () => {
     [-0.25, `${MOINS}0,25 pt`],
   ])("affiche %s en « %s »", (valeur, attendu) => {
     expect(libellePoints(valeur)).toBe(attendu);
+  });
+});
+
+describe("formaterNote", () => {
+  it("affiche la note avec une virgule, sans zéro inutile (spec §6.6)", () => {
+    expect(formaterNote(14.5)).toBe("14,5");
+    expect(formaterNote(6.67)).toBe("6,67");
+    expect(formaterNote(20)).toBe("20");
+    expect(formaterNote(0)).toBe("0");
   });
 });

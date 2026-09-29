@@ -52,3 +52,8 @@ export function libellePoints(valeur: number): string {
   const texte = formaterPoints(valeur).replace(/^\+/, "");
   return `${texte} ${Math.abs(valeur) >= 2 ? "pts" : "pt"}`;
 }
+
+/** Note sur 20 au format français : « 14,5 », « 6,67 », « 20 » (spec §6.6). */
+export function formaterNote(note: number): string {
+  return String(Math.round(note * 100) / 100).replace(".", ",");
+}
