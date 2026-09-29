@@ -1,5 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { appliquerEnvValide } from "@/test/env-valide";
+import { describe, expect, it } from "vitest";
 import {
   chiffrerSecretTotp,
   cleManuelle,
@@ -18,8 +17,6 @@ const SECRET_RFC = new Uint8Array(Buffer.from("12345678901234567890", "ascii"));
 /** Secret fixe : octets 1 à 20 (base32 « AEBAGBAFAYDQQCIKBMGA2DQPCAIREEYU »). */
 const SECRET = new Uint8Array(20).map((_, i) => i + 1);
 const INSTANT = new Date("2026-09-29T08:00:10.000Z");
-
-beforeAll(() => appliquerEnvValide());
 
 describe("HOTP (RFC 4226, annexe D)", () => {
   it("retrouve les dix codes de référence", () => {
