@@ -13,3 +13,12 @@ export {
   type QuestionEditee,
   type SaisieParametres,
 } from "./qcm";
+export {
+  ajouterQuestion,
+  deplacerQuestion,
+  enregistrerQuestion,
+  lierQuestion,
+  MESSAGE_QCM_PLEIN,
+  supprimerQuestion,
+  type SaisieQuestion,
+} from "./questions";
