@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { LienBouton } from "@/components/ui";
 import { executerPage } from "@/lib/page";
 import { exigerActeur } from "@/modules/auth";
-import { lireClasse, listerClasses } from "@/modules/classes";
+import { lireClasse, listerClasses, MESSAGES_IMPORT, TAILLE_MAX_IMPORT_OCTETS } from "@/modules/classes";
 import { ListeClasses } from "../ListeClasses";
 import { EnTeteClasse } from "./EnTeteClasse";
 import { FormulaireAjoutEtudiant } from "./FormulaireAjoutEtudiant";
+import { ImportEtudiants } from "./ImportEtudiants";
 import { ListeEtudiants } from "./ListeEtudiants";
 
 export const metadata: Metadata = { title: "Classe" };
@@ -37,6 +38,11 @@ export default async function PageClasse(props: PageProps<"/enseignant/classes/[
             classe={{ id: classe.id, nom: classe.nom, archivee: classe.archivee }}
             effectif={classe.etudiants.length}
             tiersTemps={tiersTemps}
+          />
+          <ImportEtudiants
+            classeId={classe.id}
+            tailleMaxOctets={TAILLE_MAX_IMPORT_OCTETS}
+            messageTropGros={MESSAGES_IMPORT.tropGros}
           />
           <FormulaireAjoutEtudiant classeId={classe.id} />
           <ListeEtudiants etudiants={classe.etudiants} />
