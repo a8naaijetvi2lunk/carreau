@@ -21,6 +21,15 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - `retirerEtudiant` refuse un étudiant qui a rejoint une session.
 - `parametres` : lecture publique des durées de conservation et du contact pour l'écran d'information.
 
+### Corrigé (revue finale du lot)
+- Écran projeté : interrogation relancée après « Démarrer l’examen », « Connexion perdue » après deux échecs, accord de « étudiant(s) compose(nt) ».
+- Écran projeté et page de pilotage : une erreur de démarrage ne reste plus affichée une fois l'examen commencé (erreurs de salle d'attente affichées en salle d'attente seulement).
+- `appelerApi` : une réponse 2xx qui n'est pas du JSON (portail captif, proxy) compte comme un échec.
+- `Interrogation` : le compteur d'échecs repart de zéro à chaque démarrage.
+- Entrée des étudiants : aucune clé du limiteur pour un jeton d'appareil mal formé ; un téléphone déjà associé à un nom ne peut plus demander un autre nom de la même session.
+- Parcours étudiant : l'écran repart du haut à chaque étape (la marque et la pastille « Mode examen » restaient hors de l'écran après l'écran d'information).
+- Tests de bout en bout : les paramètres globaux sont remis à zéro après `sessions.spec.ts` ; l'onglet dont on lit l'état est ramené au premier plan.
+
 ## 2026-09-29 — Lot 3 : éditeur de QCM
 
 ### Ajouté
