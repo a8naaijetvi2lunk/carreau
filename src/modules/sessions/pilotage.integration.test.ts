@@ -1,0 +1,267 @@
+import { and, eq } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { db } from "@/db";
+import {
+  demandeAppareil,
+  journal,
+  parametres,
+  participation,
+  qcm as tableQcm,
+  sessionExamen,
+} from "@/db/schema";
+import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
+import { sha256Hex } from "@/lib/jetons";
+import { acteurDe, creerUtilisateur, exiger } from "@/test/comptes";
+import {
+  creerDemandeTest,
+  creerParticipationTest,
+  INSTANT_CODE_TEST,
+  preparerSession,
+  renseignerRgpd,
+  SECRET_CODE_TEST,
+} from "@/test/sessions";
+import { MESSAGES_SESSION } from "./commun";
+import { lireEtatEntree, reclamerNom } from "./entree";
+import { autoriserDemande, demarrerSession, refuserDemande, retirerParticipant } from "./pilotage";
+import { emettreTicket } from "./ticket";
+
+const horloge = horlogeFixe(INSTANT_CODE_TEST);
+
+beforeEach(() => {
+  horloge.fixer(INSTANT_CODE_TEST);
+  definirHorlogePourLesTests(horloge);
+});
+afterEach(() => definirHorlogePourLesTests());
+
+async function salle() {
+  await renseignerRgpd();
+  const prep = await preparerSession({ codeSecret: SECRET_CODE_TEST });
+  const [lea, sacha, hugo] = prep.etudiants;
+  if (!lea || !sacha || !hugo) throw new Error("étudiants absents");
+  return { ...prep, lea, sacha, hugo };
+}
+
+async function entree(action: string, cible: string) {
+  const [ligne] = await db()
+    .select()
+    .from(journal)
+    .where(and(eq(journal.action, action), eq(journal.cible, cible)));
+  return ligne;
+}
+
+async function refusDe(acteurId: string) {
+  return db()
+    .select()
+    .from(journal)
+    .where(and(eq(journal.action, "acces.refus"), eq(journal.acteurId, acteurId)));
+}
+
+/** Léa réclamée par un premier téléphone, puis par un second : une demande en attente. */
+async function demandeEnAttente() {
+  const s = await salle();
+  const premier = await reclamerNom(
+    { ticket: emettreTicket(s.session.id), jetonAppareil: null },
+    { etudiantId: s.lea.id },
+  );
+  const second = await reclamerNom(
+    { ticket: emettreTicket(s.session.id), jetonAppareil: null },
+    { etudiantId: s.lea.id },
+  );
+  const p = exiger(
+    (await db().select().from(participation).where(eq(participation.sessionId, s.session.id)))[0],
+    "participation",
+  );
+  const d = exiger(
+    (await db().select().from(demandeAppareil).where(eq(demandeAppareil.participationId, p.id)))[0],
+    "demande",
+  );
+  return {
+    ...s,
+    p,
+    d,
+    jetonPremier: exiger(premier.jetonAppareil, "jeton"),
+    jetonSecond: exiger(second.jetonAppareil, "jeton"),
+  };
+}
+
+describe("demarrerSession", () => {
+  it("fixe le départ à 5 s, passe les participations en cours et journalise", async () => {
+    const { acteur, session, lea, hugo } = await salle();
+    await creerParticipationTest(session.id, lea.id, { informationLue: true });
+    await creerParticipationTest(session.id, hugo.id);
+    const { demarreLe } = await demarrerSession(acteur, { sessionId: session.id });
+    expect(demarreLe.getTime()).toBe(INSTANT_CODE_TEST + 5_000);
+    const [demarree] = await db().select().from(sessionExamen).where(eq(sessionExamen.id, session.id));
+    expect(demarree?.statut).toBe("en_cours");
+    expect(demarree?.demarreLe?.getTime()).toBe(INSTANT_CODE_TEST + 5_000);
+    const participations = await db()
+      .select()
+      .from(participation)
+      .where(eq(participation.sessionId, session.id));
+    expect(participations.map((p) => p.statut)).toEqual(["en_cours", "en_cours"]);
+    expect(await entree("sessions.demarrer", `session:${session.id}`)).toMatchObject({
+      details: { participants: 2 },
+    });
+  });
+
+  it("refuse sans participant, puis une session déjà démarrée", async () => {
+    const { acteur, session, lea } = await salle();
+    await expect(demarrerSession(acteur, { sessionId: session.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.aucunParticipant,
+    });
+    await creerParticipationTest(session.id, lea.id);
+    await demarrerSession(acteur, { sessionId: session.id });
+    await expect(demarrerSession(acteur, { sessionId: session.id })).rejects.toMatchObject({
+      message: MESSAGES_SESSION.dejaDemarree,
+    });
+  });
+
+  it("refuse si le QCM n'est plus prêt, ou sans paramètres de conservation", async () => {
+    const { acteur, session, lea, qcm } = await salle();
+    await creerParticipationTest(session.id, lea.id);
+    await db().update(tableQcm).set({ statut: "brouillon" }).where(eq(tableQcm.id, qcm.id));
+    await expect(demarrerSession(acteur, { sessionId: session.id })).rejects.toMatchObject({
+      message: MESSAGES_SESSION.qcmPlusPret,
+    });
+    await db().update(tableQcm).set({ statut: "pret" }).where(eq(tableQcm.id, qcm.id));
+    await db().delete(parametres);
+    await expect(demarrerSession(acteur, { sessionId: session.id })).rejects.toMatchObject({
+      message: MESSAGES_SESSION.rgpd,
+    });
+  });
+
+  it("« Démarrer » pendant une réclamation : la réclamation passe avant, ou reçoit « La session a démarré »", async () => {
+    const { acteur, session, lea, hugo } = await salle();
+    await creerParticipationTest(session.id, lea.id);
+    const [demarrage, reclamation] = await Promise.allSettled([
+      demarrerSession(acteur, { sessionId: session.id }),
+      reclamerNom({ ticket: emettreTicket(session.id), jetonAppareil: null }, { etudiantId: hugo.id }),
+    ]);
+    expect(demarrage.status).toBe("fulfilled");
+    const [pHugo] = await db()
+      .select()
+      .from(participation)
+      .where(and(eq(participation.sessionId, session.id), eq(participation.etudiantId, hugo.id)));
+    if (reclamation.status === "fulfilled") {
+      // Réclamation d'abord : le démarrage a trouvé Hugo et l'a fait partir avec les autres.
+      expect(pHugo?.statut).toBe("en_cours");
+    } else {
+      expect(reclamation.reason).toMatchObject({ code: "ETAT", message: MESSAGES_SESSION.sessionDemarree });
+      expect(pHugo).toBeUndefined();
+    }
+  });
+
+  it("session d'un autre compte : introuvable, refus journalisé", async () => {
+    const { session } = await salle();
+    const intrus = acteurDe(await creerUtilisateur());
+    await expect(demarrerSession(intrus, { sessionId: session.id })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+    });
+    expect(await refusDe(intrus.id)).toHaveLength(1);
+  });
+});
+
+describe("retirerParticipant", () => {
+  it("retire un participant en salle d'attente, avec ses demandes, et journalise", async () => {
+    const { acteur, session, lea } = await salle();
+    const { participation: p } = await creerParticipationTest(session.id, lea.id);
+    await creerDemandeTest(p.id);
+    await retirerParticipant(acteur, { participationId: p.id });
+    expect(await db().select().from(participation).where(eq(participation.id, p.id))).toEqual([]);
+    expect(
+      await db().select().from(demandeAppareil).where(eq(demandeAppareil.participationId, p.id)),
+    ).toEqual([]);
+    expect(await entree("sessions.retirer_participant", `participation:${p.id}`)).toMatchObject({
+      details: { sessionId: session.id },
+    });
+    await expect(retirerParticipant(acteur, { participationId: p.id })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+      message: "Participant introuvable.",
+    });
+  });
+
+  it("refuse pendant l'examen, et le participant d'un autre compte", async () => {
+    const { acteur, session, lea } = await salle();
+    const { participation: p } = await creerParticipationTest(session.id, lea.id);
+    await db()
+      .update(sessionExamen)
+      .set({ statut: "en_cours", demarreLe: new Date(INSTANT_CODE_TEST) })
+      .where(eq(sessionExamen.id, session.id));
+    await expect(retirerParticipant(acteur, { participationId: p.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.retraitImpossible,
+    });
+    const intrus = acteurDe(await creerUtilisateur());
+    await expect(retirerParticipant(intrus, { participationId: p.id })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+    });
+    expect(await refusDe(intrus.id)).toHaveLength(1);
+  });
+});
+
+describe("demandes d'appareil", () => {
+  it("autoriser : le nouveau téléphone prend la participation, l'ancien est remplacé", async () => {
+    const { acteur, p, d, jetonPremier, jetonSecond } = await demandeEnAttente();
+    await autoriserDemande(acteur, { demandeId: d.id });
+    const [apres] = await db().select().from(participation).where(eq(participation.id, p.id));
+    expect(apres?.appareilJetonHash).toBe(sha256Hex(jetonSecond));
+    const [decidee] = await db().select().from(demandeAppareil).where(eq(demandeAppareil.id, d.id));
+    expect(decidee).toMatchObject({
+      statut: "autorisee",
+      traiteePar: acteur.id,
+      ancienJetonHash: sha256Hex(jetonPremier),
+    });
+    expect((await lireEtatEntree({ ticket: null, jetonAppareil: jetonSecond })).etat).toMatchObject({
+      etape: "information",
+    });
+    expect((await lireEtatEntree({ ticket: null, jetonAppareil: jetonPremier })).etat).toMatchObject({
+      etape: "remplace",
+    });
+    expect(await entree("sessions.autoriser_appareil", `demande:${d.id}`)).toMatchObject({
+      details: { participationId: p.id },
+    });
+  });
+
+  it("refuser : la participation garde son téléphone, le demandeur voit le refus", async () => {
+    const { acteur, p, d, jetonPremier, jetonSecond } = await demandeEnAttente();
+    await refuserDemande(acteur, { demandeId: d.id });
+    const [apres] = await db().select().from(participation).where(eq(participation.id, p.id));
+    expect(apres?.appareilJetonHash).toBe(sha256Hex(jetonPremier));
+    expect((await lireEtatEntree({ ticket: null, jetonAppareil: jetonSecond })).etat).toMatchObject({
+      etape: "demande",
+      statut: "refusee",
+    });
+    expect(await entree("sessions.refuser_appareil", `demande:${d.id}`)).toBeDefined();
+  });
+
+  it("refuse une demande déjà traitée, expirée, ou d'une session terminée", async () => {
+    const { acteur, session, p, d } = await demandeEnAttente();
+    await refuserDemande(acteur, { demandeId: d.id });
+    await expect(autoriserDemande(acteur, { demandeId: d.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.demandeTraitee,
+    });
+    const { demande: ancienne } = await creerDemandeTest(p.id, {
+      creeLe: new Date(INSTANT_CODE_TEST - 600_000),
+    });
+    await expect(autoriserDemande(acteur, { demandeId: ancienne.id })).rejects.toMatchObject({
+      message: MESSAGES_SESSION.demandeExpiree,
+    });
+    await db().update(sessionExamen).set({ statut: "terminee" }).where(eq(sessionExamen.id, session.id));
+    await expect(refuserDemande(acteur, { demandeId: ancienne.id })).rejects.toMatchObject({
+      message: MESSAGES_SESSION.terminee,
+    });
+  });
+
+  it("demande d'une session d'un autre compte : introuvable, refus journalisés", async () => {
+    const { d } = await demandeEnAttente();
+    const intrus = acteurDe(await creerUtilisateur());
+    await expect(autoriserDemande(intrus, { demandeId: d.id })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+      message: "Demande introuvable.",
+    });
+    await expect(refuserDemande(intrus, { demandeId: d.id })).rejects.toMatchObject({ code: "INTROUVABLE" });
+    expect(await refusDe(intrus.id)).toHaveLength(2);
+  });
+});

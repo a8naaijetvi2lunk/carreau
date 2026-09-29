@@ -16,6 +16,7 @@ export {
   type ResultatEntree,
   type Telephone,
 } from "./entree";
+export { autoriserDemande, demarrerSession, refuserDemande, retirerParticipant } from "./pilotage";
 export {
   annulerSession,
   creerSession,

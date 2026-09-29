@@ -9,11 +9,13 @@ import {
   changerTiersTemps,
   MAX_ETUDIANTS_PAR_CLASSE,
   MESSAGE_CLASSE_PLEINE,
+  MESSAGE_ETUDIANT_PARTICIPANT,
   modifierEtudiant,
   retirerEtudiant,
 } from "@/modules/classes";
 import { creerClasseTest, creerEtudiantTest } from "@/test/classes";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
+import { creerParticipationTest, preparerSession } from "@/test/sessions";
 
 const DEBUT = Date.parse("2026-09-29T08:00:00.000Z");
 
@@ -209,6 +211,20 @@ describe("modifierEtudiant, changerTiersTemps, retirerEtudiant", () => {
     await expect(retirerEtudiant(a, { etudiantId: e.id })).rejects.toMatchObject({
       code: "INTROUVABLE",
       message: "Étudiant introuvable.",
+    });
+  });
+
+  it("refuse de retirer un étudiant qui a rejoint une session d'examen", async () => {
+    const { acteur, session, etudiants } = await preparerSession();
+    const [lea, sacha] = etudiants;
+    if (!lea || !sacha) throw new Error("étudiants absents");
+    await creerParticipationTest(session.id, lea.id);
+    await expect(retirerEtudiant(acteur, { etudiantId: lea.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGE_ETUDIANT_PARTICIPANT,
+    });
+    await expect(retirerEtudiant(acteur, { etudiantId: sacha.id })).resolves.toMatchObject({
+      prenom: "Sacha",
     });
   });
 });

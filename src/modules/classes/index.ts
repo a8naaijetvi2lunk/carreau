@@ -15,6 +15,7 @@ export {
   ajouterEtudiant,
   changerTiersTemps,
   MESSAGE_CLASSE_PLEINE,
+  MESSAGE_ETUDIANT_PARTICIPANT,
   modifierEtudiant,
   retirerEtudiant,
 } from "./etudiants";

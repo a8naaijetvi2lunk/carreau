@@ -7,7 +7,7 @@ import "server-only";
 import { and, count, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
-import { etudiant } from "@/db/schema";
+import { etudiant, participation } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
@@ -25,6 +25,8 @@ import {
 } from "./commun";
 
 export const MESSAGE_CLASSE_PLEINE = `La classe compte déjà ${MAX_ETUDIANTS_PAR_CLASSE} étudiants, le maximum.`;
+export const MESSAGE_ETUDIANT_PARTICIPANT =
+  "Cet étudiant a rejoint une session d'examen : il ne peut plus être retiré de la classe.";
 
 const schemaAjout = z.strictObject({
   classeId: z.string(),
@@ -185,6 +187,14 @@ export async function retirerEtudiant(
     const etudiantId = lireIdentifiant(valider(schemaEtudiant, saisie, "Étudiant").etudiantId, "Étudiant");
     return db().transaction(async (tx) => {
       const lu = await etudiantDeLActeur(tx, acteur, etudiantId);
+      // Participation en RESTRICT : un étudiant qui a rejoint une session reste dans sa classe
+      // (décision D13 du plan du lot 4). Le verrou de l'étudiant fait attendre une réclamation en cours.
+      const [participe] = await tx
+        .select({ id: participation.id })
+        .from(participation)
+        .where(eq(participation.etudiantId, lu.id))
+        .limit(1);
+      if (participe) throw erreurs.etat(MESSAGE_ETUDIANT_PARTICIPANT);
       await tx.delete(etudiant).where(eq(etudiant.id, lu.id));
       await journaliser(
         {
