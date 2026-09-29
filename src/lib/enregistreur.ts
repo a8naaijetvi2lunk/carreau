@@ -23,6 +23,7 @@ export class EnregistreurDiffere<T> {
   private minuteur: ReturnType<typeof setTimeout> | null = null;
   private envoisEnCours = 0;
   private chaine: Promise<boolean> = Promise.resolve(true);
+  private prisesEnCharge = 0;
 
   constructor(
     private readonly envoyer: (valeur: T) => Promise<ResultatEnvoi>,
@@ -48,6 +49,8 @@ export class EnregistreurDiffere<T> {
     const attente = this.enAttente;
     if (attente === null) return this.chaine;
     this.enAttente = null;
+    this.prisesEnCharge += 1;
+    const numero = this.prisesEnCharge;
     this.envoisEnCours += 1;
     this.signaler({ etape: "enCours" });
     this.chaine = this.chaine.then(async () => {
@@ -59,9 +62,12 @@ export class EnregistreurDiffere<T> {
       }
       this.envoisEnCours -= 1;
       if (!resultat.ok) {
-        // Rien de plus récent : la valeur refusée reste à envoyer (nouvel essai à la prochaine vidange).
-        this.enAttente ??= attente;
-        this.signaler({ etape: "erreur", message: resultat.message });
+        // Seule la dernière valeur prise en charge revient en attente : une valeur plus récente, déjà
+        // partie derrière celle-ci, la remplace (la dernière écriture l'emporte, décision D8).
+        if (numero === this.prisesEnCharge) {
+          this.enAttente ??= attente;
+          this.signaler({ etape: "erreur", message: resultat.message });
+        }
         return false;
       }
       if (this.enAttente === null && this.envoisEnCours === 0) {

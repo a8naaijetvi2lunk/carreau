@@ -90,6 +90,22 @@ describe("EnregistreurDiffere", () => {
     expect(enregistreur.occupe).toBe(false);
   });
 
+  it("ne renvoie jamais une valeur refusée quand une plus récente est déjà partie derrière elle", async () => {
+    const { envoyer, etats, enregistreur } = monter(async (valeur) =>
+      valeur === "a" ? { ok: false, message: "Panne réseau." } : { ok: true, le: LE },
+    );
+    enregistreur.planifier("a");
+    const premiere = enregistreur.vidanger();
+    enregistreur.planifier("ab");
+    const seconde = enregistreur.vidanger();
+    await expect(premiere).resolves.toBe(false);
+    await expect(seconde).resolves.toBe(true);
+    expect(etats.at(-1)).toEqual({ etape: "enregistre", le: LE });
+    expect(enregistreur.occupe).toBe(false);
+    await expect(enregistreur.vidanger()).resolves.toBe(true);
+    expect(envoyer.mock.calls.map(([valeur]) => valeur)).toEqual(["a", "ab"]);
+  });
+
   it("transforme une exception d'envoi (réseau coupé) en échec", async () => {
     const { etats, enregistreur } = monter(async () => {
       throw new TypeError("Failed to fetch");
