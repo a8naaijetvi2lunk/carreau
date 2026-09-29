@@ -20,3 +20,14 @@ export function formaterDateHeure(date: Date): string {
 export function formaterDateCourte(date: Date): string {
   return FORMAT_COURT.format(date);
 }
+
+const FORMAT_HEURE = new Intl.DateTimeFormat("fr-FR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Paris",
+});
+
+/** « 10:05 » : indicateur d'enregistrement de l'éditeur. */
+export function formaterHeure(date: Date): string {
+  return FORMAT_HEURE.format(date);
+}

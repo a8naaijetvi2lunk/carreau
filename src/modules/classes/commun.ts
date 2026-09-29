@@ -4,19 +4,20 @@
  */
 import "server-only";
 import { eq } from "drizzle-orm";
-import { z, type ZodType } from "zod";
+import { z } from "zod";
 import type { Executeur, Transaction } from "@/db";
 import { classe, etudiant } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
-import { erreurDepuisZod, erreurs, type ErreurService } from "@/lib/erreurs";
+import { erreurs, type ErreurService } from "@/lib/erreurs";
 import { normaliserNom } from "@/lib/noms";
+
+export { lireIdentifiant, valider } from "@/lib/validation";
 
 export const MAX_CLASSES_PAR_COMPTE = 200;
 export const MAX_ETUDIANTS_PAR_CLASSE = 500;
 export const LONGUEUR_MAX_NOM_CLASSE = 60;
 export const LONGUEUR_MAX_NOM_ETUDIANT = 100;
 
-const SCHEMA_UUID = z.uuid();
 const CARACTERE_DE_CONTROLE = /\p{Cc}/u;
 
 /** Tri naturel en français : « TD2 » avant « TD10 », sans tenir compte de la casse ni des accents. */
@@ -31,20 +32,6 @@ export function comparerEtudiants(
   b: { nom: string; prenom: string },
 ): number {
   return comparerNoms(a.nom, b.nom) || comparerNoms(a.prenom, b.prenom);
-}
-
-/** Saisie validée par `schema`, ou ErreurService VALIDATION détaillée. */
-export function valider<T>(schema: ZodType<T>, saisie: unknown, contexte: string): T {
-  const resultat = schema.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, contexte);
-  return resultat.data;
-}
-
-/** Identifiant d'une URL ou d'un formulaire : mal formé, il désigne une ressource introuvable (404, sans journal). */
-export function lireIdentifiant(valeur: string, quoi: string): string {
-  const resultat = SCHEMA_UUID.safeParse(valeur);
-  if (!resultat.success) throw erreurs.introuvable(quoi);
-  return resultat.data;
 }
 
 /** Espaces rognés et réduits à un seul (tabulations et retours à la ligne compris). */

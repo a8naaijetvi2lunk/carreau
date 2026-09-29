@@ -4,8 +4,8 @@ import { useActionState, useState } from "react";
 import { Alerte, Bouton, Etiquette } from "@/components/ui";
 import type { ResultatAction } from "@/lib/action";
 import type { ApercuImport, BilanImport, StatutLigneImport } from "@/modules/classes";
+import { pluriel } from "@/lib/textes";
 import { analyserImportAction, importerEtudiantsAction } from "../actions";
-import { pluriel } from "../libelles";
 
 type EtatImport =
   | { etape: "apercu"; resultat: ResultatAction<ApercuImport> }

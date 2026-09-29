@@ -44,3 +44,13 @@ export function lireChampJson(formulaire: FormData, nom: string): unknown {
     return undefined;
   }
 }
+
+/**
+ * Nombre saisi dans un champ : null si le champ est vide ; `NaN` si la saisie n'est pas un nombre
+ * (le schéma du service la refuse avec son message).
+ */
+export function lireNombre(formulaire: FormData, nom: string): number | null {
+  const texte = lireChamp(formulaire, nom).trim().replace(",", ".");
+  if (texte === "") return null;
+  return /^[+-]?\d+(\.\d+)?$/.test(texte) ? Number(texte) : Number.NaN;
+}

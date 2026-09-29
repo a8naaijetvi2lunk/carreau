@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { erreursParChamp, lireCase, lireChamp, lireChampJson, lireFichier } from "./formulaire";
+import { erreursParChamp, lireCase, lireChamp, lireChampJson, lireFichier, lireNombre } from "./formulaire";
 
 describe("lecture d'un formulaire", () => {
   it("lireChamp renvoie le texte, ou une chaîne vide pour un champ absent ou un fichier", () => {
@@ -63,5 +63,28 @@ describe("fichiers et JSON d'un formulaire", () => {
     expect(lireChampJson(formulaire, "casse")).toBeUndefined();
     expect(lireChampJson(formulaire, "fichier")).toBeUndefined();
     expect(lireChampJson(formulaire, "absent")).toBeUndefined();
+  });
+});
+
+describe("lireNombre", () => {
+  function formulaire(valeur: string): FormData {
+    const f = new FormData();
+    f.set("duree", valeur);
+    return f;
+  }
+
+  it("renvoie null pour un champ vide ou absent", () => {
+    expect(lireNombre(formulaire("  "), "duree")).toBeNull();
+    expect(lireNombre(new FormData(), "duree")).toBeNull();
+  });
+
+  it("lit un entier ou un décimal à virgule", () => {
+    expect(lireNombre(formulaire(" 20 "), "duree")).toBe(20);
+    expect(lireNombre(formulaire("1,5"), "duree")).toBe(1.5);
+  });
+
+  it("renvoie NaN pour une saisie qui n'est pas un nombre", () => {
+    expect(lireNombre(formulaire("vingt"), "duree")).toBeNaN();
+    expect(lireNombre(formulaire("1e3"), "duree")).toBeNaN();
   });
 });
