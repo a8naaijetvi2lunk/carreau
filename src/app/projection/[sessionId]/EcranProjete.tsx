@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRebours } from "@/components/examen/useRebours";
 import { Alerte, Bouton, Marque } from "@/components/ui";
 import { demarrerSessionAction } from "@/app/(espace)/enseignant/sessions/actions";
 import { appelerApi } from "@/lib/appel-api";
 import { decalageServeurMs } from "@/lib/horloge-serveur";
 import { Interrogation } from "@/lib/interrogation";
+import { pluriel } from "@/lib/textes";
 import type { VueProjection } from "@/lib/vue-session";
 
 /** Période de l'écran projeté (spec §7). */
@@ -39,7 +40,9 @@ function Depart({
       ) : (
         <>
           <h2 className="font-titre text-6xl font-extrabold">L’examen a commencé</h2>
-          <p className="text-2xl text-encre-2">{connectes} étudiants composent. Bon courage à tous.</p>
+          <p className="text-2xl text-encre-2">
+            {pluriel(connectes, "étudiant compose", "étudiants composent")}. Bon courage à tous.
+          </p>
         </>
       )}
     </div>
@@ -65,6 +68,8 @@ export function EcranProjete({
   const [confirmer, setConfirmer] = useState(false);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [connexionPerdue, setConnexionPerdue] = useState(false);
+  const interrogation = useRef<Interrogation<VueProjection> | null>(null);
 
   useEffect(() => {
     const projection = new Interrogation<VueProjection>({
@@ -79,11 +84,16 @@ export function EcranProjete({
       },
       periodeMs: () => PERIODE_PROJECTION_MS,
       surResultat: (nouvelle) => {
+        setConnexionPerdue(false);
         setDecalageMs(decalageServeurMs(nouvelle.serveurMaintenant, Date.now()));
         setVue(nouvelle);
       },
+      surEchec: (echecs) => {
+        if (echecs >= 2) setConnexionPerdue(true);
+      },
       suspendreSiMasque: true,
     });
+    interrogation.current = projection;
     projection.demarrer();
     return () => projection.arreter();
   }, [sessionId]);
@@ -95,6 +105,7 @@ export function EcranProjete({
       const resultat = await demarrerSessionAction(sessionId);
       if (resultat.ok) setConfirmer(false);
       else setErreur(resultat.erreur.message);
+      interrogation.current?.relancer();
     } finally {
       setEnCours(false);
     }
@@ -123,6 +134,7 @@ export function EcranProjete({
         </div>
       </header>
 
+      {connexionPerdue ? <Alerte>Connexion perdue : on réessaie automatiquement.</Alerte> : null}
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
 
       {vue.statut === "annulee" || vue.statut === "terminee" ? (

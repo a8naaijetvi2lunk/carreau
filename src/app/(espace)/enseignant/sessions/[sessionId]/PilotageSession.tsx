@@ -46,6 +46,7 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [confirmation, setConfirmation] = useState<"demarrer" | "annuler" | null>(null);
+  const [connexionPerdue, setConnexionPerdue] = useState(false);
   const interrogation = useRef<Interrogation<VueSuivi> | null>(null);
 
   useEffect(() => {
@@ -57,8 +58,12 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
       },
       periodeMs: () => PERIODE_SUIVI_MS,
       surResultat: (vue) => {
+        setConnexionPerdue(false);
         setDecalageMs(decalageServeurMs(vue.serveurMaintenant, Date.now()));
         setSuivi(vue);
+      },
+      surEchec: (echecs) => {
+        if (echecs >= 2) setConnexionPerdue(true);
       },
       suspendreSiMasque: true,
     });
@@ -152,6 +157,7 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
           </div>
         </div>
       ) : null}
+      {connexionPerdue ? <Alerte>Connexion perdue : on réessaie automatiquement.</Alerte> : null}
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
       {suivi.statut === "en_cours" && suivi.demarreLe ? (
         <Depart demarreLe={suivi.demarreLe} decalageMs={decalageMs} />
