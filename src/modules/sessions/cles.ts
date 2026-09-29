@@ -2,8 +2,8 @@
 import { sha256Hex } from "@/lib/jetons";
 import type { RegleLimite } from "@/modules/limiteur";
 
-/** Toute une salle partage une IP : limite large (spec §11.2). */
-export const REGLE_REJOINDRE_IP: RegleLimite = { seuil: 120, fenetreSecondes: 60, blocageSecondes: 60 };
+/** Toute une salle partage une IP : limite large (spec §11.2, amendement A4 du plan du lot 5). */
+export const REGLE_REJOINDRE_IP: RegleLimite = { seuil: 600, fenetreSecondes: 60, blocageSecondes: 60 };
 export const REGLE_RECHERCHE: RegleLimite = { seuil: 30, fenetreSecondes: 60, blocageSecondes: 60 };
 export const REGLE_RECLAMER: RegleLimite = { seuil: 10, fenetreSecondes: 60, blocageSecondes: 60 };
 export const REGLE_ETAT: RegleLimite = { seuil: 120, fenetreSecondes: 60, blocageSecondes: 60 };
@@ -33,4 +33,16 @@ export function cleEtatTicket(nonce: string): string {
 
 export function cleInformation(jeton: string): string {
   return `etudiant:information:${sha256Hex(jeton)}`;
+}
+
+/** Passage de l'examen (spec §11.2, décision D13 du plan du lot 5) : clés posées après avoir retrouvé la participation. */
+export const REGLE_SELECTION: RegleLimite = { seuil: 120, fenetreSecondes: 60, blocageSecondes: 60 };
+export const REGLE_REPONSE: RegleLimite = { seuil: 120, fenetreSecondes: 60, blocageSecondes: 60 };
+
+export function cleSelection(participationId: string): string {
+  return `etudiant:selection:${participationId}`;
+}
+
+export function cleReponse(participationId: string): string {
+  return `etudiant:reponse:${participationId}`;
 }

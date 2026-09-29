@@ -13,9 +13,15 @@ import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { FORMAT_JETON, genererJeton, sha256Hex } from "@/lib/jetons";
 import { normaliserNom } from "@/lib/noms";
-import { LIMITES_SESSION, type MotifDemande, type StatutSession } from "@/lib/regles-session";
+import {
+  LIMITES_SESSION,
+  type MotifDemande,
+  type StatutParticipation,
+  type StatutSession,
+} from "@/lib/regles-session";
 import { lireIdentifiant, valider } from "@/lib/validation";
 import type { EtatEntree, InformationDonnees, ResultatRecherche } from "@/lib/vue-entree";
+import { enregistrerBrouillon, validerQuestion, vuePassage, type SaisieReponse } from "@/modules/examen";
 import { journaliser } from "@/modules/journal";
 import { reserverJournalise } from "@/modules/limiteur";
 import { lireInformationDonnees } from "@/modules/parametres";
@@ -26,12 +32,16 @@ import {
   cleInformation,
   cleRecherche,
   cleReclamer,
+  cleReponse,
   cleRejoindreIp,
+  cleSelection,
   REGLE_ETAT,
   REGLE_INFORMATION,
   REGLE_RECHERCHE,
   REGLE_RECLAMER,
   REGLE_REJOINDRE_IP,
+  REGLE_REPONSE,
+  REGLE_SELECTION,
 } from "./cles";
 import { sessionParCode } from "./code";
 import { MESSAGES_SESSION, resumeDuQcm, sessionAffichee } from "./commun";
@@ -85,13 +95,17 @@ type ParticipationLue = {
   sessionId: string;
   informationLueLe: Date | null;
   statutSession: StatutSession;
+  statutParticipation: StatutParticipation;
   demarreLe: Date | null;
   qcmId: string;
   prenom: string;
   tiersTemps: boolean;
 };
 
-/** État d'une participation ; l'appel note le dernier contact du téléphone (spec §7 : battement). */
+/**
+ * État d'une participation (décision D11 du plan du lot 5) ; l'appel note le dernier contact du
+ * téléphone (spec §7 : battement). Pendant l'examen, la vue vient du module examen, après rattrapage.
+ */
 async function etatDeLaParticipation(p: ParticipationLue): Promise<EtatEntree> {
   const instant = maintenant();
   await db().update(participation).set({ dernierContactLe: instant }).where(eq(participation.id, p.id));
@@ -99,14 +113,27 @@ async function etatDeLaParticipation(p: ParticipationLue): Promise<EtatEntree> {
     serveurMaintenant: instant.toISOString(),
     session: await sessionAffichee(db(), p.sessionId),
   };
-  if (p.statutSession === "annulee" || p.statutSession === "terminee") {
-    return { ...base, etape: "fermee", raison: p.statutSession };
+  if (p.statutSession === "annulee") return { ...base, etape: "fermee", raison: "annulee" };
+  if (p.statutParticipation === "terminee") {
+    const vue = await vuePassage(p.id);
+    if (vue?.etape === "fin") return { ...base, ...vue, prenom: p.prenom };
   }
+  if (p.statutSession === "terminee") return { ...base, etape: "fermee", raison: "terminee" };
   if (p.informationLueLe === null) {
     return { ...base, etape: "information", prenom: p.prenom, information: await informationOuErreur() };
   }
   if (p.statutSession === "en_cours" && p.demarreLe) {
-    return { ...base, etape: "demarrage", prenom: p.prenom, demarreLe: p.demarreLe.toISOString() };
+    const demarrage = {
+      ...base,
+      etape: "demarrage" as const,
+      prenom: p.prenom,
+      demarreLe: p.demarreLe.toISOString(),
+    };
+    if (instant.getTime() < p.demarreLe.getTime()) return demarrage;
+    const vue = await vuePassage(p.id);
+    if (vue?.etape === "question") return { ...base, ...vue };
+    if (vue?.etape === "fin") return { ...base, ...vue, prenom: p.prenom };
+    return demarrage;
   }
   const [inscrits] = await db()
     .select({ total: count() })
@@ -138,6 +165,7 @@ async function etatDeLAppareil(
       sessionId: participation.sessionId,
       informationLueLe: participation.informationLueLe,
       statutSession: sessionExamen.statut,
+      statutParticipation: participation.statut,
       demarreLe: sessionExamen.demarreLe,
       qcmId: sessionExamen.qcmId,
       prenom: etudiant.prenom,
@@ -463,5 +491,50 @@ export async function lireEtatEntree(telephone: Telephone): Promise<ResultatEntr
     if (ticket)
       await reserverJournalise(cleEtatTicket(ticket.nonce), REGLE_ETAT, { action: "sessions.limite_etat" });
   }
+  return { etat: await etatDuTelephone(telephone) };
+}
+
+/** Participation du téléphone (jeton bien formé et connu), ou null. */
+async function participationDe(telephone: Telephone): Promise<string | null> {
+  const empreinte = empreinteAppareil(telephone.jetonAppareil);
+  if (empreinte === null) return null;
+  const [lue] = await db()
+    .select({ id: participation.id })
+    .from(participation)
+    .where(eq(participation.appareilJetonHash, empreinte));
+  return lue?.id ?? null;
+}
+
+/** Participation du téléphone, ou ETAT « aucun nom » : aucune clé du limiteur n'est posée avant (D13). */
+async function participationDuTelephone(telephone: Telephone): Promise<string> {
+  const participationId = await participationDe(telephone);
+  if (participationId === null) {
+    throw erreurs.etat(MESSAGES_SESSION.participationIntrouvable, { raison: "participation" });
+  }
+  return participationId;
+}
+
+/** Brouillon de la question courante, à chaque touche (spec §6.4, décisions D7 et D13 du plan du lot 5). */
+export async function selectionnerReponses(
+  telephone: Telephone,
+  saisie: SaisieReponse,
+): Promise<{ enregistree: true }> {
+  const participationId = await participationDuTelephone(telephone);
+  await reserverJournalise(cleSelection(participationId), REGLE_SELECTION, {
+    action: "sessions.limite_selection",
+    cible: `participation:${participationId}`,
+  });
+  await enregistrerBrouillon(participationId, saisie);
+  return { enregistree: true };
+}
+
+/** Validation de la question courante (D8, D13) ; renvoie le nouvel état du téléphone. */
+export async function validerReponse(telephone: Telephone, saisie: SaisieReponse): Promise<ResultatEntree> {
+  const participationId = await participationDuTelephone(telephone);
+  await reserverJournalise(cleReponse(participationId), REGLE_REPONSE, {
+    action: "sessions.limite_reponse",
+    cible: `participation:${participationId}`,
+  });
+  await validerQuestion(participationId, saisie);
   return { etat: await etatDuTelephone(telephone) };
 }

@@ -13,6 +13,8 @@ export {
   rechercherEtudiants,
   reclamerNom,
   rejoindreSession,
+  selectionnerReponses,
+  validerReponse,
   type ResultatEntree,
   type Telephone,
 } from "./entree";

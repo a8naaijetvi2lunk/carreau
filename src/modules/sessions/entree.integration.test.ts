@@ -14,7 +14,9 @@ import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { FORMAT_JETON, genererJeton, sha256Hex } from "@/lib/jetons";
 import { creerClasseTest, creerEtudiantTest } from "@/test/classes";
 import { exiger } from "@/test/comptes";
+import { examenEnCours, identifiants } from "@/test/examen";
 import { INSTANT_CODE_TEST, preparerSession, renseignerRgpd, SECRET_CODE_TEST } from "@/test/sessions";
+import { REGLE_REJOINDRE_IP } from "./cles";
 import { MESSAGES_SESSION } from "./commun";
 import {
   confirmerInformation,
@@ -22,6 +24,8 @@ import {
   rechercherEtudiants,
   reclamerNom,
   rejoindreSession,
+  selectionnerReponses,
+  validerReponse,
   type Telephone,
 } from "./entree";
 import { emettreTicket, lireTicket } from "./ticket";
@@ -109,11 +113,11 @@ describe("rejoindreSession", () => {
     expect(resultat.etat).toMatchObject({ etape: "nom", demarree: true });
   });
 
-  it("limite les essais à 120 par minute et par IP, et journalise le dépassement", async () => {
+  it("limite les essais par IP (600 par minute, amendement A4), et journalise le dépassement", async () => {
     await salle();
     // Adresse propre à ce test : les essais des tests précédents (même fenêtre d'une minute) ne comptent pas.
     const ipLimitee = "198.51.100.1";
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < REGLE_REJOINDRE_IP.seuil; i++) {
       await expect(rejoindreSession(SANS_COOKIE, { code: "AAAAAA", ip: ipLimitee })).rejects.toMatchObject({
         code: "VALIDATION",
       });
@@ -522,5 +526,62 @@ describe("lireEtatEntree", () => {
     expect((await lireEtatEntree(t)).etat).toMatchObject({ etape: "code" });
     const lignes = await db().select().from(limiteur).where(like(limiteur.cle, "etudiant:etat:%"));
     expect(lignes).toEqual([]);
+  });
+});
+
+describe("passage de l'examen par le téléphone", () => {
+  function telephoneDe(jeton: string): Telephone {
+    return { ticket: null, jetonAppareil: jeton };
+  }
+
+  it("sert la question après le départ, puis l'écran de fin", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    const t = telephoneDe(lea.jeton);
+    expect((await lireEtatEntree(t)).etat).toMatchObject({
+      etape: "question",
+      session: { titre: "Algorithmique — Contrôle 2", classe: "TD2" },
+      question: { rang: 1, total: 2 },
+    });
+    const apres1 = await validerReponse(t, {
+      rang: 1,
+      selection: await identifiants(lea.participation.id, 1, ["Oui"]),
+    });
+    expect(apres1.etat).toMatchObject({ etape: "question", question: { rang: 2 } });
+    const apres2 = await validerReponse(t, { rang: 2, selection: [] });
+    expect(apres2.etat).toMatchObject({ etape: "fin", prenom: "Léa", repondues: 1, total: 2, note: 10 });
+    expect((await lireEtatEntree(t)).etat).toMatchObject({ etape: "fin" });
+  });
+
+  it("enregistre le brouillon et limite par participation, jamais pour un jeton inconnu", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    await expect(selectionnerReponses(telephoneDe(lea.jeton), { rang: 1, selection: [] })).resolves.toEqual({
+      enregistree: true,
+    });
+    const cles = await db()
+      .select({ cle: limiteur.cle })
+      .from(limiteur)
+      .where(like(limiteur.cle, "etudiant:selection:%"));
+    expect(cles.map((c) => c.cle)).toContain(`etudiant:selection:${lea.participation.id}`);
+    const avant = cles.length;
+    for (const jeton of ["mal-forme", genererJeton()]) {
+      await expect(
+        selectionnerReponses(telephoneDe(jeton), { rang: 1, selection: [] }),
+      ).rejects.toMatchObject({
+        code: "ETAT",
+        message: MESSAGES_SESSION.participationIntrouvable,
+      });
+      await expect(validerReponse(telephoneDe(jeton), { rang: 1, selection: [] })).rejects.toMatchObject({
+        code: "ETAT",
+      });
+    }
+    const apres = await db()
+      .select({ cle: limiteur.cle })
+      .from(limiteur)
+      .where(like(limiteur.cle, "etudiant:selection:%"));
+    expect(apres).toHaveLength(avant);
   });
 });
