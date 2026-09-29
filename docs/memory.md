@@ -100,6 +100,20 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 4. Onglet Paramètres : une durée masquée (mode de chrono non choisi) s'affiche quand elle porte une erreur.
 5. Aperçu : une réponse illustrée s'affiche en colonne même si les autres n'ont pas d'image.
 
+## Sessions et entrée des étudiants (lot 4)
+
+- **Session** : un QCM prêt et une classe non archivée du même compte, un créneau facultatif (heure de Paris), la visibilité de la note et de la correction. 50 sessions ouvertes au plus par compte. États : salle d'attente, en cours, terminée (lots 5 et 6), annulée. Une session créée ne se modifie pas : on l'annule, ce qui supprime ses participations.
+- **Code tournant** : `src/moteur/code-session.ts`, HMAC-SHA256 du secret de la session et de la fenêtre de 30 s, 6 caractères de Crockford ; code courant et précédent acceptés. Amendement A1 : pendant l'examen, le code ne sert qu'à demander une reprise sur un autre téléphone ; il n'est plus projeté, l'enseignant le montre depuis sa page de pilotage.
+- **Téléphone** : ticket d'entrée signé (HKDF de `CHIFFREMENT_CLE`, 10 min) puis jeton d'appareil de 256 bits (cookie de 30 jours, empreinte seule en base). Cookies lus dans l'en-tête `Cookie` et posés par `Set-Cookie` sur la réponse des routes d'API : jamais `next/headers` côté étudiant, routes testables en les appelant.
+- **Réclamation** : verrous session (`FOR SHARE`), étudiant (`FOR KEY SHARE`), participation (`FOR UPDATE`) ; la course de deux téléphones se règle par `ON CONFLICT DO NOTHING`, le perdant passe par une demande d'appareil. « Démarrer » verrouille la session en `FOR UPDATE` : une réclamation en cours aboutit d'abord, sinon elle reçoit « La session a démarré ».
+- **Demandes d'appareil** : une seule en attente par participation, 10 min au plus ; « Autoriser » donne la participation au nouveau téléphone et garde l'empreinte de l'ancien (`ancien_jeton_hash`) pour lui dire qu'il a été remplacé. Chaque demande écrit un événement `second_appareil` (indice du lot 6).
+- **Temps réel** : `src/lib/interrogation.ts` (un appel à la fois, période par résultat, délai croissant après un échec, suspension de l'onglet enseignant masqué). Téléphone toutes les 2 à 5 s selon l'étape (`periodeEntreeMs`), pilotage 3 s, écran projeté 2 s. Le compte à rebours (`useRebours`) est calé sur `serveurMaintenant`.
+- **Modules** : `sessions` (`commun`, `code`, `ticket`, `cookies`, `cles`, `sessions`, `suivi`, `entree`, `pilotage`) ; `parametres.lireInformationDonnees` pour l'écran d'information ; `classes.retirerEtudiant` refuse un étudiant qui a participé.
+- **À retenir pour le lot 5** : `demarrerSession` ne prend encore ni instantané ni ordre ; le lot 5 les ajoute dans la même transaction, avec les colonnes reportées (`contenu`, `fin_prevue_le`, `ordre`, échéances, points, note) et la table `reponse`. Après le compte à rebours, le téléphone affiche « L’examen a commencé » : l'écran des questions le remplace. La reprise sur le même appareil est déjà directe (même jeton).
+- **À retenir pour le lot 6** : le suivi (`construireSuivi`, route `suivi`) s'enrichit de la progression, des indices et des alertes ; `evenement` existe déjà (type `second_appareil`) ; `participation.dernier_contact_le` est mis à jour à chaque état.
+- **À retenir pour le lot 7** : `type`, `session_origine_id` et `session_autorisation` (rattrapage) restent à créer ; la visibilité de la note et de la correction se règle de nouveau avec les résultats.
+- **À retenir pour le lot 10** : purger les participations et leurs événements selon la conservation, et les sessions annulées.
+
 ## Ports locaux
 
 | Usage | Port |

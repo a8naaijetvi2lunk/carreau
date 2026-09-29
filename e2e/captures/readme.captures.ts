@@ -1,16 +1,18 @@
 /**
  * Captures du README (tâche 17, demande d'Yves pendant le lot 3) : `npm run build` puis
- * `npm run captures`. Compte enseignant fictif, classe importée, QCM de quatre questions et
- * aperçu sur téléphone, avec des données fictives (`@exemple.fr`). Ne tourne jamais avec
- * `npm run test:e2e` (voir playwright.captures.config.ts).
+ * `npm run captures`. Compte enseignant fictif, classe importée, QCM de quatre questions,
+ * aperçu sur téléphone, puis une session : six téléphones dans la salle d'attente et un
+ * septième qui demande un nom déjà pris. Données fictives (`@exemple.fr`). Ne tourne jamais
+ * avec `npm run test:e2e` (voir playwright.captures.config.ts).
  */
 import { devices, expect, test, type Page } from "@playwright/test";
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { creerLienSuperAdmin } from "../outils/comptes";
 import { URL_E2E } from "../outils/env";
-import { listeTd2Csv } from "../outils/listes";
+import { ETUDIANTS, listeTd2Csv } from "../outils/listes";
 import { activerEtEnroler } from "../outils/parcours";
+import { choisirNom, lireCode, nouveauTelephone, rejoindre, scanner } from "../outils/sessions";
 import { graphiquePng } from "./graphique";
 
 const DOSSIER_CAPTURES = path.resolve("docs/captures");
@@ -262,4 +264,56 @@ test("captures du README", async ({ page, browser }) => {
   await cadreApercu.screenshot({ path: capture("apercu-etudiant") });
 
   await contextePhone.close();
+
+  // 6. Session : six téléphones dans la salle d'attente, un septième qui demande un nom déjà pris.
+  await page
+    .getByRole("navigation", { name: "Navigation principale" })
+    .getByRole("link", { name: "Sessions", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sessions");
+  await page.getByRole("button", { name: "Créer la session" }).click();
+  await expect(page).toHaveURL(/\/enseignant\/sessions\/[0-9a-f-]{36}$/);
+  const sessionId = /\/enseignant\/sessions\/([0-9a-f-]{36})$/.exec(page.url())?.[1];
+  if (!sessionId) throw new Error(`Identifiant de la session introuvable dans l'URL : ${page.url()}`);
+
+  const telephones: Awaited<ReturnType<typeof nouveauTelephone>>[] = [];
+  for (const [nom, prenom] of ETUDIANTS.slice(0, 6)) {
+    const telephone = await nouveauTelephone(browser, "iPhone 15");
+    await page.bringToFront();
+    await rejoindre(telephone.page, await lireCode(page), nom, prenom);
+    telephones.push(telephone);
+  }
+  const doublon = await nouveauTelephone(browser, "iPhone 15");
+  await page.bringToFront();
+  await scanner(doublon.page, await lireCode(page));
+  await choisirNom(doublon.page, "DUPONT", "DUPONT Léa");
+  await expect(doublon.page.getByRole("heading", { level: 1 })).toHaveText(
+    "Demande envoyée à ton enseignant",
+  );
+  await expect(page.getByRole("region", { name: "Demandes d’appareil" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dans la salle · 6 / 30" })).toBeVisible();
+  await capturerHautDePage(page, "pilotage");
+
+  // Écran projeté, à la taille d'un vidéoprojecteur.
+  const projection = await page.context().newPage();
+  await projection.setViewportSize({ width: 1440, height: 900 });
+  await projection.goto(`/projection/${sessionId}`);
+  await expect(projection.getByText("6 / 30", { exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      projection
+        .getByRole("img", { name: "QR code de la session" })
+        .evaluate((img) => (img as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await projection.screenshot({ path: capture("projection") });
+  await projection.close();
+
+  // Salle d'attente, sur le téléphone de Léa Dupont.
+  const [lea] = telephones;
+  if (!lea) throw new Error("téléphone de Léa absent");
+  await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText("Bonjour Léa");
+  await lea.page.screenshot({ path: capture("salle-attente") });
+
+  await Promise.all([...telephones, doublon].map((t) => t.contexte.close()));
 });

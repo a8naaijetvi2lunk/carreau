@@ -2,6 +2,25 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-29 — Lot 4 : sessions et entrée des étudiants
+
+### Ajouté
+- Spec amendé : code accepté pendant l'examen pour une reprise seulement (A1) ; route de l'écran d'information et page de projection (A2).
+- Règles partagées (`src/lib/regles-session.ts`, `resume-examen.ts`, `vue-entree.ts`, `vue-session.ts`) : statuts, motifs, bornes, tiers-temps, noms affichés, résumé de l'examen.
+- Tables `session_examen`, `participation`, `demande_appareil`, `evenement` et types énumérés (`statut_session`, `statut_participation`, `motif_demande`, `statut_demande`).
+- Moteur `src/moteur/code-session.ts` (code tournant HMAC-SHA256, alphabet de Crockford) et seuil de couverture de 95 % du moteur.
+- Utilitaires : `configCookie`, `lireCookie`/`enteteCookie`, `signer`/`verifierSignature` (HKDF), `dateDepuisHeureDeParis`, `Interrogation`, `appelerApi`, `useRebours`, `periodeEntreeMs`.
+- Module `sessions` : création, liste, lecture, annulation ; suivi et écran projeté ; entrée des étudiants (rejoindre, rechercher, réclamer, information, état) ; pilotage (démarrer, retirer, autoriser ou refuser une demande d'appareil) ; limiteur par IP, ticket et appareil.
+- Routes `POST /api/etudiant/rejoindre`, `recherche`, `reclamer`, `information`, `etat`, `POST /api/enseignant/sessions/[sessionId]/suivi` et `projection`.
+- Pages `/enseignant/sessions` (liste, création), `/enseignant/sessions/[sessionId]` (pilotage), `/projection/[sessionId]` (écran projeté), `/rejoindre` (parcours étudiant) ; lien « Sessions » dans la navigation ; « Lancer une session » depuis un QCM prêt.
+- Tests d'intégration du module et des routes (concurrence comprise), tests de bout en bout `e2e/sessions.spec.ts` (trente téléphones qui démarrent ensemble), trois captures dans le README.
+
+### Modifié
+- Accueil enseignant : sessions ouvertes, « Nouvelle session » et « Nouveau QCM ».
+- Accueil public : lien « Saisir le code de la session ».
+- `retirerEtudiant` refuse un étudiant qui a rejoint une session.
+- `parametres` : lecture publique des durées de conservation et du contact pour l'écran d'information.
+
 ## 2026-09-29 — Lot 3 : éditeur de QCM
 
 ### Ajouté
