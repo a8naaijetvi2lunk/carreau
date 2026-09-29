@@ -71,6 +71,7 @@ test.describe("qcm", () => {
     await champ(page, "Énoncé").fill("Qu’affiche ce programme ?");
     await page.getByRole("button", { name: "Bloc de code" }).click();
     await expect(champ(page, "Langage du code")).toHaveValue("python");
+    await expect(champ(page, "Code")).toHaveCSS("font-variant-ligatures", "none");
     await champ(page, "Code").fill("def f(n):\n    return n * 2\n\nprint(f(4))");
     await page
       .getByLabel("Choisir l’image de l’énoncé")
@@ -145,6 +146,7 @@ test.describe("qcm", () => {
     await expect(page.getByText("Plusieurs réponses possibles", { exact: true })).toBeVisible();
     await expect(page.getByRole("timer")).toHaveText("20:00");
     const code = page.getByRole("group", { name: "Code Python" });
+    await expect(page.getByRole("group", { name: /^Code / })).toHaveCSS("font-variant-ligatures", "none");
     await expect(code).toContainText("print(f(4))");
     await expect(code.locator("span", { hasText: /^def$/ })).toHaveCSS("color", "rgb(143, 179, 255)");
     const image = page.getByRole("img", { name: "Image de la question" });

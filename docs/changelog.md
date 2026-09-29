@@ -23,6 +23,7 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Un identifiant (d'image, de QCM…) écrit en majuscules est ramené en minuscules : l'image d'un propriétaire répondait 500 au lieu de s'afficher.
 - Le titre d'une question dans la liste de l'éditeur ne coupe plus un émoji en deux.
 - Le libellé « Langage du code » est relié à sa liste sans l'englober : son nom accessible ne contient plus le texte des options.
+- Le code s'affiche sans les ligatures de la police : « <= » reste « <= » dans l'éditeur, comme chez l'étudiant (il s'affichait « ≤ »).
 
 ### Modifié
 - `README.md` : éditeur de QCM, questions liées, images et code dans l'architecture, images assainies et aucun HTML injecté, lot 3 marqué livré.

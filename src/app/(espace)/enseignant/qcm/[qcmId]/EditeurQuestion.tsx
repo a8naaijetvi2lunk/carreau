@@ -97,6 +97,7 @@ function BlocCodeEdition({
           <IconeCroix />
         </button>
       </div>
+      {/* Sans ligatures : « <= » reste « <= », comme l'étudiant le lira. */}
       <textarea
         aria-label="Code"
         value={code.source}
@@ -104,7 +105,7 @@ function BlocCodeEdition({
         rows={6}
         maxLength={LIMITES_QCM.codeMax}
         onChange={(evenement) => onChange({ ...code, source: evenement.target.value })}
-        className="block w-full resize-y bg-code-fond px-3 py-2.5 font-code text-sm leading-[22px] text-code-texte"
+        className="block w-full resize-y bg-code-fond px-3 py-2.5 font-code text-sm leading-[22px] text-code-texte [font-variant-ligatures:none]"
       />
     </div>
   );

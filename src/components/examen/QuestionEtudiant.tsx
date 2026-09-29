@@ -33,7 +33,7 @@ function BlocCode({ code }: { code: NonNullable<VueQuestion["code"]> }) {
     <div
       role="group"
       aria-label={`Code ${code.libelle}`}
-      className="overflow-x-auto rounded-xl bg-code-fond p-3.5 font-code text-sm leading-[22px] text-code-texte"
+      className="overflow-x-auto rounded-xl bg-code-fond p-3.5 font-code text-sm leading-[22px] text-code-texte [font-variant-ligatures:none]"
     >
       {code.lignes.map((ligne, i) => (
         <div key={i} className="flex min-h-[22px]">
