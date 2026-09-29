@@ -47,4 +47,13 @@ describe("appelerApi", () => {
       "Réponse inattendue du serveur (502).",
     );
   });
+
+  it("lève sur une réponse 2xx qui n'est pas du JSON (portail captif, proxy)", async () => {
+    simulerFetch(
+      new Response("<html>portail</html>", { status: 200, headers: { "Content-Type": "text/html" } }),
+    );
+    await expect(appelerApi("/api/etudiant/etat", {})).rejects.toThrow(
+      "Réponse inattendue du serveur (200).",
+    );
+  });
 });
