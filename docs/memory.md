@@ -79,6 +79,27 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 3. Aucun `key` sur le panneau d'une classe : Next 16 (sans `cacheComponents`) remonte la page quand le paramètre de route change, vérifié à l'exécution (aucun brouillon, aperçu ni recherche ne passe d'une classe à l'autre).
 4. Pas de filet `estViolationUnicite` sur les étudiants : chaque écriture verrouille la classe avant de contrôler les homonymes, la course est inatteignable.
 
+## QCM (lot 3)
+
+- **Propriété** : chaque compte a ses QCM et ses images, invisibles pour tous les autres. La ressource d'un autre compte répond « introuvable » (`erreurs.ressourceAutrui`) et fait journaliser `acces.refus` par `journaliserLesRefus`.
+- **Brouillon et « prêt »** : un brouillon peut être incomplet ; les règles de complétude (`src/lib/regles-qcm.ts`, dans `lib` et non `moteur` : l'éditeur les affiche en direct) décident du passage en « prêt ». Seul un brouillon se modifie ; « prêt » et « archivé » sont en lecture seule ; aucune suppression de QCM.
+- **Questions liées** : `liee_a_suivante` sur la question du dessus, la dernière jamais liée ; « Monter » et « Descendre » déplacent le bloc entier ; positions réécrites en deux temps (négatives puis finales) sous verrou du QCM.
+- **Enregistrement automatique** : question entière envoyée 800 ms après la dernière frappe, réponses remplacées en bloc (identifiants non stables) ; `src/lib/enregistreur.ts` (vidange avant toute navigation ou action de l'éditeur).
+- **Images** : signature des octets puis format confirmé par `sharp`, WebP de 1 600 px au plus sans métadonnées, fichier `IMAGES_DIR/<uuid>.webp`, lecture par `GET /api/images/[imageId]` (propriétaire seulement), `images.unoptimized: true`.
+- **Code** : `shiki` côté serveur (moteur JavaScript), jetons `{ texte, couleur }` rendus comme du texte.
+- **Modules** `qcm` (`commun`, `qcm`, `questions`, `code`, `apercu`) et `images` (`signature`, `traitement`, `stockage`, `images`).
+- **À retenir pour les lots 4 et 5** : une session ne se crée que sur un QCM prêt, et le démarrage doit revérifier qu'il l'est encore (l'enseignant peut le repasser en brouillon pendant la salle d'attente). L'instantané copie le contenu (les identifiants des réponses ne sont pas stables). `decouperEnBlocs` sert au mélange. `QuestionEtudiant` et `VueQuestion` servent à l'écran d'examen. La route des images devra accepter une participation dont la question courante (ou la correction publiée) cite l'image.
+- **À retenir pour le lot 8** : le MCP passe par les mêmes services (`creerQcm` avec `origine: "mcp"` à ajouter, `ajouterQuestion`, `enregistrerQuestion`, `supprimerQuestion`, `lierQuestion`), sur des brouillons seulement.
+- **À retenir pour le lot 10** : purger les images orphelines, citées ni par une question, ni par une réponse, ni par un instantané de session.
+
+### Décisions prises pendant le run (en plus de A1 et D1 à D19 du plan)
+
+1. `EnregistreurDiffere` : seule la dernière valeur prise en charge revient en attente après un échec (une ancienne valeur pouvait sinon écraser la plus récente).
+2. `next.config.ts` trace explicitement les dépendances d'exécution de shiki (`PAQUETS_SHIKI`), à relever à chaque montée de version de shiki.
+3. `e2e/serveur.mjs` démarre une copie du build autonome placée hors du dépôt : Node ne remonte plus au `node_modules` du projet, un paquet absent du build fait échouer les tests de bout en bout comme il ferait échouer l'image Docker.
+4. Onglet Paramètres : une durée masquée (mode de chrono non choisi) s'affiche quand elle porte une erreur.
+5. Aperçu : une réponse illustrée s'affiche en colonne même si les autres n'ont pas d'image.
+
 ## Ports locaux
 
 | Usage | Port |

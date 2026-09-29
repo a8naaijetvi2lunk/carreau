@@ -2,6 +2,29 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-29 — Lot 3 : éditeur de QCM
+
+### Ajouté
+- Dépendances validées (amendement A1 du spec §2 et §3.1) : `sharp` 0.35.5, `shiki` 4.4.3, `@shikijs/langs` 4.4.3 ; contrôle de signature d'image écrit dans le projet (PNG, JPEG, GIF, WebP) doublé du format détecté par `sharp`, plutôt que `file-type`.
+- Règles partagées d'un QCM (`src/lib/regles-qcm.ts`, `points.ts`, `images.ts`, `vue-question.ts`) : types de question, bornes, `problemesQuestion` et `problemesQcm` (complétude), `decouperEnBlocs` (questions liées).
+- Tables `qcm`, `question`, `proposition`, `image` et types énumérés PostgreSQL (`statut_qcm`, `origine_qcm`, `mode_chrono`, `type_question`).
+- Module `images` (`signature`, `traitement`, `stockage`, `images`) : téléversement contrôlé (octets, `sharp`, orientation EXIF, ré-encodage WebP de 1 600 px sans métadonnées), lecture réservée au propriétaire ; routes `POST /api/enseignant/images` et `GET /api/images/[imageId]`.
+- Module `qcm` (`commun`, `qcm`, `questions`, `code`, `apercu`) : création et statuts (brouillon, prêt, archivé), questions (ajout, enregistrement, suppression, déplacement par blocs, liaison), coloration du code par `shiki` côté serveur (jetons `{ texte, couleur }`), aperçu étudiant.
+- Enregistrement automatique de l'éditeur (`src/lib/enregistreur.ts`, `EnregistreurDiffere`) : question entière envoyée 800 ms après la dernière frappe, vidange avant toute navigation ou action de l'éditeur, indicateur d'état.
+- Pages `/enseignant/qcm` (liste, création), `/enseignant/qcm/[qcmId]` (éditeur : paramètres, questions, liaisons, barème, chrono) et `/enseignant/qcm/[qcmId]/apercu` (aperçu étudiant, composant `QuestionEtudiant` réutilisable au lot 5) ; lien « QCM » dans la navigation principale.
+- Tests d'intégration des modules `qcm` et `images` ; tests unitaires des règles partagées ; tests de bout en bout de l'éditeur (`e2e/qcm.spec.ts`).
+
+### Corrigé (vérification du lot)
+- `EnregistreurDiffere` ne remettait pas seulement la dernière valeur prise en charge en attente après un échec : une ancienne valeur pouvait écraser la plus récente.
+- Les tests de bout en bout tournaient depuis le dépôt et ne détectaient donc pas un paquet d'exécution manquant au build autonome (défaut de traçage de `shiki` découvert) : `e2e/serveur.mjs` démarre désormais une copie du build placée hors du dépôt, comme l'image Docker.
+- L'onglet Paramètres masquait une durée en erreur (mode de chrono non choisi), empêchant l'enseignant de la corriger : elle s'affiche désormais quand elle porte une erreur.
+- Dans l'aperçu, une réponse illustrée ne s'affichait pas en colonne quand les autres réponses n'avaient pas d'image.
+
+### Modifié
+- `README.md` : éditeur de QCM, questions liées, images et code dans l'architecture, images assainies et aucun HTML injecté, lot 3 marqué livré.
+- `docs/memory.md` : QCM et images (lot 3), points à retenir pour les lots 4, 5, 8 et 10.
+- `docs/choix.csv` : décisions A1, D4 à D8, D13 à D15 et D17 du plan du lot 3, et décisions prises pendant le run.
+
 ## 2026-09-29 — Lot 2 : classes
 
 ### Ajouté
