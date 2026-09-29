@@ -16,7 +16,7 @@ import { maintenant } from "@/lib/horloge";
 import { FORMAT_JETON, genererJeton, sha256Hex } from "@/lib/jetons";
 import { schemaEmail, schemaIdentifiant } from "@/lib/saisies";
 import { envoyerEmail, modeleInvitation, type ResultatEnvoi } from "@/modules/emails";
-import { journaliser } from "@/modules/journal";
+import { journaliser, journaliserLesRefus } from "@/modules/journal";
 import { reserverJournalise, type RegleLimite } from "@/modules/limiteur";
 import { lireValiditeInvitationJours } from "@/modules/parametres";
 
@@ -140,48 +140,50 @@ export async function inviter(
   acteur: ActeurUtilisateur,
   saisie: { email: string; role: string },
 ): Promise<InvitationEmise> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  const resultat = schemaInviter.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitation");
-  const { email, role } = resultat.data;
-  if (!peutGererRole(acteur, role)) throw erreurs.accesRefuse("Seul le super-admin peut inviter un admin.");
-  await compterInvitation(acteur);
+  return journaliserLesRefus(acteur, "comptes.inviter", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    const resultat = schemaInviter.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitation");
+    const { email, role } = resultat.data;
+    if (!peutGererRole(acteur, role)) throw erreurs.accesRefuse("Seul le super-admin peut inviter un admin.");
+    await compterInvitation(acteur);
 
-  const instant = maintenant();
-  const validiteJours = await lireValiditeInvitationJours();
-  const creee = await sansDoublon(() =>
-    db().transaction(async (tx) => {
-      const nouvelle = await creerInvitation(
-        tx,
-        { email, role, invitePar: acteur.id, instant, validiteJours },
-        acteur,
-      );
-      await journaliser(
-        {
-          acteur: { type: "utilisateur", id: acteur.id },
-          action: "comptes.inviter",
-          cible: `invitation:${nouvelle.id}`,
-          details: nouvelle.remplace ? { role, remplace: nouvelle.remplace } : { role },
-        },
-        tx,
-      );
-      return nouvelle;
-    }),
-  );
+    const instant = maintenant();
+    const validiteJours = await lireValiditeInvitationJours();
+    const creee = await sansDoublon(() =>
+      db().transaction(async (tx) => {
+        const nouvelle = await creerInvitation(
+          tx,
+          { email, role, invitePar: acteur.id, instant, validiteJours },
+          acteur,
+        );
+        await journaliser(
+          {
+            acteur: { type: "utilisateur", id: acteur.id },
+            action: "comptes.inviter",
+            cible: `invitation:${nouvelle.id}`,
+            details: nouvelle.remplace ? { role, remplace: nouvelle.remplace } : { role },
+          },
+          tx,
+        );
+        return nouvelle;
+      }),
+    );
 
-  const lien = lienActivation(creee.jeton);
-  const envoi = await envoyerEmail({
-    destinataire: email,
-    modele: "invitation",
-    message: modeleInvitation({
-      inviteur: nomInviteur(acteur),
-      role,
-      lien,
-      expireLe: creee.expireLe,
-      relance: false,
-    }),
+    const lien = lienActivation(creee.jeton);
+    const envoi = await envoyerEmail({
+      destinataire: email,
+      modele: "invitation",
+      message: modeleInvitation({
+        inviteur: nomInviteur(acteur),
+        role,
+        lien,
+        expireLe: creee.expireLe,
+        relance: false,
+      }),
+    });
+    return { invitationId: creee.id, email, lien, expireLe: creee.expireLe, envoi };
   });
-  return { invitationId: creee.id, email, lien, expireLe: creee.expireLe, envoi };
 }
 
 /** Invitation en attente que l'acteur peut gérer, verrouillée dans la transaction. */
@@ -202,67 +204,71 @@ export async function relancerInvitation(
   acteur: ActeurUtilisateur,
   saisie: { invitationId: string },
 ): Promise<InvitationEmise> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  const resultat = schemaInvitationId.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitation");
-  await compterInvitation(acteur);
+  return journaliserLesRefus(acteur, "comptes.relancer", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    const resultat = schemaInvitationId.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitation");
+    await compterInvitation(acteur);
 
-  const instant = maintenant();
-  const validiteJours = await lireValiditeInvitationJours();
-  const { ancienne, nouvelle } = await sansDoublon(() =>
-    db().transaction(async (tx) => {
-      const ancienne = await invitationGerable(tx, acteur, resultat.data.invitationId);
-      const nouvelle = await creerInvitation(
-        tx,
-        { email: ancienne.email, role: ancienne.role, invitePar: acteur.id, instant, validiteJours },
-        acteur,
-      );
-      await journaliser(
-        {
-          acteur: { type: "utilisateur", id: acteur.id },
-          action: "comptes.relancer",
-          cible: `invitation:${nouvelle.id}`,
-          details: { remplace: ancienne.id },
-        },
-        tx,
-      );
-      return { ancienne, nouvelle };
-    }),
-  );
+    const instant = maintenant();
+    const validiteJours = await lireValiditeInvitationJours();
+    const { ancienne, nouvelle } = await sansDoublon(() =>
+      db().transaction(async (tx) => {
+        const ancienne = await invitationGerable(tx, acteur, resultat.data.invitationId);
+        const nouvelle = await creerInvitation(
+          tx,
+          { email: ancienne.email, role: ancienne.role, invitePar: acteur.id, instant, validiteJours },
+          acteur,
+        );
+        await journaliser(
+          {
+            acteur: { type: "utilisateur", id: acteur.id },
+            action: "comptes.relancer",
+            cible: `invitation:${nouvelle.id}`,
+            details: { remplace: ancienne.id },
+          },
+          tx,
+        );
+        return { ancienne, nouvelle };
+      }),
+    );
 
-  const lien = lienActivation(nouvelle.jeton);
-  const envoi = await envoyerEmail({
-    destinataire: ancienne.email,
-    modele: "relance",
-    message: modeleInvitation({
-      inviteur: nomInviteur(acteur),
-      role: ancienne.role,
-      lien,
-      expireLe: nouvelle.expireLe,
-      relance: true,
-    }),
+    const lien = lienActivation(nouvelle.jeton);
+    const envoi = await envoyerEmail({
+      destinataire: ancienne.email,
+      modele: "relance",
+      message: modeleInvitation({
+        inviteur: nomInviteur(acteur),
+        role: ancienne.role,
+        lien,
+        expireLe: nouvelle.expireLe,
+        relance: true,
+      }),
+    });
+    return { invitationId: nouvelle.id, email: ancienne.email, lien, expireLe: nouvelle.expireLe, envoi };
   });
-  return { invitationId: nouvelle.id, email: ancienne.email, lien, expireLe: nouvelle.expireLe, envoi };
 }
 
 export async function annulerInvitation(
   acteur: ActeurUtilisateur,
   saisie: { invitationId: string },
 ): Promise<void> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  const resultat = schemaInvitationId.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitation");
-  await db().transaction(async (tx) => {
-    const ligne = await invitationGerable(tx, acteur, resultat.data.invitationId);
-    await tx.update(invitation).set({ annuleeLe: maintenant() }).where(eq(invitation.id, ligne.id));
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "comptes.annuler_invitation",
-        cible: `invitation:${ligne.id}`,
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "comptes.annuler_invitation", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    const resultat = schemaInvitationId.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitation");
+    await db().transaction(async (tx) => {
+      const ligne = await invitationGerable(tx, acteur, resultat.data.invitationId);
+      await tx.update(invitation).set({ annuleeLe: maintenant() }).where(eq(invitation.id, ligne.id));
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "comptes.annuler_invitation",
+          cible: `invitation:${ligne.id}`,
+        },
+        tx,
+      );
+    });
   });
 }
 

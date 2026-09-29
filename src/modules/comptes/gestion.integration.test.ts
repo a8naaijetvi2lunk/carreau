@@ -64,8 +64,16 @@ describe("matrice des droits (rôle de l'acteur × rôle de la cible × action)"
     const a = await acteur(roleActeur);
     const cible = await compte(roleCible);
     const resultat = executer(action, a, cible);
-    if (attendu === "ok") await expect(resultat).resolves.toBeUndefined();
-    else await expect(resultat).rejects.toMatchObject({ code: attendu });
+    if (attendu === "ok") {
+      await expect(resultat).resolves.toBeUndefined();
+    } else {
+      await expect(resultat).rejects.toMatchObject({ code: attendu });
+      const [entree] = await db()
+        .select()
+        .from(journal)
+        .where(and(eq(journal.action, "acces.refus"), eq(journal.acteurId, a.id)));
+      expect(entree?.details).toMatchObject({ action: `comptes.${action}` });
+    }
   });
 
   it("un enseignant ne voit pas la liste des comptes", async () => {

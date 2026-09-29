@@ -15,7 +15,7 @@ import { erreurDepuisZod, erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { journaliserErreurInattendue } from "@/lib/journal-erreur";
 import { schemaEmail } from "@/lib/saisies";
-import { journaliser } from "@/modules/journal";
+import { journaliser, journaliserLesRefus } from "@/modules/journal";
 
 export const VALIDITE_INVITATION_DEFAUT_JOURS = 7;
 
@@ -111,18 +111,20 @@ async function modifier(
 }
 
 export async function lireParametres(acteur: ActeurUtilisateur): Promise<VueParametres> {
-  exigerRole(acteur, ["super_admin"]);
-  const ligne = await lireLigne();
-  return {
-    resendConfiguree: Boolean(ligne?.resendCleChiffree),
-    emailExpediteur: ligne?.emailExpediteur ?? null,
-    nomExpediteur: ligne?.nomExpediteur ?? null,
-    validiteInvitationJours: ligne?.validiteInvitationJours ?? VALIDITE_INVITATION_DEFAUT_JOURS,
-    conservationEvenementsJours: ligne?.conservationEvenementsJours ?? null,
-    conservationResultatsJours: ligne?.conservationResultatsJours ?? null,
-    contactDonnees: ligne?.contactDonnees ?? null,
-    rgpdComplet: rgpdComplet(ligne),
-  };
+  return journaliserLesRefus(acteur, "parametres.lire", async () => {
+    exigerRole(acteur, ["super_admin"]);
+    const ligne = await lireLigne();
+    return {
+      resendConfiguree: Boolean(ligne?.resendCleChiffree),
+      emailExpediteur: ligne?.emailExpediteur ?? null,
+      nomExpediteur: ligne?.nomExpediteur ?? null,
+      validiteInvitationJours: ligne?.validiteInvitationJours ?? VALIDITE_INVITATION_DEFAUT_JOURS,
+      conservationEvenementsJours: ligne?.conservationEvenementsJours ?? null,
+      conservationResultatsJours: ligne?.conservationResultatsJours ?? null,
+      contactDonnees: ligne?.contactDonnees ?? null,
+      rgpdComplet: rgpdComplet(ligne),
+    };
+  });
 }
 
 export async function lireValiditeInvitationJours(): Promise<number> {
@@ -156,28 +158,30 @@ export async function enregistrerEnvoiEmails(
   acteur: ActeurUtilisateur,
   saisie: { cleApi: string; emailExpediteur: string; nomExpediteur: string },
 ): Promise<void> {
-  exigerRole(acteur, ["super_admin"]);
-  const resultat = schemaEnvoi.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Envoi des emails");
-  const { cleApi, emailExpediteur, nomExpediteur } = resultat.data;
-  if (cleApi === "" && !(await lireLigne())?.resendCleChiffree) {
-    throw erreurs.validation("Renseigne la clé Resend.", [
-      { chemin: "cleApi", message: "Renseigne la clé Resend." },
-    ]);
-  }
-  await db().transaction(async (tx) => {
-    await modifier(
-      { emailExpediteur, nomExpediteur, ...(cleApi === "" ? {} : { resendCleChiffree: chiffrer(cleApi) }) },
-      tx,
-    );
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "parametres.modifier_envoi",
-        details: { cleRemplacee: cleApi !== "" },
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "parametres.modifier_envoi", async () => {
+    exigerRole(acteur, ["super_admin"]);
+    const resultat = schemaEnvoi.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Envoi des emails");
+    const { cleApi, emailExpediteur, nomExpediteur } = resultat.data;
+    if (cleApi === "" && !(await lireLigne())?.resendCleChiffree) {
+      throw erreurs.validation("Renseigne la clé Resend.", [
+        { chemin: "cleApi", message: "Renseigne la clé Resend." },
+      ]);
+    }
+    await db().transaction(async (tx) => {
+      await modifier(
+        { emailExpediteur, nomExpediteur, ...(cleApi === "" ? {} : { resendCleChiffree: chiffrer(cleApi) }) },
+        tx,
+      );
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "parametres.modifier_envoi",
+          details: { cleRemplacee: cleApi !== "" },
+        },
+        tx,
+      );
+    });
   });
 }
 
@@ -185,19 +189,21 @@ export async function enregistrerValiditeInvitations(
   acteur: ActeurUtilisateur,
   saisie: { validiteInvitationJours: number },
 ): Promise<void> {
-  exigerRole(acteur, ["super_admin"]);
-  const resultat = schemaValidite.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitations");
-  await db().transaction(async (tx) => {
-    await modifier(resultat.data, tx);
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "parametres.modifier_invitations",
-        details: resultat.data,
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "parametres.modifier_invitations", async () => {
+    exigerRole(acteur, ["super_admin"]);
+    const resultat = schemaValidite.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Invitations");
+    await db().transaction(async (tx) => {
+      await modifier(resultat.data, tx);
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "parametres.modifier_invitations",
+          details: resultat.data,
+        },
+        tx,
+      );
+    });
   });
 }
 
@@ -205,19 +211,21 @@ export async function enregistrerConservation(
   acteur: ActeurUtilisateur,
   saisie: { conservationEvenementsJours: number; conservationResultatsJours: number; contactDonnees: string },
 ): Promise<void> {
-  exigerRole(acteur, ["super_admin"]);
-  const resultat = schemaConservation.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Conservation des données");
-  const { conservationEvenementsJours, conservationResultatsJours } = resultat.data;
-  await db().transaction(async (tx) => {
-    await modifier(resultat.data, tx);
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "parametres.modifier_conservation",
-        details: { conservationEvenementsJours, conservationResultatsJours },
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "parametres.modifier_conservation", async () => {
+    exigerRole(acteur, ["super_admin"]);
+    const resultat = schemaConservation.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Conservation des données");
+    const { conservationEvenementsJours, conservationResultatsJours } = resultat.data;
+    await db().transaction(async (tx) => {
+      await modifier(resultat.data, tx);
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "parametres.modifier_conservation",
+          details: { conservationEvenementsJours, conservationResultatsJours },
+        },
+        tx,
+      );
+    });
   });
 }

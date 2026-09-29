@@ -171,6 +171,18 @@ describe("inviter", () => {
     expect((await lireInvitation(jetonDe(emiseEnseignant.lien)))?.etat).toBe("valide");
   });
 
+  it("journalise un refus d'accès (comptes.inviter)", async () => {
+    const admin = await acteur("admin");
+    await expect(inviter(admin, { email: "refus.inviter@exemple.fr", role: "admin" })).rejects.toMatchObject({
+      code: "ACCES_REFUSE",
+    });
+    const [entree] = await db()
+      .select()
+      .from(journal)
+      .where(and(eq(journal.action, "acces.refus"), eq(journal.acteurId, admin.id)));
+    expect(entree?.details).toMatchObject({ action: "comptes.inviter", role: "admin" });
+  });
+
   it("limite l'émetteur à 20 invitations par heure", async () => {
     const admin = await acteur();
     for (let i = 0; i < REGLE_INVITATIONS_EMETTEUR.seuil; i++) {

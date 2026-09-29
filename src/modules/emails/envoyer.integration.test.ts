@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { journal } from "@/db/schema";
@@ -98,6 +98,11 @@ describe("envoyerEmailTest", () => {
     await expect(envoyerEmailTest(acteur, { modele: "invitation" })).rejects.toMatchObject({
       code: "ACCES_REFUSE",
     });
+    const [entree] = await db()
+      .select()
+      .from(journal)
+      .where(and(eq(journal.action, "acces.refus"), eq(journal.acteurId, acteur.id)));
+    expect(entree?.details).toMatchObject({ action: "parametres.email_test", role });
   });
 
   it("part vers l'adresse du super-admin, sujet préfixé par [Test]", async () => {

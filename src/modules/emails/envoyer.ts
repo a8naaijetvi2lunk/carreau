@@ -11,7 +11,7 @@ import { env } from "@/lib/env";
 import { ErreurService, erreurDepuisZod } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { sha256Hex } from "@/lib/jetons";
-import { journaliser } from "@/modules/journal";
+import { journaliser, journaliserLesRefus } from "@/modules/journal";
 import { reserverJournalise, type RegleLimite } from "@/modules/limiteur";
 import { lireConfigurationEnvoi } from "@/modules/parametres";
 import { MODELES_TEST, modeleTest, type MessageEmail } from "./modeles";
@@ -75,20 +75,22 @@ export async function envoyerEmailTest(
   acteur: ActeurUtilisateur,
   saisie: { modele: string },
 ): Promise<ResultatEnvoi> {
-  exigerRole(acteur, ["super_admin"]);
-  const resultat = schemaTest.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Email de test");
-  const { modele } = resultat.data;
-  const lien = new URL("/connexion", env().APP_URL).toString();
-  const envoi = await envoyerEmail({
-    destinataire: acteur.email,
-    modele: `test_${modele}`,
-    message: modeleTest(modele, lien, maintenant()),
+  return journaliserLesRefus(acteur, "parametres.email_test", async () => {
+    exigerRole(acteur, ["super_admin"]);
+    const resultat = schemaTest.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Email de test");
+    const { modele } = resultat.data;
+    const lien = new URL("/connexion", env().APP_URL).toString();
+    const envoi = await envoyerEmail({
+      destinataire: acteur.email,
+      modele: `test_${modele}`,
+      message: modeleTest(modele, lien, maintenant()),
+    });
+    await journaliser({
+      acteur: { type: "utilisateur", id: acteur.id },
+      action: "parametres.email_test",
+      details: { modele, ok: envoi.ok },
+    });
+    return envoi;
   });
-  await journaliser({
-    acteur: { type: "utilisateur", id: acteur.id },
-    action: "parametres.email_test",
-    details: { modele, ok: envoi.ok },
-  });
-  return envoi;
 }

@@ -14,7 +14,7 @@ import { erreurDepuisZod, erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { schemaIdentifiant, schemaRole } from "@/lib/saisies";
 import { supprimerSessionsUtilisateur } from "@/modules/auth";
-import { journaliser } from "@/modules/journal";
+import { journaliser, journaliserLesRefus } from "@/modules/journal";
 
 export type ActionCompte = "desactiver" | "reactiver" | "reinitialiser_double_auth" | "changer_role";
 export type ActionInvitation = "relancer" | "annuler";
@@ -60,52 +60,54 @@ function actionsPossibles(acteur: ActeurUtilisateur, cible: Cible): ActionCompte
 export async function listerComptes(
   acteur: ActeurUtilisateur,
 ): Promise<{ comptes: LigneCompte[]; invitations: LigneInvitationEnAttente[] }> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  const instant = maintenant();
-  const comptes = await db()
-    .select({
-      id: utilisateur.id,
-      email: utilisateur.email,
-      nom: utilisateur.nom,
-      prenom: utilisateur.prenom,
-      role: utilisateur.role,
-      actif: utilisateur.actif,
-      totpSecretChiffre: utilisateur.totpSecretChiffre,
-      derniereConnexionLe: utilisateur.derniereConnexionLe,
-    })
-    .from(utilisateur)
-    .orderBy(asc(utilisateur.nom), asc(utilisateur.prenom));
-  const invitations = await db()
-    .select({
-      id: invitation.id,
-      email: invitation.email,
-      role: invitation.role,
-      creeLe: invitation.creeLe,
-      expireLe: invitation.expireLe,
-    })
-    .from(invitation)
-    .where(and(isNull(invitation.utiliseeLe), isNull(invitation.annuleeLe)))
-    .orderBy(desc(invitation.creeLe));
+  return journaliserLesRefus(acteur, "comptes.lister", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    const instant = maintenant();
+    const comptes = await db()
+      .select({
+        id: utilisateur.id,
+        email: utilisateur.email,
+        nom: utilisateur.nom,
+        prenom: utilisateur.prenom,
+        role: utilisateur.role,
+        actif: utilisateur.actif,
+        totpSecretChiffre: utilisateur.totpSecretChiffre,
+        derniereConnexionLe: utilisateur.derniereConnexionLe,
+      })
+      .from(utilisateur)
+      .orderBy(asc(utilisateur.nom), asc(utilisateur.prenom));
+    const invitations = await db()
+      .select({
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        creeLe: invitation.creeLe,
+        expireLe: invitation.expireLe,
+      })
+      .from(invitation)
+      .where(and(isNull(invitation.utiliseeLe), isNull(invitation.annuleeLe)))
+      .orderBy(desc(invitation.creeLe));
 
-  return {
-    comptes: comptes.map((c) => ({
-      id: c.id,
-      email: c.email,
-      nom: c.nom,
-      prenom: c.prenom,
-      role: c.role,
-      actif: c.actif,
-      doubleAuthConfiguree: c.totpSecretChiffre !== null,
-      derniereConnexionLe: c.derniereConnexionLe,
-      estActeur: c.id === acteur.id,
-      actions: actionsPossibles(acteur, c),
-    })),
-    invitations: invitations.map((i) => ({
-      ...i,
-      expiree: i.expireLe.getTime() <= instant.getTime(),
-      actions: peutGererRole(acteur, i.role) ? ["relancer", "annuler"] : [],
-    })),
-  };
+    return {
+      comptes: comptes.map((c) => ({
+        id: c.id,
+        email: c.email,
+        nom: c.nom,
+        prenom: c.prenom,
+        role: c.role,
+        actif: c.actif,
+        doubleAuthConfiguree: c.totpSecretChiffre !== null,
+        derniereConnexionLe: c.derniereConnexionLe,
+        estActeur: c.id === acteur.id,
+        actions: actionsPossibles(acteur, c),
+      })),
+      invitations: invitations.map((i) => ({
+        ...i,
+        expiree: i.expireLe.getTime() <= instant.getTime(),
+        actions: peutGererRole(acteur, i.role) ? ["relancer", "annuler"] : [],
+      })),
+    };
+  });
 }
 
 /**
@@ -157,23 +159,25 @@ export async function desactiverCompte(
   acteur: ActeurUtilisateur,
   saisie: { utilisateurId: string },
 ): Promise<void> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  await gerer(acteur, lireCible(saisie), async (tx, cible) => {
-    if (!cible.actif) throw erreurs.etat("Ce compte est déjà désactivé.");
-    await tx.update(utilisateur).set({ actif: false }).where(eq(utilisateur.id, cible.id));
-    await supprimerSessionsUtilisateur(cible.id, tx);
-    await tx
-      .update(jetonMcp)
-      .set({ revoqueLe: maintenant() })
-      .where(and(eq(jetonMcp.enseignantId, cible.id), isNull(jetonMcp.revoqueLe)));
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "comptes.desactiver",
-        cible: `utilisateur:${cible.id}`,
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "comptes.desactiver", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    await gerer(acteur, lireCible(saisie), async (tx, cible) => {
+      if (!cible.actif) throw erreurs.etat("Ce compte est déjà désactivé.");
+      await tx.update(utilisateur).set({ actif: false }).where(eq(utilisateur.id, cible.id));
+      await supprimerSessionsUtilisateur(cible.id, tx);
+      await tx
+        .update(jetonMcp)
+        .set({ revoqueLe: maintenant() })
+        .where(and(eq(jetonMcp.enseignantId, cible.id), isNull(jetonMcp.revoqueLe)));
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "comptes.desactiver",
+          cible: `utilisateur:${cible.id}`,
+        },
+        tx,
+      );
+    });
   });
 }
 
@@ -181,18 +185,20 @@ export async function reactiverCompte(
   acteur: ActeurUtilisateur,
   saisie: { utilisateurId: string },
 ): Promise<void> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  await gerer(acteur, lireCible(saisie), async (tx, cible) => {
-    if (cible.actif) throw erreurs.etat("Ce compte est déjà actif.");
-    await tx.update(utilisateur).set({ actif: true }).where(eq(utilisateur.id, cible.id));
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "comptes.reactiver",
-        cible: `utilisateur:${cible.id}`,
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "comptes.reactiver", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    await gerer(acteur, lireCible(saisie), async (tx, cible) => {
+      if (cible.actif) throw erreurs.etat("Ce compte est déjà actif.");
+      await tx.update(utilisateur).set({ actif: true }).where(eq(utilisateur.id, cible.id));
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "comptes.reactiver",
+          cible: `utilisateur:${cible.id}`,
+        },
+        tx,
+      );
+    });
   });
 }
 
@@ -201,24 +207,26 @@ export async function reinitialiserDoubleAuth(
   acteur: ActeurUtilisateur,
   saisie: { utilisateurId: string },
 ): Promise<void> {
-  exigerRole(acteur, ["admin", "super_admin"]);
-  await gerer(acteur, lireCible(saisie), async (tx, cible) => {
-    if (cible.totpSecretChiffre === null) {
-      throw erreurs.etat("La double authentification de ce compte est déjà à configurer.");
-    }
-    await tx
-      .update(utilisateur)
-      .set({ totpSecretChiffre: null, totpDernierPas: null })
-      .where(eq(utilisateur.id, cible.id));
-    await supprimerSessionsUtilisateur(cible.id, tx);
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "comptes.reinitialiser_double_auth",
-        cible: `utilisateur:${cible.id}`,
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "comptes.reinitialiser_double_auth", async () => {
+    exigerRole(acteur, ["admin", "super_admin"]);
+    await gerer(acteur, lireCible(saisie), async (tx, cible) => {
+      if (cible.totpSecretChiffre === null) {
+        throw erreurs.etat("La double authentification de ce compte est déjà à configurer.");
+      }
+      await tx
+        .update(utilisateur)
+        .set({ totpSecretChiffre: null, totpDernierPas: null })
+        .where(eq(utilisateur.id, cible.id));
+      await supprimerSessionsUtilisateur(cible.id, tx);
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "comptes.reinitialiser_double_auth",
+          cible: `utilisateur:${cible.id}`,
+        },
+        tx,
+      );
+    });
   });
 }
 
@@ -227,21 +235,23 @@ export async function changerRole(
   acteur: ActeurUtilisateur,
   saisie: { utilisateurId: string; role: string },
 ): Promise<void> {
-  exigerRole(acteur, ["super_admin"]);
-  const resultat = schemaChangementRole.safeParse(saisie);
-  if (!resultat.success) throw erreurDepuisZod(resultat.error, "Rôle");
-  const { utilisateurId, role } = resultat.data;
-  await gerer(acteur, utilisateurId, async (tx, cible) => {
-    if (cible.role === role) throw erreurs.etat("Ce compte a déjà ce rôle.");
-    await tx.update(utilisateur).set({ role }).where(eq(utilisateur.id, cible.id));
-    await journaliser(
-      {
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "comptes.changer_role",
-        cible: `utilisateur:${cible.id}`,
-        details: { avant: cible.role, apres: role },
-      },
-      tx,
-    );
+  return journaliserLesRefus(acteur, "comptes.changer_role", async () => {
+    exigerRole(acteur, ["super_admin"]);
+    const resultat = schemaChangementRole.safeParse(saisie);
+    if (!resultat.success) throw erreurDepuisZod(resultat.error, "Rôle");
+    const { utilisateurId, role } = resultat.data;
+    await gerer(acteur, utilisateurId, async (tx, cible) => {
+      if (cible.role === role) throw erreurs.etat("Ce compte a déjà ce rôle.");
+      await tx.update(utilisateur).set({ role }).where(eq(utilisateur.id, cible.id));
+      await journaliser(
+        {
+          acteur: { type: "utilisateur", id: acteur.id },
+          action: "comptes.changer_role",
+          cible: `utilisateur:${cible.id}`,
+          details: { avant: cible.role, apres: role },
+        },
+        tx,
+      );
+    });
   });
 }

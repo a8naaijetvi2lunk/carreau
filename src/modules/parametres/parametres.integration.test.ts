@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
 import { journal, parametres } from "@/db/schema";
@@ -30,6 +30,12 @@ describe("droits", () => {
   it.each(["admin", "enseignant"] as const)("refuse les paramètres à un compte %s", async (role) => {
     const acteur = acteurDe(await creerUtilisateur({ role }));
     await expect(lireParametres(acteur)).rejects.toMatchObject({ code: "ACCES_REFUSE" });
+    const [entree] = await db()
+      .select()
+      .from(journal)
+      .where(and(eq(journal.action, "acces.refus"), eq(journal.acteurId, acteur.id)));
+    expect(entree?.details).toMatchObject({ action: "parametres.lire", role });
+
     await expect(
       enregistrerEnvoiEmails(acteur, {
         cleApi: CLE,
