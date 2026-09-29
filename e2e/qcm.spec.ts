@@ -146,7 +146,7 @@ test.describe("qcm", () => {
     await expect(page.getByText("Plusieurs réponses possibles", { exact: true })).toBeVisible();
     await expect(page.getByRole("timer")).toHaveText("20:00");
     const code = page.getByRole("group", { name: "Code Python" });
-    await expect(page.getByRole("group", { name: /^Code / })).toHaveCSS("font-variant-ligatures", "none");
+    await expect(code).toHaveCSS("font-variant-ligatures", "none");
     await expect(code).toContainText("print(f(4))");
     await expect(code.locator("span", { hasText: /^def$/ })).toHaveCSS("color", "rgb(143, 179, 255)");
     const image = page.getByRole("img", { name: "Image de la question" });
