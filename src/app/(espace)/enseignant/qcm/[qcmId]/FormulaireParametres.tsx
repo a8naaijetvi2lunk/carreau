@@ -83,7 +83,8 @@ export function FormulaireParametres({
               </label>
             ))}
           </fieldset>
-          <div className={mode === "global" ? "" : "hidden"}>
+          {/* Durées masquées hors de leur mode (conservées, décision D12), mais affichées dès qu'elles sont en erreur. */}
+          <div className={mode === "global" || erreurs.dureeGlobaleMinutes ? "" : "hidden"}>
             <Champ
               id="parametres-duree-globale"
               name="dureeGlobaleMinutes"
@@ -95,7 +96,7 @@ export function FormulaireParametres({
               erreur={erreurs.dureeGlobaleMinutes}
             />
           </div>
-          <div className={mode === "par_question" ? "" : "hidden"}>
+          <div className={mode === "par_question" || erreurs.dureeQuestionS ? "" : "hidden"}>
             <Champ
               id="parametres-duree-question"
               name="dureeQuestionS"
