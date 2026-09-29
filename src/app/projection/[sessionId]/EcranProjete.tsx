@@ -85,6 +85,8 @@ export function EcranProjete({
       periodeMs: () => PERIODE_PROJECTION_MS,
       surResultat: (nouvelle) => {
         setConnexionPerdue(false);
+        // Hors de la salle d'attente, une erreur de démarrage n'a plus d'objet : elle ne reste pas projetée.
+        if (nouvelle.statut !== "attente") setErreur(null);
         setDecalageMs(decalageServeurMs(nouvelle.serveurMaintenant, Date.now()));
         setVue(nouvelle);
       },
