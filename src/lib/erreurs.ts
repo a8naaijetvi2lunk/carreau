@@ -27,13 +27,19 @@ export class ErreurService extends Error {
   readonly code: CodeErreur;
   readonly statutHttp: number;
   readonly details?: unknown;
+  /**
+   * Refus d'accès déguisé (ressource d'autrui) : journalisé par `journaliserLesRefus`, jamais
+   * transmis au client (les enveloppes ne recopient que code, message et détails).
+   */
+  readonly refusAcces: boolean;
 
-  constructor(code: CodeErreur, message: string, details?: unknown) {
+  constructor(code: CodeErreur, message: string, details?: unknown, options: { refusAcces?: boolean } = {}) {
     super(message);
     this.name = "ErreurService";
     this.code = code;
     this.statutHttp = STATUTS_HTTP[code];
     if (details !== undefined) this.details = details;
+    this.refusAcces = options.refusAcces ?? false;
   }
 }
 
@@ -50,6 +56,13 @@ export const erreurs = {
   /** `quoi` : nom au singulier, sans article (« Session ») → « Session introuvable. » */
   introuvable(quoi: string) {
     return new ErreurService("INTROUVABLE", `${quoi} introuvable.`);
+  },
+  /**
+   * Ressource qui existe mais appartient à un autre compte : même code et même message
+   * qu'`introuvable` (on ne révèle pas qu'elle existe), refus journalisé par `journaliserLesRefus`.
+   */
+  ressourceAutrui(quoi: string) {
+    return new ErreurService("INTROUVABLE", `${quoi} introuvable.`, undefined, { refusAcces: true });
   },
   validation(message: string, details?: unknown) {
     return new ErreurService("VALIDATION", message, details);

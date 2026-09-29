@@ -51,6 +51,17 @@ describe("executerAction", () => {
       digest: expect.stringMatching(/^NEXT_REDIRECT/),
     });
   });
+
+  it("ne transmet pas le marqueur d'une ressource d'autrui : même réponse qu'une ressource inexistante", async () => {
+    const autrui = await executerAction(async () => {
+      throw erreurs.ressourceAutrui("Classe");
+    });
+    const inexistante = await executerAction(async () => {
+      throw erreurs.introuvable("Classe");
+    });
+    expect(autrui).toEqual({ ok: false, erreur: { code: "INTROUVABLE", message: "Classe introuvable." } });
+    expect(autrui).toEqual(inexistante);
+  });
 });
 
 describe("referenceErreur", () => {

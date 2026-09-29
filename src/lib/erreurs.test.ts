@@ -29,6 +29,18 @@ describe("ErreurService", () => {
   it("conserve les détails d'une erreur d'état", () => {
     expect(erreurs.etat("Session terminée.", { raison: "terminee" }).details).toEqual({ raison: "terminee" });
   });
+
+  it("une ressource d'autrui est introuvable, comme un identifiant inexistant, et marquée comme refus", () => {
+    const autrui = erreurs.ressourceAutrui("Classe");
+    const inexistante = erreurs.introuvable("Classe");
+    expect(autrui.code).toBe("INTROUVABLE");
+    expect(autrui.statutHttp).toBe(404);
+    expect(autrui.message).toBe(inexistante.message);
+    expect(autrui.details).toBeUndefined();
+    expect(autrui.refusAcces).toBe(true);
+    expect(inexistante.refusAcces).toBe(false);
+    expect(erreurs.accesRefuse().refusAcces).toBe(false);
+  });
 });
 
 describe("erreurDepuisDetails", () => {

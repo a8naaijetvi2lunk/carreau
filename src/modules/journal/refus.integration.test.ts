@@ -66,4 +66,27 @@ describe("journaliserLesRefus", () => {
     ).rejects.toMatchObject({ code: "VALIDATION" });
     expect(await entreesRefus(a.id)).toEqual([]);
   });
+
+  it("journalise une ressource d'autrui, même levée dans une transaction, puis relance l'erreur", async () => {
+    const a = await acteur();
+    await expect(
+      journaliserLesRefus(a, "test.autrui", async () =>
+        db().transaction(async () => {
+          throw erreurs.ressourceAutrui("Classe");
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "INTROUVABLE", message: "Classe introuvable." });
+    const [entree] = await entreesRefus(a.id);
+    expect(entree?.details).toEqual({ action: "test.autrui", role: "admin", motif: "ressource_autrui" });
+  });
+
+  it("une ressource simplement introuvable n'est pas journalisée", async () => {
+    const a = await acteur();
+    await expect(
+      journaliserLesRefus(a, "test.introuvable", async () => {
+        throw erreurs.introuvable("Classe");
+      }),
+    ).rejects.toMatchObject({ code: "INTROUVABLE" });
+    expect(await entreesRefus(a.id)).toEqual([]);
+  });
 });

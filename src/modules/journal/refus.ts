@@ -5,8 +5,10 @@ import { journaliser } from "./journaliser";
 
 /**
  * Exécute un service et journalise ses refus d'accès (spec §12 : tout refus d'accès est
- * journalisé). L'écriture se fait après coup, hors de toute transaction du service : un refus
- * levé dans une transaction l'annule, l'entrée de journal doit survivre.
+ * journalisé) : rôle insuffisant (`ACCES_REFUSE`) ou ressource d'un autre compte
+ * (`erreurs.ressourceAutrui`, qui répond « introuvable »). L'écriture se fait après coup, hors
+ * de toute transaction du service : un refus levé dans une transaction l'annule, l'entrée de
+ * journal doit survivre.
  */
 export async function journaliserLesRefus<T>(
   acteur: ActeurUtilisateur,
@@ -16,11 +18,13 @@ export async function journaliserLesRefus<T>(
   try {
     return await service();
   } catch (erreur) {
-    if (erreur instanceof ErreurService && erreur.code === "ACCES_REFUSE") {
+    if (erreur instanceof ErreurService && (erreur.code === "ACCES_REFUSE" || erreur.refusAcces)) {
       await journaliser({
         acteur: { type: "utilisateur", id: acteur.id },
         action: "acces.refus",
-        details: { action, role: acteur.role },
+        details: erreur.refusAcces
+          ? { action, role: acteur.role, motif: "ressource_autrui" }
+          : { action, role: acteur.role },
       });
     }
     throw erreur;

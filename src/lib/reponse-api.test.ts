@@ -48,6 +48,13 @@ describe("reponseErreur", () => {
     expect(corps.erreur.code).toBe("INTERNE");
     expect(corps.erreur.message).not.toContain("pile interne");
   });
+
+  it("répond pour une ressource d'autrui exactement comme pour une ressource inexistante", async () => {
+    const autrui = reponseErreur(erreurs.ressourceAutrui("Classe"));
+    const inexistante = reponseErreur(erreurs.introuvable("Classe"));
+    expect(autrui.status).toBe(404);
+    expect(await autrui.json()).toEqual(await inexistante.json());
+  });
 });
 
 describe("reponseOk", () => {
