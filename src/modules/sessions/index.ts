@@ -7,3 +7,17 @@ export {
   poserCookiesEntree,
   type CookiesEntree,
 } from "./cookies";
+export {
+  annulerSession,
+  creerSession,
+  listerSessions,
+  lireSession,
+  optionsNouvelleSession,
+  type ClasseProposable,
+  type OptionsNouvelleSession,
+  type QcmProposable,
+  type SaisieSession,
+  type SessionDetaillee,
+  type SessionResume,
+} from "./sessions";
+export { projeterSession, suivreSession } from "./suivi";
