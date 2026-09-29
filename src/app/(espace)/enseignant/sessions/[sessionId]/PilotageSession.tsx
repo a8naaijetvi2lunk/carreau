@@ -48,6 +48,8 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
   const [confirmation, setConfirmation] = useState<"demarrer" | "annuler" | null>(null);
   const [connexionPerdue, setConnexionPerdue] = useState(false);
   const interrogation = useRef<Interrogation<VueSuivi> | null>(null);
+  // Statut vu à l'interrogation précédente : au départ de la salle d'attente, une erreur de démarrage est effacée.
+  const statutPrecedent = useRef(suiviInitial.statut);
 
   useEffect(() => {
     const suiviPeriodique = new Interrogation<VueSuivi>({
@@ -59,6 +61,9 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
       periodeMs: () => PERIODE_SUIVI_MS,
       surResultat: (vue) => {
         setConnexionPerdue(false);
+        // Démarrée ailleurs (écran projeté) : « Cette session a déjà démarré. » n'a plus d'objet.
+        if (statutPrecedent.current === "attente" && vue.statut !== "attente") setErreur(null);
+        statutPrecedent.current = vue.statut;
         setDecalageMs(decalageServeurMs(vue.serveurMaintenant, Date.now()));
         setSuivi(vue);
       },
