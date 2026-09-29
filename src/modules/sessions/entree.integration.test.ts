@@ -1,7 +1,15 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { demandeAppareil, evenement, journal, parametres, participation, sessionExamen } from "@/db/schema";
+import {
+  demandeAppareil,
+  evenement,
+  journal,
+  limiteur,
+  parametres,
+  participation,
+  sessionExamen,
+} from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { FORMAT_JETON, genererJeton, sha256Hex } from "@/lib/jetons";
 import { creerClasseTest, creerEtudiantTest } from "@/test/classes";
@@ -487,5 +495,15 @@ describe("lireEtatEntree", () => {
     const t: Telephone = { ticket: null, jetonAppareil: genererJeton() };
     for (let i = 0; i < 120; i++) await lireEtatEntree(t);
     await expect(lireEtatEntree(t)).rejects.toMatchObject({ code: "LIMITE_ATTEINTE" });
+  });
+
+  it("un jeton d'appareil mal formé suit la branche du ticket, sans poser de clé du limiteur", async () => {
+    await salle();
+    // Table nettoyée : les appels d'appareil des tests précédents y ont déjà posé des clés.
+    await db().delete(limiteur);
+    const t: Telephone = { ticket: null, jetonAppareil: "mal-forme" };
+    expect((await lireEtatEntree(t)).etat).toMatchObject({ etape: "code" });
+    const lignes = await db().select().from(limiteur).where(like(limiteur.cle, "etudiant:etat:%"));
+    expect(lignes).toEqual([]);
   });
 });

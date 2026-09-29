@@ -444,7 +444,7 @@ export async function confirmerInformation(telephone: Telephone): Promise<Result
  * un téléphone sans cookie reçoit l'étape du code sans lecture de la base (D15).
  */
 export async function lireEtatEntree(telephone: Telephone): Promise<ResultatEntree> {
-  if (telephone.jetonAppareil !== null) {
+  if (telephone.jetonAppareil !== null && empreinteAppareil(telephone.jetonAppareil) !== null) {
     await reserverJournalise(cleEtatAppareil(telephone.jetonAppareil), REGLE_ETAT, {
       action: "sessions.limite_etat",
     });
