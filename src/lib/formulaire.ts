@@ -27,3 +27,20 @@ export function erreursParChamp(details: unknown): Record<string, string> {
   }
   return resultat;
 }
+
+/** Fichier envoyé ; null si le champ est absent, n'est pas un fichier ou si aucun fichier n'a été choisi. */
+export function lireFichier(formulaire: FormData, nom: string): File | null {
+  const valeur = formulaire.get(nom);
+  return valeur instanceof File && valeur.size > 0 ? valeur : null;
+}
+
+/** Champ texte contenant du JSON ; `undefined` s'il est absent ou invalide (le service valide la structure). */
+export function lireChampJson(formulaire: FormData, nom: string): unknown {
+  const valeur = formulaire.get(nom);
+  if (typeof valeur !== "string") return undefined;
+  try {
+    return JSON.parse(valeur) as unknown;
+  } catch {
+    return undefined;
+  }
+}
