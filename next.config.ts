@@ -21,7 +21,8 @@ const nextConfig: NextConfig = {
     // soit (msvc en local, musl dans l'image Docker, gnu en CI).
     // Même chose pour read-excel-file (import de listes, lot 2) et ses dépendances, chargés hors bundle,
     // et pour sharp (images, lot 3) : son binaire natif (@img/sharp-<plateforme>) est chargé par un
-    // chemin calculé que le traçage ne voit pas.
+    // chemin calculé que le traçage ne voit pas. shiki (coloration du code, lot 3) charge ses
+    // grammaires (@shikijs/langs) par des imports dynamiques que le traçage ne suit pas non plus.
     "/*": [
       "node_modules/drizzle-orm/**",
       "node_modules/@node-rs/argon2/**",
@@ -37,6 +38,8 @@ const nextConfig: NextConfig = {
       "node_modules/@img/**",
       "node_modules/detect-libc/**",
       "node_modules/semver/**",
+      "node_modules/shiki/**",
+      "node_modules/@shikijs/langs/**",
     ],
   },
   async headers() {
