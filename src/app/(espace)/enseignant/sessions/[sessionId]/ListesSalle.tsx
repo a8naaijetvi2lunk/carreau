@@ -1,6 +1,7 @@
 import { Bouton, Etiquette } from "@/components/ui";
 import { nomComplet } from "@/lib/regles-session";
 import type { VueSuivi } from "@/lib/vue-session";
+import { libelleAvancement } from "../libelles";
 
 /** Étudiants dans la salle et pas encore connectés (maquette « Écran projeté ») ; « Retirer » en salle d'attente. */
 export function ListesSalle({
@@ -35,7 +36,14 @@ export function ListesSalle({
                 >
                   <span className="min-w-0 flex-1 text-[15px] font-bold">{nom}</span>
                   {p.tiersTemps ? <Etiquette ton="bleu">Tiers-temps</Etiquette> : null}
-                  {p.informationLue ? null : <Etiquette>Lit les informations</Etiquette>}
+                  {p.avancement ? (
+                    <Etiquette ton={p.avancement.terminee ? "neutre" : "bleu"}>
+                      {libelleAvancement(p.avancement)}
+                    </Etiquette>
+                  ) : null}
+                  {p.informationLue || p.avancement?.terminee ? null : (
+                    <Etiquette>Lit les informations</Etiquette>
+                  )}
                   {retirable ? (
                     <Bouton
                       variante="secondaire"

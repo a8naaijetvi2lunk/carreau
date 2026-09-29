@@ -13,13 +13,13 @@ import { erreurDepuisDetails, erreurs, type ErreurService } from "@/lib/erreurs"
 import { maintenant } from "@/lib/horloge";
 import { genererJeton } from "@/lib/jetons";
 import { LIMITES_SESSION, type StatutSession } from "@/lib/regles-session";
-import type { ResumeExamen } from "@/lib/resume-examen";
+import { resumerExamen, type ResumeExamen } from "@/lib/resume-examen";
 import { lireIdentifiant, valider } from "@/lib/validation";
 import type { VueSuivi } from "@/lib/vue-session";
 import { journaliser, journaliserLesRefus } from "@/modules/journal";
 import { parametresRgpdComplets } from "@/modules/parametres";
 import { MESSAGES_SESSION, resumeDuQcm, sessionDeLActeur } from "./commun";
-import { construireSuivi } from "./suivi";
+import { construireSuivi, sessionAJour } from "./suivi";
 
 export type QcmProposable = {
   id: string;
@@ -266,7 +266,7 @@ export async function lireSession(
 ): Promise<SessionDetaillee> {
   return journaliserLesRefus(acteur, "sessions.lire", async () => {
     const sessionId = lireIdentifiant(valider(schemaSession, saisie, "Session").sessionId, "Session");
-    const lue = await sessionDeLActeur(db(), acteur, sessionId);
+    const lue = await sessionAJour(acteur, sessionId);
     const [infos] = await db()
       .select({
         titre: qcm.titre,
@@ -275,18 +275,33 @@ export async function lireSession(
         noteVisible: sessionExamen.noteVisible,
         correctionVisible: sessionExamen.correctionVisible,
         creeLe: sessionExamen.creeLe,
+        contenu: sessionExamen.contenu,
       })
       .from(sessionExamen)
       .innerJoin(qcm, eq(qcm.id, sessionExamen.qcmId))
       .innerJoin(classe, eq(classe.id, sessionExamen.classeId))
       .where(eq(sessionExamen.id, sessionId));
     if (!infos) throw erreurs.introuvable("Session");
+    const { contenu, ...affichees } = infos;
     return {
       id: lue.id,
       qcmId: lue.qcmId,
       statut: lue.statut,
-      ...infos,
-      examen: await resumeDuQcm(db(), lue.qcmId, false),
+      ...affichees,
+      // Après le départ, titre et résumé se lisent dans l'instantané (spec §4.3, décision D15 du plan
+      // du lot 5). L'instantané lui-même n'est jamais renvoyé : il contient les bonnes réponses.
+      titre: contenu?.titre ?? affichees.titre,
+      examen: contenu
+        ? resumerExamen(
+            {
+              modeChrono: contenu.modeChrono,
+              dureeGlobaleS: contenu.dureeGlobaleS,
+              dureeQuestionS: null,
+              questions: contenu.questions,
+            },
+            false,
+          )
+        : await resumeDuQcm(db(), lue.qcmId, false),
       suivi: await construireSuivi(db(), lue),
     };
   });

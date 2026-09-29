@@ -4,7 +4,7 @@
  * projeté qu'en salle d'attente.
  */
 import "server-only";
-import { and, asc, eq, inArray, isNull, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Executeur } from "@/db";
 import { demandeAppareil, etudiant, participation } from "@/db/schema";
@@ -13,6 +13,7 @@ import { maintenant } from "@/lib/horloge";
 import { LIMITES_SESSION, nomCourt } from "@/lib/regles-session";
 import { lireIdentifiant, valider } from "@/lib/validation";
 import type { VueProjection, VueSuivi } from "@/lib/vue-session";
+import { rattraperSession } from "@/modules/examen";
 import { journaliserLesRefus } from "@/modules/journal";
 import { codeAffiche } from "./code";
 import { sessionDeLActeur, type SessionLue } from "./commun";
@@ -50,6 +51,10 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
       prenom: etudiant.prenom,
       tiersTemps: etudiant.tiersTemps,
       informationLueLe: participation.informationLueLe,
+      statut: participation.statut,
+      indexCourant: participation.indexCourant,
+      // Requête avec jointure : la colonne reste qualifiée (piège DevBrain).
+      total: sql<number | null>`jsonb_array_length(${participation.ordre})`,
     })
     .from(participation)
     .innerJoin(etudiant, eq(etudiant.id, participation.etudiantId))
@@ -90,6 +95,10 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
       prenom: p.prenom,
       tiersTemps: p.tiersTemps,
       informationLue: p.informationLueLe !== null,
+      avancement:
+        p.total === null
+          ? null
+          : { repondues: p.indexCourant, total: Number(p.total), terminee: p.statut === "terminee" },
     })),
     absents,
     demandes: demandes.map((d) => ({
@@ -103,6 +112,17 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
   };
 }
 
+/**
+ * Session de l'acteur, à jour : pendant l'examen, les passages échus sont rattrapés et la clôture est
+ * tentée (spec §6.5, décision D6 du plan du lot 5), puis la session est relue.
+ */
+export async function sessionAJour(acteur: ActeurUtilisateur, sessionId: string): Promise<SessionLue> {
+  const lue = await sessionDeLActeur(db(), acteur, sessionId);
+  if (lue.statut !== "en_cours") return lue;
+  await rattraperSession(lue.id);
+  return sessionDeLActeur(db(), acteur, sessionId);
+}
+
 /** Suivi de la page de pilotage (spec §7 : toutes les 3 s). */
 export async function suivreSession(
   acteur: ActeurUtilisateur,
@@ -110,7 +130,7 @@ export async function suivreSession(
 ): Promise<VueSuivi> {
   return journaliserLesRefus(acteur, "sessions.suivre", async () => {
     const sessionId = lireIdentifiant(valider(schemaSession, saisie, "Session").sessionId, "Session");
-    return construireSuivi(db(), await sessionDeLActeur(db(), acteur, sessionId));
+    return construireSuivi(db(), await sessionAJour(acteur, sessionId));
   });
 }
 
@@ -121,7 +141,7 @@ export async function projeterSession(
 ): Promise<VueProjection> {
   return journaliserLesRefus(acteur, "sessions.projeter", async () => {
     const sessionId = lireIdentifiant(valider(schemaSession, saisie, "Session").sessionId, "Session");
-    const vue = await construireSuivi(db(), await sessionDeLActeur(db(), acteur, sessionId));
+    const vue = await construireSuivi(db(), await sessionAJour(acteur, sessionId));
     return {
       serveurMaintenant: vue.serveurMaintenant,
       statut: vue.statut,

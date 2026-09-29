@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { libelleQuand, TONS_STATUT_SESSION } from "./libelles";
+import { libelleAvancement, libelleQuand, TONS_STATUT_SESSION } from "./libelles";
 
 const base = {
   creeLe: new Date("2026-09-29T08:00:00.000Z"),
@@ -36,5 +36,13 @@ describe("libelleQuand", () => {
       terminee: "neutre",
       annulee: "neutre",
     });
+  });
+});
+
+describe("libelleAvancement", () => {
+  it("donne la question en cours, puis « Terminé »", () => {
+    expect(libelleAvancement({ repondues: 0, total: 20, terminee: false })).toBe("Question 1 / 20");
+    expect(libelleAvancement({ repondues: 2, total: 20, terminee: false })).toBe("Question 3 / 20");
+    expect(libelleAvancement({ repondues: 20, total: 20, terminee: true })).toBe("Terminé");
   });
 });

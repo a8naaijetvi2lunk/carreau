@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { demandeAppareil, journal, sessionExamen } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
+import { validerQuestion } from "@/modules/examen";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
+import { examenEnCours, identifiants } from "@/test/examen";
 import {
   creerDemandeTest,
   creerParticipationTest,
@@ -13,7 +15,12 @@ import {
 } from "@/test/sessions";
 import { projeterSession, suivreSession } from "./suivi";
 
-beforeEach(() => definirHorlogePourLesTests(horlogeFixe(INSTANT_CODE_TEST)));
+const horloge = horlogeFixe(INSTANT_CODE_TEST);
+
+beforeEach(() => {
+  horloge.fixer(INSTANT_CODE_TEST);
+  definirHorlogePourLesTests(horloge);
+});
 afterEach(() => definirHorlogePourLesTests());
 
 /** Session de Léa Dupont (information lue), Sacha Dupré (absente) et Hugo Dupuis. */
@@ -38,6 +45,7 @@ describe("suivreSession", () => {
       ["Dupont", true],
       ["Dupuis", false],
     ]);
+    expect(vue.participants.map((p) => p.avancement)).toEqual([null, null]);
     expect(vue.absents.map((a) => a.prenom)).toEqual(["Sacha"]);
     expect(vue.demandes).toMatchObject([{ nom: "Dupont", prenom: "Léa", motif: "second_appareil" }]);
     expect(vue.code).toMatchObject({ code: "3PD 4Y2", secondesRestantes: 10 });
@@ -99,5 +107,35 @@ describe("matrice des refus", () => {
       "sessions.suivre",
       "sessions.projeter",
     ]);
+  });
+});
+
+describe("suivi pendant l'examen", () => {
+  it("donne l'avancement de chacun", async () => {
+    const x = await examenEnCours(horloge);
+    const [lea] = x.telephones;
+    if (!lea) throw new Error("téléphone absent");
+    await validerQuestion(lea.participation.id, {
+      rang: 1,
+      selection: await identifiants(lea.participation.id, 1, ["Oui"]),
+    });
+    const vue = await suivreSession(x.acteur, { sessionId: x.session.id });
+    expect(vue.statut).toBe("en_cours");
+    expect(vue.participants.map((p) => p.avancement)).toEqual([
+      { repondues: 1, total: 2, terminee: false },
+      { repondues: 0, total: 2, terminee: false },
+      { repondues: 0, total: 2, terminee: false },
+    ]);
+  });
+
+  it("rattrape les échéances et clôt la session à l'interrogation suivante", async () => {
+    const x = await examenEnCours(horloge, {
+      qcm: { modeChrono: "par_question", dureeGlobaleS: null, dureeQuestionS: 30 },
+    });
+    horloge.fixer(x.demarreLe.getTime() + 600_000);
+    const vue = await suivreSession(x.acteur, { sessionId: x.session.id });
+    expect(vue.statut).toBe("terminee");
+    expect(vue.participants.every((p) => p.avancement?.terminee)).toBe(true);
+    expect((await projeterSession(x.acteur, { sessionId: x.session.id })).statut).toBe("terminee");
   });
 });

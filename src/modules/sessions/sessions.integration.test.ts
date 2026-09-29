@@ -1,10 +1,18 @@
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { classe as tableClasse, journal, parametres, participation, sessionExamen } from "@/db/schema";
+import {
+  classe as tableClasse,
+  journal,
+  parametres,
+  participation,
+  qcm as tableQcm,
+  sessionExamen,
+} from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { creerClasseTest, creerEtudiantTest } from "@/test/classes";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
+import { examenEnCours } from "@/test/examen";
 import { creerQcmTest, creerQuestionTest } from "@/test/qcm";
 import { creerParticipationTest, creerSessionTest, preparerSession, renseignerRgpd } from "@/test/sessions";
 import { MESSAGES_SESSION } from "./commun";
@@ -276,5 +284,25 @@ describe("annulerSession", () => {
     await expect(annulerSession(acteur, { sessionId: autre.session.id })).rejects.toMatchObject({
       code: "INTROUVABLE",
     });
+  });
+});
+
+describe("lireSession pendant l'examen", () => {
+  it("lit le titre et le résumé dans l'instantané, pas dans le QCM modifié", async () => {
+    const horloge = horlogeFixe(1_790_000_000_000);
+    definirHorlogePourLesTests(horloge);
+    try {
+      const x = await examenEnCours(horloge);
+      await db()
+        .update(tableQcm)
+        .set({ titre: "Titre modifié", dureeGlobaleS: 60 })
+        .where(eq(tableQcm.id, x.qcm.id));
+      const lue = await lireSession(x.acteur, { sessionId: x.session.id });
+      expect(lue.titre).toBe("Algorithmique — Contrôle 2");
+      expect(lue.examen).toMatchObject({ questions: 2, duree: "20 min" });
+      expect(JSON.stringify(lue)).not.toContain("correcte");
+    } finally {
+      definirHorlogePourLesTests();
+    }
   });
 });

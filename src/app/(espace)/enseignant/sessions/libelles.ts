@@ -24,3 +24,13 @@ export function libelleQuand(s: SessionDatee): string {
   if (s.statut === "annulee") return `Annulée le ${formaterDateCourte(s.termineLe ?? s.creeLe)}`;
   return s.creneauPrevuLe ? `Prévue le ${formaterDateCourte(s.creneauPrevuLe)}` : "Sans créneau";
 }
+
+/** Avancement d'un participant sur la page de pilotage (décision D15 du plan du lot 5). */
+export function libelleAvancement(avancement: {
+  repondues: number;
+  total: number;
+  terminee: boolean;
+}): string {
+  if (avancement.terminee) return "Terminé";
+  return `Question ${Math.min(avancement.repondues + 1, avancement.total)} / ${avancement.total}`;
+}

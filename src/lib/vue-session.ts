@@ -19,6 +19,8 @@ export type ParticipantSuivi = {
   prenom: string;
   tiersTemps: boolean;
   informationLue: boolean;
+  /** Pendant et après l'examen : questions passées, total, passage terminé (lot 5) ; null avant le départ. */
+  avancement: { repondues: number; total: number; terminee: boolean } | null;
 };
 
 export type AbsentSuivi = { etudiantId: string; nom: string; prenom: string };
