@@ -194,8 +194,8 @@ describe("information des étudiants (lot 4)", () => {
   it("ne donne rien tant que la conservation n'est pas renseignée, puis les valeurs réelles", async () => {
     await db().delete(parametres);
     expect(await lireInformationDonnees()).toBeNull();
-    const superAdmin = acteurDe(await creerUtilisateur({ role: "super_admin" }));
-    await enregistrerConservation(superAdmin, {
+    const acteurSuperAdmin = acteurDe(await creerUtilisateur({ role: "super_admin" }));
+    await enregistrerConservation(acteurSuperAdmin, {
       conservationEvenementsJours: 30,
       conservationResultatsJours: 365,
       contactDonnees: "Direction des études (exemple)",
