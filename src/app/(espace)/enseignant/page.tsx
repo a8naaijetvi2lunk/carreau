@@ -1,34 +1,72 @@
 import type { Metadata } from "next";
-import { LienBouton } from "@/components/ui";
+import Link from "next/link";
+import { Etiquette, LienBouton } from "@/components/ui";
 import { executerPage } from "@/lib/page";
+import { LIBELLES_STATUT_SESSION } from "@/lib/regles-session";
 import { exigerActeur } from "@/modules/auth";
+import { listerSessions } from "@/modules/sessions";
+import { libelleQuand, TONS_STATUT_SESSION } from "./sessions/libelles";
 
 export const metadata: Metadata = { title: "Accueil" };
 
+/** Accueil de l'enseignant (maquette « Accueil ») : ses sessions ouvertes, et de quoi en préparer. */
 export default async function AccueilEnseignant() {
-  const acteur = await executerPage(() => exigerActeur());
+  const { acteur, sessions } = await executerPage(async () => {
+    const acteur = await exigerActeur();
+    return { acteur, sessions: await listerSessions(acteur) };
+  });
+  const ouvertes = sessions.filter((s) => s.statut === "attente" || s.statut === "en_cours").slice(0, 5);
   return (
     <>
-      <h1 className="font-titre text-4xl leading-[1.05] font-extrabold tracking-tight">
-        Bonjour {acteur.prenom}
-      </h1>
-      <section
-        aria-labelledby="bienvenue"
-        className="flex max-w-2xl flex-col gap-2 rounded-2xl border border-ligne bg-carte p-5"
-      >
-        <h2 id="bienvenue" className="text-lg font-bold">
-          Ton compte est prêt
-        </h2>
-        <p className="text-encre-2">
-          Écris tes QCM et crée tes classes : le lancement des sessions d’examen arrive avec la prochaine
-          version de Carreau.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-titre text-4xl leading-[1.05] font-extrabold tracking-tight">
+          Bonjour {acteur.prenom}
+        </h1>
         <div className="flex flex-wrap gap-2">
-          <LienBouton href="/enseignant/qcm">Mes QCM</LienBouton>
-          <LienBouton href="/enseignant/classes" variante="secondaire">
-            Mes classes
+          <LienBouton href="/enseignant/sessions" variante="secondaire">
+            Nouvelle session
           </LienBouton>
+          <LienBouton href="/enseignant/qcm">Nouveau QCM</LienBouton>
         </div>
+      </div>
+      <section
+        aria-labelledby="sessions-ouvertes"
+        className="flex max-w-3xl flex-col overflow-hidden rounded-2xl border border-ligne bg-carte"
+      >
+        <h2 id="sessions-ouvertes" className="px-5 pt-4 pb-3 text-lg font-bold">
+          Sessions ouvertes
+        </h2>
+        {ouvertes.length === 0 ? (
+          <p className="px-5 pb-4 text-[15px] text-encre-2">
+            Aucune session ouverte. Écris un QCM et marque-le comme prêt, importe ta classe, puis crée une
+            session.
+          </p>
+        ) : (
+          <ul aria-label="Sessions ouvertes">
+            {ouvertes.map((s) => (
+              <li key={s.id} className="border-t border-ligne-douce">
+                <Link
+                  href={`/enseignant/sessions/${s.id}`}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-encre hover:bg-papier"
+                >
+                  <strong className="min-w-0 truncate">
+                    {s.titre} · {s.classe}
+                  </strong>
+                  <Etiquette ton={TONS_STATUT_SESSION[s.statut]}>
+                    {LIBELLES_STATUT_SESSION[s.statut]}
+                  </Etiquette>
+                  <span className="text-sm text-muet">{libelleQuand(s)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link
+          href="/enseignant/sessions"
+          className="flex min-h-11 items-center px-5 text-sm font-bold text-bleu underline"
+        >
+          Toutes les sessions
+        </Link>
       </section>
     </>
   );

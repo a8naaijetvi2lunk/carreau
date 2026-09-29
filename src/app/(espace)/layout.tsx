@@ -20,6 +20,7 @@ export default async function LayoutEspace({ children }: Readonly<{ children: Re
     { href: "/enseignant", libelle: "Accueil", icone: "accueil", exact: true },
     { href: "/enseignant/qcm", libelle: "QCM", icone: "qcm" },
     { href: "/enseignant/classes", libelle: "Classes", icone: "classes" },
+    { href: "/enseignant/sessions", libelle: "Sessions", icone: "sessions" },
   ];
   const liensAdministration: LienNavigation[] = [];
   if (estAdministrateur(acteur.role)) {

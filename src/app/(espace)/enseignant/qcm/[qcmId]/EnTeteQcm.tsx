@@ -5,7 +5,7 @@ import { TONS_STATUT } from "../libelles";
 import { ActionsStatut } from "./ActionsStatut";
 import { LienSansPerte } from "./enregistrement";
 
-/** En-tête de l'éditeur (maquette « Éditeur de QCM ») : fil d'Ariane, titre, statut, aperçu et statuts. */
+/** En-tête de l'éditeur (maquette « Éditeur de QCM ») : fil d'Ariane, titre, statut, lancement d'une session (QCM prêt), aperçu et statuts. */
 export function EnTeteQcm({
   qcm,
   numeroCourant,
@@ -29,6 +29,11 @@ export function EnTeteQcm({
         {qcm.origine === "mcp" ? <Etiquette ton="bleu">Créé via MCP · à relire</Etiquette> : null}
       </div>
       <div className="flex flex-wrap items-start gap-2">
+        {qcm.statut === "pret" ? (
+          <LienSansPerte href={`/enseignant/sessions?qcm=${qcm.id}`} className={classesBouton()}>
+            Lancer une session
+          </LienSansPerte>
+        ) : null}
         <LienSansPerte
           href={`/enseignant/qcm/${qcm.id}/apercu?question=${numeroCourant}`}
           className={classesBouton("secondaire")}
