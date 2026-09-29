@@ -24,6 +24,7 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - `README.md` : éditeur de QCM, questions liées, images et code dans l'architecture, images assainies et aucun HTML injecté, lot 3 marqué livré.
 - `docs/memory.md` : QCM et images (lot 3), points à retenir pour les lots 4, 5, 8 et 10.
 - `docs/choix.csv` : décisions A1, D4 à D8, D13 à D15 et D17 du plan du lot 3, et décisions prises pendant le run.
+- `next.config.ts` : `images.unoptimized: true` ; traçage explicite des dépendances d'exécution de `shiki` (`PAQUETS_SHIKI`) dans `outputFileTracingIncludes`, à relever à chaque montée de version de shiki.
 
 ## 2026-09-29 — Lot 2 : classes
 
