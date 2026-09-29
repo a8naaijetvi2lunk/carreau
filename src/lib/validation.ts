@@ -11,9 +11,12 @@ export function valider<T>(schema: ZodType<T>, saisie: unknown, contexte: string
   return resultat.data;
 }
 
-/** Identifiant d'une URL ou d'un formulaire : mal formé, il désigne une ressource introuvable (404, sans journal). */
+/**
+ * Identifiant d'une URL ou d'un formulaire, en minuscules (forme de PostgreSQL et des noms de fichier) :
+ * mal formé, il désigne une ressource introuvable (404, sans journal).
+ */
 export function lireIdentifiant(valeur: string, quoi: string): string {
   const resultat = SCHEMA_UUID.safeParse(valeur);
   if (!resultat.success) throw erreurs.introuvable(quoi);
-  return resultat.data;
+  return resultat.data.toLowerCase();
 }

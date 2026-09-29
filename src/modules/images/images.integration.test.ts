@@ -158,6 +158,13 @@ describe("lireImage", () => {
     const ligne = await creerImageTest(a.id);
     await expect(lireImage(a, { imageId: ligne.id })).rejects.toMatchObject({ code: "INTROUVABLE" });
   });
+
+  it("accepte l'identifiant de l'image en majuscules", async () => {
+    const a = await acteur();
+    const vue = await televerserImage(a, { octets: await imagePng() });
+    const { contenu } = await lireImage(a, { imageId: vue.id.toUpperCase() });
+    expect(contenu.byteLength).toBeGreaterThan(0);
+  });
 });
 
 describe("verifierImagesDeLActeur", () => {
@@ -167,6 +174,7 @@ describe("verifierImagesDeLActeur", () => {
     const i2 = await creerImageTest(a.id);
     await expect(verifierImagesDeLActeur(db(), a, [i1.id, i2.id, i1.id])).resolves.toBeUndefined();
     await expect(verifierImagesDeLActeur(db(), a, [])).resolves.toBeUndefined();
+    await expect(verifierImagesDeLActeur(db(), a, [i1.id.toUpperCase()])).resolves.toBeUndefined();
   });
 
   it("refuse l'image d'un autre compte comme une image inconnue", async () => {

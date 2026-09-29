@@ -70,6 +70,7 @@ test.describe("qcm", () => {
       .click();
     await champ(page, "Énoncé").fill("Qu’affiche ce programme ?");
     await page.getByRole("button", { name: "Bloc de code" }).click();
+    await expect(champ(page, "Langage du code")).toHaveValue("python");
     await champ(page, "Code").fill("def f(n):\n    return n * 2\n\nprint(f(4))");
     await page
       .getByLabel("Choisir l’image de l’énoncé")

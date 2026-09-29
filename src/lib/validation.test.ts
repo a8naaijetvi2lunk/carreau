@@ -41,4 +41,10 @@ describe("lireIdentifiant", () => {
       refusAcces: false,
     });
   });
+
+  it("renvoie l'identifiant en minuscules", () => {
+    expect(lireIdentifiant("3F2B8C1E-0000-4000-8000-00000000000A", "QCM")).toBe(
+      "3f2b8c1e-0000-4000-8000-00000000000a",
+    );
+  });
 });

@@ -23,7 +23,9 @@ export function titreQuestion(enonce: string): string {
       .map((ligne) => ligne.trim())
       .find((ligne) => ligne !== "") ?? "";
   if (premiere === "") return "Question sans énoncé";
-  return premiere.length > 80 ? `${premiere.slice(0, 79)}…` : premiere;
+  // Par points de code : un émoji (deux unités UTF-16) n'est jamais coupé en deux.
+  const caracteres = Array.from(premiere);
+  return caracteres.length > 80 ? `${caracteres.slice(0, 79).join("")}…` : premiere;
 }
 
 /** « Choix unique · 1 pt · code · image » (maquette « Éditeur de QCM », liste des questions). */

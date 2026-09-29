@@ -19,6 +19,9 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Les tests de bout en bout tournaient depuis le dépôt et ne détectaient donc pas un paquet d'exécution manquant au build autonome (défaut de traçage de `shiki` découvert) : `e2e/serveur.mjs` démarre désormais une copie du build placée hors du dépôt, comme l'image Docker.
 - L'onglet Paramètres masquait une durée en erreur (mode de chrono non choisi), empêchant l'enseignant de la corriger : elle s'affiche désormais quand elle porte une erreur.
 - Dans l'aperçu, une réponse illustrée ne s'affichait pas en colonne quand les autres réponses n'avaient pas d'image.
+- Un identifiant (d'image, de QCM…) écrit en majuscules est ramené en minuscules : l'image d'un propriétaire répondait 500 au lieu de s'afficher.
+- Le titre d'une question dans la liste de l'éditeur ne coupe plus un émoji en deux.
+- Le libellé « Langage du code » est relié à sa liste sans l'englober : son nom accessible ne contient plus le texte des options.
 
 ### Modifié
 - `README.md` : éditeur de QCM, questions liées, images et code dans l'architecture, images assainies et aucun HTML injecté, lot 3 marqué livré.

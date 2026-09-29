@@ -70,8 +70,8 @@ function BlocCodeEdition({
   return (
     <div className="overflow-hidden rounded-[10px] border border-code-entete">
       <div className="flex items-center justify-between gap-2 bg-code-entete px-3 py-1.5 text-xs text-code-legende">
-        <label htmlFor={idLangage} className="flex items-center gap-2">
-          <span>Langage du code</span>
+        <div className="flex items-center gap-2">
+          <label htmlFor={idLangage}>Langage du code</label>
           <select
             id={idLangage}
             value={code.langage}
@@ -87,7 +87,7 @@ function BlocCodeEdition({
               </option>
             ))}
           </select>
-        </label>
+        </div>
         <button
           type="button"
           aria-label="Retirer le bloc de code"
