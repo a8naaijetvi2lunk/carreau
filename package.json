@@ -21,7 +21,9 @@
     "test:e2e": "playwright test",
     "db:up": "docker compose -f docker-compose.dev.yml up -d --wait",
     "db:generate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate",
-    "db:migrate": "node --env-file-if-exists=.env scripts/migrer.mjs"
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrer.mjs",
+    "admin:creer": "node --env-file-if-exists=.env scripts/admin-creer.mjs",
+    "admin:reinitialiser-totp": "node --env-file-if-exists=.env scripts/admin-reinitialiser-totp.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
