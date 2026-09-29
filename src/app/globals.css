@@ -32,6 +32,19 @@
   --color-code-texte: #e9e6df;
   --color-code-legende: #c9cdd4;
   --color-code-numero: #6c7280;
+
+  --animate-onde: onde 2.4s ease-out infinite;
+
+  @keyframes onde {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.55;
+    }
+    100% {
+      transform: scale(1.35);
+      opacity: 0;
+    }
+  }
 }
 
 @layer base {

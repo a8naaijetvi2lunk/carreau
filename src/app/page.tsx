@@ -24,6 +24,9 @@ export default function Accueil() {
         <p className="text-encre-2">
           Scanne le QR code affiché par ton enseignant avec l’appareil photo de ton téléphone.
         </p>
+        <Link href="/rejoindre" className="self-start font-bold text-bleu underline">
+          Saisir le code de la session
+        </Link>
       </section>
       <p className="text-[15px] text-muet">
         Enseignant ?{" "}
