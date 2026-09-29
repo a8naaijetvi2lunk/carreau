@@ -8,6 +8,15 @@ export {
   type CookiesEntree,
 } from "./cookies";
 export {
+  confirmerInformation,
+  lireEtatEntree,
+  rechercherEtudiants,
+  reclamerNom,
+  rejoindreSession,
+  type ResultatEntree,
+  type Telephone,
+} from "./entree";
+export {
   annulerSession,
   creerSession,
   listerSessions,
