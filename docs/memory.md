@@ -70,6 +70,14 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Module `classes`** : `classes.ts`, `etudiants.ts`, `import/` (`lecture`, `archive`, `analyse`, `import`, `messages`).
 - **À retenir pour le lot 7** : un nom importé peut commencer par `=`, `+`, `-` ou `@` ; les exports CSV et XLSX devront neutraliser ces cellules (décision D17).
 - **À retenir pour le lot 4** : la table `participation` référencera `etudiant` en `ON DELETE RESTRICT` et `retirerEtudiant` devra alors refuser (`ETAT`) un étudiant qui a déjà participé ; la création de session ne proposera que les classes non archivées.
+- **Normalisation et données stockées** : `nom_normalise` et `prenom_normalise` sont calculés une fois, à l'écriture. Toute évolution future de `normaliserNom` doit s'accompagner d'une migration qui recalcule ces colonnes, sinon la détection des homonymes compare deux normalisations différentes.
+
+### Décisions prises pendant le run (en plus de A1 et D1 à D18 du plan)
+
+1. Normalisation : caractères invisibles (catégorie Unicode Cf) retirés, ‘ et ´ traités comme apostrophes ; clé d'homonymie `JSON.stringify([nom, prénom])` normalisés (`cleNormalisee`), identique dans les services, l'analyse et l'import.
+2. `creerClasse` verrouille la ligne du compte (`FOR UPDATE`) avant de compter ses classes : la limite de 200 tient sous concurrence.
+3. Aucun `key` sur le panneau d'une classe : Next 16 (sans `cacheComponents`) remonte la page quand le paramètre de route change, vérifié à l'exécution (aucun brouillon, aperçu ni recherche ne passe d'une classe à l'autre).
+4. Pas de filet `estViolationUnicite` sur les étudiants : chaque écriture verrouille la classe avant de contrôler les homonymes, la course est inatteignable.
 
 ## Ports locaux
 

@@ -6,7 +6,7 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 
 ### Ajouté
 - Module `classes` : création, renommage, archivage et restauration de classe ; propriété stricte par compte (`classe.enseignant_id`), invisible même du super-admin.
-- Module `etudiants` : ajout, modification, changement de tiers-temps et retrait un par un ; homonymes parfaits refusés par les noms normalisés (`src/lib/noms.ts`).
+- Service des étudiants (`classes/etudiants.ts`) : ajout, modification, changement de tiers-temps et retrait un par un ; homonymes parfaits refusés par les noms normalisés (`src/lib/noms.ts`).
 - Import de listes en trois étages (`import/lecture`, `import/archive`, `import/analyse`, `import/import`, `import/messages`) : fichier `.csv`/`.txt`, `.xlsx` ou texte collé, type décidé par les octets, CSV UTF-8 ou Windows-1252, séparateur détecté sur la ligne des titres, archive XLSX contrôlée par `fflate` avant lecture (`read-excel-file`).
 - Aperçu de l'import (`analyserImport`) détaillant chaque ligne rejetée et son motif, avant confirmation qui revalide entièrement les lignes (`importerEtudiants`).
 - Verrou `SELECT … FOR UPDATE` sur la classe pour toute écriture (renommage, archivage, ajout, tiers-temps, retrait, import).
@@ -14,6 +14,12 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Pages `/enseignant/classes` (liste et création) et `/enseignant/classes/[classeId]` (classe choisie, étudiants, import) ; lien « Classes » dans la navigation principale pour tous les rôles.
 - Dépendances validées (amendement A1 du spec §3.1) : `papaparse`, `read-excel-file`, `fflate` ; en développement `@types/papaparse` et `write-excel-file` (fabrique les classeurs des tests, passera en dépendance au lot 7). `exceljs` écarté (vulnérabilités, paquet non maintenu).
 - Tests d'intégration des modules `classes`, `etudiants` et `import/*` ; tests de bout en bout de l'import d'une liste de 30 étudiants avec rejets expliqués.
+
+### Corrigé (revue du lot)
+- La normalisation des noms laissait passer les apostrophes ‘ et ´ et les caractères invisibles (trait d'union conditionnel, espace de largeur nulle) : un nom copié d'un document échappait à la détection des homonymes et à la recherche.
+- La clé d'homonymie séparait nom et prénom par « | » : deux couples différents pouvaient donner la même clé ; elle est désormais `JSON.stringify([nom, prénom])` normalisés (`cleNormalisee`).
+- Deux créations de classe simultanées pouvaient dépasser la limite de 200 classes : la création verrouille désormais la ligne du compte.
+- Des caractères invisibles étaient écrits en clair dans des expressions régulières (`src/lib/noms.ts`, `import/lecture.ts`) : remplacés par des échappements `\u`.
 
 ### Modifié
 - `README.md` : classes et import de listes, bibliothèques d'import, imports bornés, lot 2 marqué livré.
