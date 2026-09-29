@@ -114,4 +114,4 @@ Bloc réservé : 50170-50179 (hors des plages réservées par Hyper-V).
 
 ## Maquettes
 
-Dix-sept écrans de référence (parcours étudiant, enseignant, administration) ont été produits avant le cadrage. Les captures seront intégrées au README à partir de l’application réelle.
+Dix-sept écrans de référence (parcours étudiant, enseignant, administration) ont été produits avant le cadrage. Le README montre l’application réelle : `npm run captures` (script Playwright dédié, `e2e/captures/`, jamais lancé par `npm run test:e2e`) régénère les captures de `docs/captures/` à chaque lot, sur le build de production et avec des données fictives.

@@ -17,7 +17,7 @@ Les étudiants rejoignent l’examen en scannant un QR code et répondent questi
 </div>
 
 > [!NOTE]
-> Carreau est en cours de développement. Le socle technique est en place ; les fonctionnalités arrivent lot par lot (voir la [feuille de route](#feuille-de-route)). Les captures d’écran arriveront avec la première version fonctionnelle.
+> Carreau est en cours de développement. Le socle technique est en place ; les fonctionnalités arrivent lot par lot (voir la [feuille de route](#feuille-de-route)). Les captures ci-dessous viennent de l’application réelle, avec des données fictives ; elles sont régénérées à chaque lot par `npm run captures`.
 
 ## Pourquoi Carreau
 
@@ -26,6 +26,21 @@ Faire passer un QCM sur le téléphone des étudiants est pratique : pas de papi
 Un navigateur ne peut pas verrouiller un téléphone. Carreau ne prétend donc pas empêcher toute triche. Il rend les écarts **visibles**, de façon **transparente** pour les étudiants, et laisse l’enseignant juger avec ce qu’il observe en salle.
 
 Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche, et l’expression « se tenir à carreau ».
+
+## Aperçu
+
+![Éditeur de QCM ouvert sur une question à choix multiples avec un bloc de code Python et ses quatre réponses](docs/captures/editeur-qcm.png)
+*L’éditeur de QCM : question à choix multiples avec un bloc de code Python, enregistrée au fil de la saisie.*
+
+<img src="docs/captures/apercu-etudiant.png" alt="Aperçu sur téléphone d’une question avec du code coloré et une réponse sélectionnée" width="320">
+
+*L’aperçu étudiant sur téléphone : le code est coloré côté serveur, la bonne réponse n’est jamais envoyée au navigateur.*
+
+![Page d’une classe avec la liste de ses étudiants importée depuis un fichier](docs/captures/classes.png)
+*Une classe importée depuis un fichier CSV d’Excel, tiers-temps compris.*
+
+![Liste des QCM de l’enseignant avec leur nombre de questions et leur statut](docs/captures/mes-qcm.png)
+*Les QCM de l’enseignant et leur statut.*
 
 ## Fonctionnement
 
@@ -149,6 +164,7 @@ Ouvre le lien, choisis ton mot de passe et configure la double authentification 
 | `npm test` | Tests unitaires et couverture |
 | `npm run test:integration` | Tests d’intégration, chaque fichier sur sa propre base PostgreSQL clonée |
 | `npm run build && npm run test:e2e` | Tests de bout en bout sur le build de production (ordinateur, iPhone, Android) |
+| `npm run build && npm run captures` | Captures du README, sur le build de production, avec des données fictives |
 | `npm run admin:creer -- <email>` | Invitation du premier super-admin, lien affiché une fois |
 | `npm run admin:reinitialiser-totp -- <email>` | Double authentification perdue : nouvel enrôlement à la prochaine connexion |
 

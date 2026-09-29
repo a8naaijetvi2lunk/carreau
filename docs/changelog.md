@@ -13,6 +13,7 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Enregistrement automatique de l'éditeur (`src/lib/enregistreur.ts`, `EnregistreurDiffere`) : question entière envoyée 800 ms après la dernière frappe, vidange avant toute navigation ou action de l'éditeur, indicateur d'état.
 - Pages `/enseignant/qcm` (liste, création), `/enseignant/qcm/[qcmId]` (éditeur : paramètres, questions, liaisons, barème, chrono) et `/enseignant/qcm/[qcmId]/apercu` (aperçu étudiant, composant `QuestionEtudiant` réutilisable au lot 5) ; lien « QCM » dans la navigation principale.
 - Tests d'intégration des modules `qcm` et `images` ; tests unitaires des règles partagées ; tests de bout en bout de l'éditeur (`e2e/qcm.spec.ts`).
+- Captures réelles du README (demande d'Yves) : `playwright.captures.config.ts` et `e2e/captures/readme.captures.ts` (`npm run captures`), scénario avec un compte enseignant et une classe fictifs, un QCM de quatre questions et l'aperçu sur téléphone ; `e2e/captures/graphique.ts` (image d'énoncé fabriquée par `sharp`) ; quatre captures dans `docs/captures/`, section « Aperçu » du README.
 
 ### Corrigé (vérification du lot)
 - `EnregistreurDiffere` ne remettait pas seulement la dernière valeur prise en charge en attente après un échec : une ancienne valeur pouvait écraser la plus récente.

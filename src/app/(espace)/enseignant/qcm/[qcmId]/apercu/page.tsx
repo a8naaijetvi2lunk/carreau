@@ -44,7 +44,10 @@ export default async function PageApercu(props: PageProps<"/enseignant/qcm/[qcmI
       </p>
       {courante ? (
         <>
-          <div className="mx-auto w-full max-w-[390px] rounded-[28px] border border-ligne bg-papier px-4 py-4 sm:px-5">
+          <div
+            data-capture="apercu"
+            className="mx-auto w-full max-w-[390px] rounded-[28px] border border-ligne bg-papier px-4 py-4 sm:px-5"
+          >
             <QuestionEtudiant key={rang} vue={courante.vue} chrono={chronoAffiche(apercu, courante.dureeS)} />
           </div>
           <nav aria-label="Questions de l’aperçu" className="flex flex-wrap justify-center gap-3">

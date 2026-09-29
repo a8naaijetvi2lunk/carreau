@@ -1,0 +1,238 @@
+/**
+ * Captures du README (tâche 17, demande d'Yves pendant le lot 3) : `npm run build` puis
+ * `npm run captures`. Compte enseignant fictif, classe importée, QCM de quatre questions et
+ * aperçu sur téléphone, avec des données fictives (`@exemple.fr`). Ne tourne jamais avec
+ * `npm run test:e2e` (voir playwright.captures.config.ts).
+ */
+import { devices, expect, test, type Page } from "@playwright/test";
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
+import path from "node:path";
+import { creerLienSuperAdmin } from "../outils/comptes";
+import { URL_E2E } from "../outils/env";
+import { listeTd2Csv } from "../outils/listes";
+import { activerEtEnroler } from "../outils/parcours";
+import { graphiquePng } from "./graphique";
+
+const DOSSIER_CAPTURES = path.resolve("docs/captures");
+
+/** Vide docs/captures des anciens .png, pour qu'une capture renommée ne reste pas en double. */
+function viderCaptures(): void {
+  mkdirSync(DOSSIER_CAPTURES, { recursive: true });
+  for (const nom of readdirSync(DOSSIER_CAPTURES)) {
+    if (nom.endsWith(".png")) rmSync(path.join(DOSSIER_CAPTURES, nom));
+  }
+}
+
+function capture(nom: string): string {
+  return path.join(DOSSIER_CAPTURES, `${nom}.png`);
+}
+
+function champ(page: Page, libelle: string) {
+  return page.getByLabel(libelle, { exact: true });
+}
+
+/** Attend que l'enregistrement automatique ait suivi la dernière saisie. */
+async function attendreEnregistrement(page: Page) {
+  await expect(page.getByRole("status").filter({ hasText: /^Enregistré à \d{2}:\d{2}$/ })).toBeVisible();
+}
+
+/** Aucune barre de défilement horizontale, sur la page actuelle. */
+async function sansDefilementHorizontal(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+}
+
+test("captures du README", async ({ page, browser }) => {
+  test.setTimeout(180_000);
+  viderCaptures();
+
+  // 1. Super-admin fictif : conservation des données renseignée (le bandeau RGPD ne doit apparaître
+  // sur aucune capture, et le contact est celui qui figurera sur l'écran d'information des étudiants).
+  await page.goto(creerLienSuperAdmin("direction@exemple.fr"));
+  await activerEtEnroler(page, { prenom: "Yves", nom: "Martin" });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bonjour Yves");
+
+  await page
+    .getByRole("navigation", { name: "Navigation principale" })
+    .getByRole("link", { name: "Paramètres", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres");
+  const conservation = page.getByRole("region", { name: "Conservation des données" });
+  await conservation.getByLabel("Événements enregistrés (jours)", { exact: true }).fill("30");
+  await conservation.getByLabel("Résultats et notes (jours)", { exact: true }).fill("365");
+  await conservation
+    .getByLabel("Contact affiché aux étudiants", { exact: true })
+    .fill("Direction des études, IUT (exemple)");
+  await conservation.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(conservation.getByText("Conservation des données enregistrée.")).toBeVisible();
+
+  // 2. Enseignante fictive : invitation, lien affiché (l'envoi n'est pas configuré), activation.
+  await page.getByRole("link", { name: "Enseignants" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Enseignants");
+  await page.getByLabel("Email", { exact: true }).fill("claire.arnaud@exemple.fr");
+  await page.getByRole("button", { name: "Envoyer l’invitation" }).click();
+  await expect(page.getByText("Invitation créée pour claire.arnaud@exemple.fr.")).toBeVisible();
+  const lienInvitation = await page.getByLabel("Lien d’invitation").inputValue();
+
+  await page.getByRole("button", { name: "Se déconnecter" }).click();
+  await expect(page).toHaveURL(/\/connexion$/);
+  await page.goto(lienInvitation);
+  await activerEtEnroler(page, { prenom: "Claire", nom: "Arnaud" });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bonjour Claire");
+  // Compte enseignant, non administrateur : le menu ne montre pas l'administration.
+  await expect(page.getByRole("link", { name: "Enseignants" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Paramètres", exact: true })).toHaveCount(0);
+
+  // 3. Classe « TD2 », liste de 30 étudiants importée.
+  await page.getByRole("link", { name: "Classes", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Classes");
+  await page.getByLabel("Nom de la classe", { exact: true }).fill("TD2");
+  await page.getByRole("button", { name: "Créer la classe" }).click();
+  await expect(page).toHaveURL(/\/enseignant\/classes\/[0-9a-f-]{36}$/);
+  await page
+    .getByLabel("Fichier de la liste")
+    .setInputFiles({ name: "td2.csv", mimeType: "text/csv", buffer: listeTd2Csv() });
+  await page.getByRole("button", { name: "Voir l’aperçu" }).click();
+  await expect(page.getByText("30 étudiants à ajouter · 2 lignes rejetées")).toBeVisible();
+  await page.getByRole("button", { name: "Importer 30 étudiants" }).click();
+  await expect(page.getByText("Import enregistré : 30 étudiants ajoutés.")).toBeVisible();
+
+  await sansDefilementHorizontal(page);
+  await page.screenshot({ path: capture("classes"), fullPage: false });
+
+  // 4. QCM « Algorithmique — Contrôle 2 », quatre questions.
+  await page
+    .getByRole("navigation", { name: "Navigation principale" })
+    .getByRole("link", { name: "QCM", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("QCM");
+  await page.getByLabel("Titre du QCM", { exact: true }).fill("Algorithmique — Contrôle 2");
+  await page.getByRole("button", { name: "Créer le QCM" }).click();
+  await expect(page).toHaveURL(/\/enseignant\/qcm\/[0-9a-f-]{36}$/);
+  const correspondanceQcmId = /\/enseignant\/qcm\/([0-9a-f-]{36})$/.exec(page.url());
+  if (!correspondanceQcmId) throw new Error(`Identifiant du QCM introuvable dans l'URL : ${page.url()}`);
+  const qcmId = correspondanceQcmId[1];
+  await expect(page.getByRole("heading", { level: 2, name: "Question 1" })).toBeVisible();
+
+  // Q1 : choix unique, quatre réponses, barème négatif.
+  await champ(page, "Énoncé").fill("Quelle est la complexité d’une boucle simple sur n éléments ?");
+  await champ(page, "Réponse 1").fill("O(1)");
+  await champ(page, "Réponse 2").fill("O(n)");
+  await page.getByRole("button", { name: "+ Ajouter une réponse" }).click();
+  await champ(page, "Réponse 3").fill("O(n²)");
+  await page.getByRole("button", { name: "+ Ajouter une réponse" }).click();
+  await champ(page, "Réponse 4").fill("O(log n)");
+  await champ(page, "Bonne réponse : réponse 2").check();
+  await page
+    .getByRole("group", { name: "Barème" })
+    .getByLabel("Mauvaise réponse", { exact: true })
+    .fill("-0,25");
+  await attendreEnregistrement(page);
+
+  // Q2 : choix multiples, bloc de code Python.
+  await page.getByRole("button", { name: "+ Ajouter une question" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Question 2" })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Type de question" })
+    .getByRole("button", { name: "Choix multiples" })
+    .click();
+  await champ(page, "Énoncé").fill("Qu’affiche ce programme ?");
+  await page.getByRole("button", { name: "Bloc de code" }).click();
+  await expect(champ(page, "Langage du code")).toHaveValue("python");
+  await champ(page, "Code").fill(
+    "def f(n):\n    if n <= 1:\n        return 1\n    return n * f(n - 1)\n\nprint(f(4))",
+  );
+  await champ(page, "Réponse 1").fill("10");
+  await champ(page, "Réponse 2").fill("24");
+  await page.getByRole("button", { name: "+ Ajouter une réponse" }).click();
+  await champ(page, "Réponse 3").fill("16");
+  await page.getByRole("button", { name: "+ Ajouter une réponse" }).click();
+  await champ(page, "Réponse 4").fill("Une erreur RecursionError");
+  await champ(page, "Bonne réponse : réponse 2").check();
+  await attendreEnregistrement(page);
+
+  // Capture de l'éditeur ouvert sur la question 2 (code et réponses visibles).
+  await sansDefilementHorizontal(page);
+  await page.screenshot({ path: capture("editeur-qcm") });
+
+  // Q3 : choix unique avec image d'énoncé.
+  await page.getByRole("button", { name: "+ Ajouter une question" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Question 3" })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Type de question" })
+    .getByRole("button", { name: "Choix unique" })
+    .click();
+  await champ(page, "Énoncé").fill("Quel graphique montre une fonction croissante sur [0 ; 5] ?");
+  await page
+    .getByLabel("Choisir l’image de l’énoncé")
+    .setInputFiles({ name: "graphique.png", mimeType: "image/png", buffer: await graphiquePng() });
+  const imageEnonce = page.getByRole("img", { name: "Image de l’énoncé" });
+  await expect(imageEnonce).toBeVisible();
+  await expect
+    .poll(() => imageEnonce.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
+  await champ(page, "Réponse 1").fill("Le graphique A");
+  await champ(page, "Réponse 2").fill("Le graphique B");
+  await page.getByRole("button", { name: "+ Ajouter une réponse" }).click();
+  await champ(page, "Réponse 3").fill("Aucun des deux");
+  await champ(page, "Bonne réponse : réponse 1").check();
+  await attendreEnregistrement(page);
+
+  // Q4 : vrai/faux, liée à la question du dessus.
+  await page.getByRole("button", { name: "+ Ajouter une question" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Question 4" })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Type de question" })
+    .getByRole("button", { name: "Vrai / Faux" })
+    .click();
+  await expect(champ(page, "Réponse 1")).toHaveValue("Vrai");
+  await expect(champ(page, "Réponse 2")).toHaveValue("Faux");
+  await champ(page, "Énoncé").fill("Une pile suit l’ordre FIFO.");
+  await champ(page, "Bonne réponse : réponse 2").check();
+  await attendreEnregistrement(page);
+  await page.getByRole("button", { name: "Lier à la question du dessus" }).click();
+  await expect(page.getByText("Liée à la question 3.", { exact: true })).toBeVisible();
+
+  // Chrono global de 20 minutes.
+  const sections = page.getByRole("navigation", { name: "Sections du QCM" });
+  await sections.getByRole("link", { name: "Paramètres" }).click();
+  await page.getByLabel("Chrono global", { exact: true }).check();
+  await champ(page, "Durée de l’examen (minutes)").fill("20");
+  await page.getByRole("button", { name: "Enregistrer les paramètres" }).click();
+  await expect(page.getByText("Paramètres enregistrés.")).toBeVisible();
+
+  // « Marquer comme prêt », puis la liste « Mes QCM » montre l'étiquette « Prêt ».
+  await sections.getByRole("link", { name: /^Questions/ }).click();
+  await page.getByRole("button", { name: "Marquer comme prêt" }).click();
+  await expect(page.getByText("Prêt", { exact: true })).toBeVisible();
+
+  await page
+    .getByRole("navigation", { name: "Navigation principale" })
+    .getByRole("link", { name: "QCM", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("QCM");
+  await expect(page.getByRole("list", { name: "Mes QCM" }).getByText("Prêt", { exact: true })).toBeVisible();
+
+  await sansDefilementHorizontal(page);
+  await page.screenshot({ path: capture("mes-qcm") });
+
+  // 5. Aperçu étudiant sur téléphone : cookies de la page enseignante dans un second contexte iPhone 15.
+  const etatStockage = await page.context().storageState();
+  const contextePhone = await browser.newContext({
+    ...devices["iPhone 15"],
+    baseURL: URL_E2E,
+    storageState: etatStockage,
+  });
+  const pagePhone = await contextePhone.newPage();
+  await pagePhone.goto(`/enseignant/qcm/${qcmId}/apercu?question=2`);
+  await expect(pagePhone.getByText("Question 2 / 4")).toBeVisible();
+
+  // Réponse B : « 24 », la bonne réponse de la question 2.
+  const reponses = pagePhone.getByRole("group", { name: "Réponses" }).getByRole("button");
+  await reponses.nth(1).click();
+  await expect(reponses.nth(1)).toHaveAttribute("aria-pressed", "true");
+
+  const cadreApercu = pagePhone.locator('[data-capture="apercu"]');
+  await cadreApercu.screenshot({ path: capture("apercu-etudiant") });
+
+  await contextePhone.close();
+});
