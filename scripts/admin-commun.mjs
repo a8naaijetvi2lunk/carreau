@@ -29,12 +29,16 @@ export function cleDoubleAuth(utilisateurId) {
   return `double_auth:compte:${utilisateurId}`;
 }
 
+/** = z.regexes.email de Zod 4, utilisée par schemaEmail (src/lib/saisies.ts) ; vérifiée par scripts/admin.test.ts. */
+export const REGEX_EMAIL =
+  /^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
+
 /** Adresse normalisée comme schemaEmail (src/lib/saisies.ts) : sans espaces, en minuscules. */
 export function normaliserEmail(saisie) {
   const email = String(saisie ?? "")
     .trim()
     .toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (email.length === 0 || email.length > 254 || !REGEX_EMAIL.test(email)) {
     throw new ErreurScript("Adresse email invalide.");
   }
   return email;
