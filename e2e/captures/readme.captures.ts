@@ -41,6 +41,15 @@ async function sansDefilementHorizontal(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
+/** Capture le haut de la page, sans le défilement laissé par les saisies précédentes. */
+async function capturerHautDePage(page: Page, nom: string, hauteur = 900) {
+  await page.setViewportSize({ width: 1440, height: hauteur });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sansDefilementHorizontal(page);
+  await page.screenshot({ path: capture(nom) });
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
+
 test("captures du README", async ({ page, browser }) => {
   test.setTimeout(180_000);
   viderCaptures();
@@ -96,8 +105,7 @@ test("captures du README", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Importer 30 étudiants" }).click();
   await expect(page.getByText("Import enregistré : 30 étudiants ajoutés.")).toBeVisible();
 
-  await sansDefilementHorizontal(page);
-  await page.screenshot({ path: capture("classes"), fullPage: false });
+  await capturerHautDePage(page, "classes");
 
   // 4. QCM « Algorithmique — Contrôle 2 », quatre questions.
   await page
@@ -150,9 +158,9 @@ test("captures du README", async ({ page, browser }) => {
   await champ(page, "Bonne réponse : réponse 2").check();
   await attendreEnregistrement(page);
 
-  // Capture de l'éditeur ouvert sur la question 2 (code et réponses visibles).
-  await sansDefilementHorizontal(page);
-  await page.screenshot({ path: capture("editeur-qcm") });
+  // Capture de l'éditeur ouvert sur la question 2 (titre, liste, question entière), hauteur utile plafonnée.
+  const hauteurEditeur = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), 1600);
+  await capturerHautDePage(page, "editeur-qcm", hauteurEditeur);
 
   // Q3 : choix unique avec image d'énoncé.
   await page.getByRole("button", { name: "+ Ajouter une question" }).click();
@@ -212,8 +220,27 @@ test("captures du README", async ({ page, browser }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("QCM");
   await expect(page.getByRole("list", { name: "Mes QCM" }).getByText("Prêt", { exact: true })).toBeVisible();
 
-  await sansDefilementHorizontal(page);
-  await page.screenshot({ path: capture("mes-qcm") });
+  // Second QCM laissé en brouillon, pour montrer les deux statuts dans la liste « Mes QCM ».
+  await page.getByLabel("Titre du QCM", { exact: true }).fill("Réseaux — Révisions");
+  await page.getByRole("button", { name: "Créer le QCM" }).click();
+  await expect(page).toHaveURL(/\/enseignant\/qcm\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 2, name: "Question 1" })).toBeVisible();
+  await champ(page, "Énoncé").fill("Quel protocole attribue automatiquement une adresse IP à un poste ?");
+  await champ(page, "Réponse 1").fill("DHCP");
+  await champ(page, "Réponse 2").fill("DNS");
+  await champ(page, "Bonne réponse : réponse 1").check();
+  await attendreEnregistrement(page);
+
+  await page
+    .getByRole("navigation", { name: "Navigation principale" })
+    .getByRole("link", { name: "QCM", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("QCM");
+  const listeMesQcm = page.getByRole("list", { name: "Mes QCM" });
+  await expect(listeMesQcm.getByText("Brouillon", { exact: true })).toBeVisible();
+  await expect(listeMesQcm.getByText("Prêt", { exact: true })).toBeVisible();
+
+  await capturerHautDePage(page, "mes-qcm");
 
   // 5. Aperçu étudiant sur téléphone : cookies de la page enseignante dans un second contexte iPhone 15.
   const etatStockage = await page.context().storageState();
