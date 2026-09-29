@@ -8,10 +8,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { jetonReinitialisation, utilisateur } from "@/db/schema";
+import { referenceErreur } from "@/lib/action";
 import { env } from "@/lib/env";
 import { erreurDepuisZod, erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { FORMAT_JETON, genererJeton, sha256Hex } from "@/lib/jetons";
+import { journaliserErreurInattendue } from "@/lib/journal-erreur";
 import { schemaEmail, schemaIp, schemaJeton, schemaNouveauMotDePasse } from "@/lib/saisies";
 import { cleConnexionCompte, hacherMotDePasse, supprimerSessionsUtilisateur } from "@/modules/auth";
 import { envoyerEmail, modeleReinitialisation } from "@/modules/emails";
@@ -53,7 +55,18 @@ function etatLien(ligne: LigneJeton, instant: Date): EtatLienReinitialisation {
   return "valide";
 }
 
-export async function demanderReinitialisation(saisie: { email: string; ip: string }): Promise<void> {
+/**
+ * Valide la demande et réserve la limite par IP (partie synchrone, commune à toute adresse),
+ * puis renvoie le travail différé (recherche du compte, arrêt silencieux si inconnu ou
+ * désactivé, écriture et envoi) : l'appelant exécute le travail renvoyé après la réponse, avec
+ * `after()` de `next/server`, pour que la durée de la réponse ne révèle pas l'existence du
+ * compte. Le travail différé ne rejette jamais : toute erreur inattendue y est journalisée avec
+ * une référence, jamais relancée (Next journaliserait l'erreur brute, paramètres SQL compris).
+ */
+export async function demanderReinitialisation(saisie: {
+  email: string;
+  ip: string;
+}): Promise<() => Promise<void>> {
   const resultat = schemaDemande.safeParse(saisie);
   if (!resultat.success) throw erreurDepuisZod(resultat.error, "Mot de passe oublié");
   const { email, ip } = resultat.data;
@@ -61,40 +74,46 @@ export async function demanderReinitialisation(saisie: { email: string; ip: stri
     action: "comptes.limite_reinitialisation",
   });
 
-  const [compte] = await db()
-    .select({ id: utilisateur.id, actif: utilisateur.actif })
-    .from(utilisateur)
-    .where(eq(utilisateur.email, email))
-    .limit(1);
-  if (!compte?.actif) return;
+  return async () => {
+    try {
+      const [compte] = await db()
+        .select({ id: utilisateur.id, actif: utilisateur.actif })
+        .from(utilisateur)
+        .where(eq(utilisateur.email, email))
+        .limit(1);
+      if (!compte?.actif) return;
 
-  const jeton = genererJeton();
-  const instant = maintenant();
-  const expireLe = new Date(instant.getTime() + DUREE_REINITIALISATION_MS);
-  await db().transaction(async (tx) => {
-    await tx
-      .delete(jetonReinitialisation)
-      .where(
-        and(eq(jetonReinitialisation.utilisateurId, compte.id), isNull(jetonReinitialisation.utiliseLe)),
-      );
-    await tx
-      .insert(jetonReinitialisation)
-      .values({ utilisateurId: compte.id, jetonHash: sha256Hex(jeton), creeLe: instant, expireLe });
-    await journaliser(
-      {
-        acteur: { type: "anonyme" },
-        action: "comptes.demander_reinitialisation",
-        cible: `utilisateur:${compte.id}`,
-      },
-      tx,
-    );
-  });
-  // Échec d'envoi ou limite par destinataire : journalisés par envoyerEmail, jamais révélés.
-  await envoyerEmail({
-    destinataire: email,
-    modele: "reinitialisation",
-    message: modeleReinitialisation({ lien: lienReinitialisation(jeton), expireLe }),
-  });
+      const jeton = genererJeton();
+      const instant = maintenant();
+      const expireLe = new Date(instant.getTime() + DUREE_REINITIALISATION_MS);
+      await db().transaction(async (tx) => {
+        await tx
+          .delete(jetonReinitialisation)
+          .where(
+            and(eq(jetonReinitialisation.utilisateurId, compte.id), isNull(jetonReinitialisation.utiliseLe)),
+          );
+        await tx
+          .insert(jetonReinitialisation)
+          .values({ utilisateurId: compte.id, jetonHash: sha256Hex(jeton), creeLe: instant, expireLe });
+        await journaliser(
+          {
+            acteur: { type: "anonyme" },
+            action: "comptes.demander_reinitialisation",
+            cible: `utilisateur:${compte.id}`,
+          },
+          tx,
+        );
+      });
+      // Échec d'envoi ou limite par destinataire : journalisés par envoyerEmail, jamais révélés.
+      await envoyerEmail({
+        destinataire: email,
+        modele: "reinitialisation",
+        message: modeleReinitialisation({ lien: lienReinitialisation(jeton), expireLe }),
+      });
+    } catch (erreur) {
+      journaliserErreurInattendue("comptes", referenceErreur(), erreur);
+    }
+  };
 }
 
 /** État d'un lien (page de réinitialisation), null pour un lien inconnu ou un compte désactivé. */

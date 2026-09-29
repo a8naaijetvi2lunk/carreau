@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
 import { jetonReinitialisation, journal, limiteur, utilisateur } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
@@ -48,11 +48,14 @@ function nouvelleIp(): string {
 
 async function demander(email: string) {
   const envois = capturerEmails();
-  await demanderReinitialisation({ email, ip: nouvelleIp() });
+  const travail = await demanderReinitialisation({ email, ip: nouvelleIp() });
+  await travail();
   return envois;
 }
 
 describe("demanderReinitialisation", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("envoie un lien d'une heure à un compte actif et journalise la demande", async () => {
     const u = await creerUtilisateur();
     const envois = await demander(u.email.toUpperCase());
@@ -103,6 +106,36 @@ describe("demanderReinitialisation", () => {
     await expect(demanderReinitialisation({ email: "x@exemple.fr", ip: adresse })).rejects.toMatchObject({
       code: "LIMITE_ATTEINTE",
     });
+  });
+
+  it("la réponse ne dépend pas du compte : rien n'est écrit ni envoyé avant le travail différé", async () => {
+    const u = await creerUtilisateur();
+    const envois = capturerEmails();
+    const travail = await demanderReinitialisation({ email: u.email, ip: nouvelleIp() });
+    expect(
+      await db().select().from(jetonReinitialisation).where(eq(jetonReinitialisation.utilisateurId, u.id)),
+    ).toEqual([]);
+    expect(envois).toEqual([]);
+
+    await travail();
+
+    expect(
+      await db().select().from(jetonReinitialisation).where(eq(jetonReinitialisation.utilisateurId, u.id)),
+    ).toHaveLength(1);
+    expect(envois).toHaveLength(1);
+  });
+
+  it("le travail différé ne rejette jamais, même si le transport de l'email échoue", async () => {
+    const u = await creerUtilisateur();
+    const espion = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    definirTransportEmailPourLesTests(async () => {
+      throw new Error("panne");
+    });
+    const travail = await demanderReinitialisation({ email: u.email, ip: nouvelleIp() });
+
+    await expect(travail()).resolves.toBeUndefined();
+
+    expect(espion).toHaveBeenCalled();
   });
 });
 
