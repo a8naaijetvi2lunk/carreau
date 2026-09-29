@@ -1,5 +1,56 @@
 import type { NextConfig } from "next";
 
+/**
+ * shiki (coloration du code, lot 3) et ses dépendances d'exécution, hors bundle : le traçage de Next
+ * ne suit pas ses grammaires (imports dynamiques) ni ses dépendances. Liste relevée pour shiki 4.4
+ * (dépendances de shiki et @shikijs/langs, sans les @types) ; à relever de nouveau à chaque montée de
+ * version : le serveur de bout en bout, isolé du dépôt, refuse de démarrer s'il en manque une.
+ */
+const PAQUETS_SHIKI = [
+  "shiki",
+  "@shikijs/core",
+  "@shikijs/engine-javascript",
+  "@shikijs/engine-oniguruma",
+  "@shikijs/langs",
+  "@shikijs/primitive",
+  "@shikijs/themes",
+  "@shikijs/types",
+  "@shikijs/vscode-textmate",
+  "@ungap/structured-clone",
+  "ccount",
+  "character-entities-html4",
+  "character-entities-legacy",
+  "comma-separated-tokens",
+  "dequal",
+  "devlop",
+  "hast-util-to-html",
+  "hast-util-whitespace",
+  "html-void-elements",
+  "mdast-util-to-hast",
+  "micromark-util-character",
+  "micromark-util-encode",
+  "micromark-util-sanitize-uri",
+  "micromark-util-symbol",
+  "micromark-util-types",
+  "oniguruma-parser",
+  "oniguruma-to-es",
+  "property-information",
+  "regex",
+  "regex-recursion",
+  "regex-utilities",
+  "space-separated-tokens",
+  "stringify-entities",
+  "trim-lines",
+  "unist-util-is",
+  "unist-util-position",
+  "unist-util-stringify-position",
+  "unist-util-visit",
+  "unist-util-visit-parents",
+  "vfile",
+  "vfile-message",
+  "zwitch",
+];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -21,8 +72,7 @@ const nextConfig: NextConfig = {
     // soit (msvc en local, musl dans l'image Docker, gnu en CI).
     // Même chose pour read-excel-file (import de listes, lot 2) et ses dépendances, chargés hors bundle,
     // et pour sharp (images, lot 3) : son binaire natif (@img/sharp-<plateforme>) est chargé par un
-    // chemin calculé que le traçage ne voit pas. shiki (coloration du code, lot 3) charge ses
-    // grammaires (@shikijs/langs) par des imports dynamiques que le traçage ne suit pas non plus.
+    // chemin calculé que le traçage ne voit pas. shiki et ses dépendances : voir PAQUETS_SHIKI.
     "/*": [
       "node_modules/drizzle-orm/**",
       "node_modules/@node-rs/argon2/**",
@@ -38,8 +88,7 @@ const nextConfig: NextConfig = {
       "node_modules/@img/**",
       "node_modules/detect-libc/**",
       "node_modules/semver/**",
-      "node_modules/shiki/**",
-      "node_modules/@shikijs/langs/**",
+      ...PAQUETS_SHIKI.map((paquet) => `node_modules/${paquet}/**`),
     ],
   },
   async headers() {
