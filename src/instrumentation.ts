@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
  * `.next/standalone/node_modules`. S'il en oublie un, l'application démarrerait et casserait
  * au premier usage : on préfère un démarrage refusé, visible aussitôt par le healthcheck.
  */
-const PAQUETS_CRITIQUES = ["pg", "@node-rs/argon2", "read-excel-file/node"] as const;
+const PAQUETS_CRITIQUES = ["pg", "@node-rs/argon2", "read-excel-file/node", "sharp"] as const;
 
 /** Appelée une fois au démarrage du serveur Node.js : valide l'environnement et les paquets externes. */
 export async function register() {

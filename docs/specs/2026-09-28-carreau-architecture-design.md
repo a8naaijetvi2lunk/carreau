@@ -55,8 +55,8 @@ Appliquées sans nouvelle discussion. Source principale : le projet voisin « Pl
 | CSRF : contrôle d'origine des Server Actions, cookies `SameSite=Lax`, `Content-Type: application/json` exigé sur les routes d'API | Architecture iut-tc |
 | CSP à nonce dans `proxy.ts` ; autres en-têtes dans `next.config.ts` ; HSTS non posé par le proxy | Architecture iut-tc ; notes « en-têtes de sécurité : appli vs proxy » (22/04/2026), « HSTS en double » (22/04/2026) |
 | Cookie `Secure` et redirections HTTPS dépendant du protocole réel (`X-Forwarded-Proto`), pas de `NODE_ENV` | Note « durcissement HTTPS invisible sur localhost » (27/08/2026) |
-| Fichiers : volume Docker, envoi en flux, type vérifié sur les octets (`file-type`), nom UUID, service par route contrôlée (`nosniff`, `private, no-store`) ; SVG refusé | Architecture iut-tc ; note « upload SVG : sécurité » (10/06/2026) |
-| Paquets natifs ou dynamiques (`file-type`, `sharp`) en `serverExternalPackages` et présence vérifiée dans `instrumentation.ts` | Note « Next standalone : `strtok3` absent » (17/09/2026) |
+| Fichiers : volume Docker, envoi en flux, type vérifié sur les octets (signature des formats acceptés, puis format confirmé par `sharp` ; `file-type` écarté le 29/09/2026, amendement A1 du plan du lot 3), nom UUID, service par route contrôlée (`nosniff`, `private, no-store`) ; SVG refusé | Architecture iut-tc ; note « upload SVG : sécurité » (10/06/2026) |
+| Paquets natifs ou dynamiques (`sharp`, `shiki`, `read-excel-file`) hors du bundle (liste par défaut de Next ou `serverExternalPackages`), tracés explicitement si besoin, et présence vérifiée dans `instrumentation.ts` | Note « Next standalone : `strtok3` absent » (17/09/2026) |
 | Drizzle + node-postgres (`Pool`), migrations générées et relues, appliquées au démarrage du conteneur | Architecture iut-tc |
 | Pièges Drizzle : colonnes déqualifiées sans jointure, `Date` brute dans `sql`, `sum(bigint)` en chaîne | Note « Drizzle déqualifie les colonnes sans jointure » (26/08/2026) |
 | MCP : `mcp-handler` 2 avec `@modelcontextprotocol/server` 2 ; jeton Bearer vérifié avant `withMcpAuth` ; jetons hachés à portée ; corps limité ; appels journalisés sans arguments | Architecture iut-tc |
@@ -94,7 +94,7 @@ Assistant IA (MCP) ──┘                                  │
 | Interface | Tailwind CSS 4 ; jetons de design repris des maquettes ; polices auto-hébergées par `next/font` (Bricolage Grotesque, Atkinson Hyperlegible, JetBrains Mono) |
 | Données | PostgreSQL 17, Drizzle ORM, node-postgres |
 | Validation | Zod 4 (`z.strictObject` sur toutes les entrées) |
-| Images | `file-type` (contrôle), `sharp` (ré-encodage WebP) |
+| Images | signature des octets écrite dans le projet (PNG, JPEG, WebP, GIF), puis `sharp` (format confirmé, ré-encodage WebP) ; `file-type` écarté le 29/09/2026 (amendement A1 du plan du lot 3 : imports dynamiques de `strtok3` dans le build autonome, 200 formats inutiles) |
 | Code dans les questions | `shiki` côté serveur, en jetons (jamais de HTML injecté) |
 | QR code | `qrcode`, correction d'erreur Q |
 | Import / export | `papaparse` (CSV et collage), `read-excel-file` (lecture XLSX), `write-excel-file` (écriture XLSX, lot 7), `fflate` (contrôle des archives XLSX avant lecture) ; `exceljs` écarté le 29/09/2026 (98 paquets, 2 vulnérabilités modérées, `fstream` abandonné) |

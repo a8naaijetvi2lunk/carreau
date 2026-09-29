@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
+    "@shikijs/langs": "^4.4.3",
     "drizzle-orm": "^0.45.3",
     "fflate": "^0.8.3",
     "next": "16.3.6",
@@ -38,6 +39,8 @@
     "read-excel-file": "^9.3.10",
     "resend": "^6.30.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
+    "shiki": "^4.4.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {

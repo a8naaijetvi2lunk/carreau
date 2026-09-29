@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Les images ne passent jamais par l'optimiseur de Next (/_next/image) : il ne transmettrait pas le
+  // cookie de session et ouvrirait une surface inutile. Elles sont déjà ré-encodées par sharp (lot 3).
+  images: { unoptimized: true },
   // Paquets serveur non bundlés : copiés tels quels dans .next/standalone/node_modules.
   // Leur présence réelle est vérifiée au démarrage (src/instrumentation.ts).
   // read-excel-file exécute son analyse XML par des fonctions sérialisées (worker-f) :
@@ -16,7 +19,9 @@ const nextConfig: NextConfig = {
     // auth ne l'utilise pas statiquement (lot 1, tâche 4) : le traçage ne le
     // copie pas non plus. Le glob couvre le paquet de plateforme quel qu'il
     // soit (msvc en local, musl dans l'image Docker, gnu en CI).
-    // Même chose pour read-excel-file (import de listes, lot 2) et ses dépendances, chargés hors bundle.
+    // Même chose pour read-excel-file (import de listes, lot 2) et ses dépendances, chargés hors bundle,
+    // et pour sharp (images, lot 3) : son binaire natif (@img/sharp-<plateforme>) est chargé par un
+    // chemin calculé que le traçage ne voit pas.
     "/*": [
       "node_modules/drizzle-orm/**",
       "node_modules/@node-rs/argon2/**",
@@ -28,6 +33,10 @@ const nextConfig: NextConfig = {
       "node_modules/fflate/**",
       "node_modules/graceful-fs/**",
       "node_modules/node-int64/**",
+      "node_modules/sharp/**",
+      "node_modules/@img/**",
+      "node_modules/detect-libc/**",
+      "node_modules/semver/**",
     ],
   },
   async headers() {
