@@ -25,3 +25,14 @@ export {
   type InvitationEmise,
   type InvitationLue,
 } from "./invitations";
+export {
+  cleReinitialisationIp,
+  demanderReinitialisation,
+  DUREE_REINITIALISATION_MS,
+  lienReinitialisation,
+  lireLienReinitialisation,
+  MESSAGES_REINITIALISATION,
+  REGLE_REINITIALISATION_IP,
+  reinitialiserMotDePasse,
+  type EtatLienReinitialisation,
+} from "./reinitialisation";
