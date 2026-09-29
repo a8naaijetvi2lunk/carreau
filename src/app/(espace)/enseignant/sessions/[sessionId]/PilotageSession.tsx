@@ -44,12 +44,11 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
   const [suivi, setSuivi] = useState(suiviInitial);
   const [decalageMs, setDecalageMs] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [erreurSalle, setErreurSalle] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [confirmation, setConfirmation] = useState<"demarrer" | "annuler" | null>(null);
   const [connexionPerdue, setConnexionPerdue] = useState(false);
   const interrogation = useRef<Interrogation<VueSuivi> | null>(null);
-  // Statut vu à l'interrogation précédente : au départ de la salle d'attente, une erreur de démarrage est effacée.
-  const statutPrecedent = useRef(suiviInitial.statut);
 
   useEffect(() => {
     const suiviPeriodique = new Interrogation<VueSuivi>({
@@ -61,9 +60,6 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
       periodeMs: () => PERIODE_SUIVI_MS,
       surResultat: (vue) => {
         setConnexionPerdue(false);
-        // Démarrée ailleurs (écran projeté) : « Cette session a déjà démarré. » n'a plus d'objet.
-        if (statutPrecedent.current === "attente" && vue.statut !== "attente") setErreur(null);
-        statutPrecedent.current = vue.statut;
         setDecalageMs(decalageServeurMs(vue.serveurMaintenant, Date.now()));
         setSuivi(vue);
       },
@@ -77,15 +73,25 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
     return () => suiviPeriodique.arreter();
   }, [sessionId]);
 
-  /** Action de l'enseignant ; le suivi est relancé, et l'en-tête rafraîchi si elle a réussi. */
-  async function agir(action: () => Promise<ResultatAction<null>>): Promise<void> {
+  /**
+   * Action de l'enseignant ; le suivi est relancé, et l'en-tête rafraîchi si elle a réussi. `portee`
+   * distingue les actions de salle d'attente (démarrer, annuler, retirer) des décisions sur une
+   * demande, pour qu'une erreur de salle ne reste pas affichée une fois l'examen commencé.
+   */
+  async function agir(
+    action: () => Promise<ResultatAction<null>>,
+    portee: "salle" | "demande",
+  ): Promise<void> {
     setErreur(null);
+    setErreurSalle(null);
     setEnCours(true);
     try {
       const resultat = await action();
       if (resultat.ok) {
         setConfirmation(null);
         router.refresh();
+      } else if (portee === "salle") {
+        setErreurSalle(resultat.erreur.message);
       } else {
         setErreur(resultat.erreur.message);
       }
@@ -130,7 +136,10 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
             rejoindre la session.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Bouton disabled={enCours} onClick={() => void agir(() => demarrerSessionAction(sessionId))}>
+            <Bouton
+              disabled={enCours}
+              onClick={() => void agir(() => demarrerSessionAction(sessionId), "salle")}
+            >
               Démarrer maintenant
             </Bouton>
             <Bouton variante="secondaire" disabled={enCours} onClick={() => setConfirmation(null)}>
@@ -152,7 +161,7 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
             <Bouton
               variante="danger"
               disabled={enCours}
-              onClick={() => void agir(() => annulerSessionAction(sessionId))}
+              onClick={() => void agir(() => annulerSessionAction(sessionId), "salle")}
             >
               Oui, annuler la session
             </Bouton>
@@ -164,6 +173,7 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
       ) : null}
       {connexionPerdue ? <Alerte>Connexion perdue : on réessaie automatiquement.</Alerte> : null}
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
+      {enAttente && erreurSalle ? <Alerte ton="erreur">{erreurSalle}</Alerte> : null}
       {suivi.statut === "en_cours" && suivi.demarreLe ? (
         <Depart demarreLe={suivi.demarreLe} decalageMs={decalageMs} />
       ) : null}
@@ -173,12 +183,14 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
           <ListeDemandes
             demandes={suivi.demandes}
             enCours={enCours}
-            onDecider={(action) => void agir(action)}
+            onDecider={(action) => void agir(action, "demande")}
           />
           <ListesSalle
             suivi={suivi}
             enCours={enCours}
-            onRetirer={(participationId) => void agir(() => retirerParticipantAction(participationId))}
+            onRetirer={(participationId) =>
+              void agir(() => retirerParticipantAction(participationId), "salle")
+            }
           />
         </div>
       </div>
