@@ -1,7 +1,8 @@
 /**
  * Mot de passe oublié (spec §5, décision D9 du plan du lot 1) : lien d'une heure, usage unique,
  * qui révoque toutes les sessions ; le TOTP est conservé. La demande répond toujours de la même
- * façon : ni l'existence du compte, ni la limite, ni un échec d'envoi ne sont révélés.
+ * façon : ni l'existence du compte, ni la limite par destinataire, ni un échec d'envoi ne sont
+ * révélés (la limite par IP, commune à toutes les adresses, reste signalée).
  */
 import "server-only";
 import { and, eq, isNull } from "drizzle-orm";

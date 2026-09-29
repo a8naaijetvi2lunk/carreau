@@ -29,7 +29,11 @@ let hachageFactice: Promise<string> | undefined;
  * durée de la réponse ne révèle pas l'existence du compte. Renvoie toujours faux.
  */
 export async function verifierMotDePasseFactice(motDePasse: string): Promise<false> {
-  hachageFactice ??= hash(randomBytes(32).toString("base64url"), OPTIONS_ARGON2);
+  hachageFactice ??= hash(randomBytes(32).toString("base64url"), OPTIONS_ARGON2).catch((erreur: unknown) => {
+    // Un échec ne reste pas en cache : l'appel suivant recalcule le hachage.
+    hachageFactice = undefined;
+    throw erreur;
+  });
   await verifierMotDePasse(await hachageFactice, motDePasse);
   return false;
 }

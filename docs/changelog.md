@@ -12,14 +12,15 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Paramètres de l'installation : envoi Resend (clé chiffrée, adresse et nom d'expéditeur), validité des invitations, conservation RGPD (ligne unique, créée par upsert).
 - Module `emails` : modèles écrits dans le code (invitation, relance, réinitialisation, test), transport Resend injectable, limite de 3 envois par heure et par destinataire.
 - Scripts serveur `admin:creer` (premier super-admin, lien d'activation affiché une fois) et `admin:reinitialiser-totp` (double authentification perdue).
-- Pages `(auth)` (connexion, double authentification, activation, mot de passe oublié, réinitialisation) et `(espace)` (tableau de bord enseignant, administration des comptes et des paramètres).
-- Tests unitaires et d'intégration des modules `auth`, `comptes`, `parametres`, `emails` ; tests de bout en bout de l'invitation et de l'activation d'un enseignant.
+- Pages `(auth)` (connexion, double authentification, activation, mot de passe oublié, réinitialisation) et `(espace)` (accueil enseignant, administration des comptes et des paramètres).
+- Tests d'intégration des modules `auth`, `comptes`, `parametres`, `emails` et `journal` (dont hachage et TOTP, vérifiés contre les vecteurs des RFC 4226, 6238 et 4648) ; tests de bout en bout de l'invitation et de l'activation d'un enseignant.
 
 ### Corrigé (vérification du lot)
 - `admin:creer` acceptait des adresses que la connexion refuse (accents, tiret bas dans le domaine) : `normaliserEmail` utilise désormais la même regex que `z.email()`.
 - La demande de réinitialisation répondait plus lentement pour un compte actif (écriture puis envoi), ce qui permettait d'énumérer les comptes : la recherche du compte et l'envoi s'exécutent maintenant après la réponse, avec `after()`.
 - Aucun refus d'accès n'était journalisé alors que la spec l'exige : `journaliserLesRefus` écrit désormais `acces.refus` hors transaction pour chaque service à acteur.
 - Un admin pouvait remplacer l'invitation d'un futur admin posée par le super-admin : le rôle de l'invitation en attente est maintenant contrôlé avant tout remplacement.
+- Revue finale : liste des rôles de `schemaRole` reprise de `ROLES`, échec du hachage factice non mis en cache, aucun envoi réel possible depuis la suite d'intégration.
 
 ### Modifié
 - `README.md` : lot 1 marqué livré, premier compte par `npm run admin:creer`, ordre d'installation, commandes d'administration, sécurité des comptes.

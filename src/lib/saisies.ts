@@ -1,6 +1,7 @@
 /** Schémas Zod partagés par les comptes : chaque service les compose dans un `z.strictObject`. */
 import { z } from "zod";
 import { FORMAT_JETON } from "./jetons";
+import { ROLES } from "./roles";
 
 export const MOT_DE_PASSE_MIN = 12;
 export const MOT_DE_PASSE_MAX = 128;
@@ -62,4 +63,4 @@ export const schemaIp = z
   .min(1, { error: "Adresse IP manquante." })
   .max(100, { error: "Adresse IP invalide." });
 
-export const schemaRole = z.enum(["super_admin", "admin", "enseignant"], { error: "Rôle inconnu." });
+export const schemaRole = z.enum(ROLES, { error: "Rôle inconnu." });

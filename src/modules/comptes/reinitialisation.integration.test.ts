@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
 import { jetonReinitialisation, journal, limiteur, utilisateur } from "@/db/schema";
@@ -72,7 +72,12 @@ describe("demanderReinitialisation", () => {
     const [entree] = await db()
       .select()
       .from(journal)
-      .where(eq(journal.action, "comptes.demander_reinitialisation"));
+      .where(
+        and(
+          eq(journal.action, "comptes.demander_reinitialisation"),
+          eq(journal.cible, `utilisateur:${u.id}`),
+        ),
+      );
     expect(entree).toMatchObject({ acteurType: "anonyme", cible: `utilisateur:${u.id}` });
   });
 
@@ -169,7 +174,12 @@ describe("reinitialiserMotDePasse", () => {
     const [entree] = await db()
       .select()
       .from(journal)
-      .where(eq(journal.action, "comptes.reinitialiser_mot_de_passe"));
+      .where(
+        and(
+          eq(journal.action, "comptes.reinitialiser_mot_de_passe"),
+          eq(journal.cible, `utilisateur:${u.id}`),
+        ),
+      );
     expect(entree).toMatchObject({ acteurId: u.id, cible: `utilisateur:${u.id}` });
   });
 
