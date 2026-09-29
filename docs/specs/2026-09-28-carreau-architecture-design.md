@@ -70,6 +70,7 @@ Appliquées sans nouvelle discussion. Source principale : le projet voisin « Pl
 | Nginx Proxy Manager est le seul point d'entrée (Traefik arrêté) ; `Host $http_host` obligatoire ; `proxy_buffering off` sur `/api/mcp` | Notes « infrastructure Coolify » (27/09/2026), « `$host` casse les Server Actions » (26/08/2026) |
 | Purges par tâche planifiée Coolify (fréquence en UTC) appelant une route protégée par `CRON_SECRET` | Note « tâche planifiée Coolify » (17/09, mise à jour 24/09/2026) |
 | Un lot transverse a un intégrateur désigné et des critères de vérification portant sur des comportements | Note « vague multi-agents : désigner un intégrateur » (17/09/2026) |
+| Import de fichiers : type décidé par les octets, taille bornée, archive contrôlée avant décompression (bombe de décompression) | Lot 2, amendement A1 du plan du 29/09/2026 |
 
 **Écart assumé** : iut-tc a renoncé à un score global parce que le navigateur est falsifiable. Carreau conserve un indice, demandé explicitement, sous trois garde-fous : c'est un signal et non une preuve, le détail du calcul est toujours visible, les événements bruts sont conservés et l'indice est recalculable.
 
@@ -96,7 +97,7 @@ Assistant IA (MCP) ──┘                                  │
 | Images | `file-type` (contrôle), `sharp` (ré-encodage WebP) |
 | Code dans les questions | `shiki` côté serveur, en jetons (jamais de HTML injecté) |
 | QR code | `qrcode`, correction d'erreur Q |
-| Import / export | `papaparse` (CSV et collage), `exceljs` (XLSX) |
+| Import / export | `papaparse` (CSV et collage), `read-excel-file` (lecture XLSX), `write-excel-file` (écriture XLSX, lot 7), `fflate` (contrôle des archives XLSX avant lecture) ; `exceljs` écarté le 29/09/2026 (98 paquets, 2 vulnérabilités modérées, `fstream` abandonné) |
 | Scanner intégré | `qr-scanner` (lot 9) |
 
 ### 3.2 Arborescence
