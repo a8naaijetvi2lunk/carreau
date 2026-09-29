@@ -18,6 +18,7 @@ export default async function LayoutEspace({ children }: Readonly<{ children: Re
   });
   const liens: LienNavigation[] = [
     { href: "/enseignant", libelle: "Accueil", icone: "accueil", exact: true },
+    { href: "/enseignant/qcm", libelle: "QCM", icone: "qcm" },
     { href: "/enseignant/classes", libelle: "Classes", icone: "classes" },
   ];
   const liensAdministration: LienNavigation[] = [];

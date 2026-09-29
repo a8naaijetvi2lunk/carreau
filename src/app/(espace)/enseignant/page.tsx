@@ -20,12 +20,15 @@ export default async function AccueilEnseignant() {
           Ton compte est prêt
         </h2>
         <p className="text-encre-2">
-          Commence par créer tes classes et importer la liste de tes étudiants. Les QCM et les sessions
-          arrivent avec les prochaines versions de Carreau.
+          Écris tes QCM et crée tes classes : le lancement des sessions d’examen arrive avec la prochaine
+          version de Carreau.
         </p>
-        <LienBouton href="/enseignant/classes" className="self-start">
-          Mes classes
-        </LienBouton>
+        <div className="flex flex-wrap gap-2">
+          <LienBouton href="/enseignant/qcm">Mes QCM</LienBouton>
+          <LienBouton href="/enseignant/classes" variante="secondaire">
+            Mes classes
+          </LienBouton>
+        </div>
       </section>
     </>
   );
