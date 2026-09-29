@@ -8,6 +8,7 @@ import {
   enregistrerEnvoiEmails,
   enregistrerValiditeInvitations,
   lireConfigurationEnvoi,
+  lireInformationDonnees,
   lireParametres,
   lireValiditeInvitationJours,
   parametresRgpdComplets,
@@ -185,6 +186,24 @@ describe("conservation des données (RGPD)", () => {
   ])("refuse une saisie invalide (%o)", async (saisie) => {
     await expect(enregistrerConservation(await superAdmin(), saisie)).rejects.toMatchObject({
       code: "VALIDATION",
+    });
+  });
+});
+
+describe("information des étudiants (lot 4)", () => {
+  it("ne donne rien tant que la conservation n'est pas renseignée, puis les valeurs réelles", async () => {
+    await db().delete(parametres);
+    expect(await lireInformationDonnees()).toBeNull();
+    const superAdmin = acteurDe(await creerUtilisateur({ role: "super_admin" }));
+    await enregistrerConservation(superAdmin, {
+      conservationEvenementsJours: 30,
+      conservationResultatsJours: 365,
+      contactDonnees: "Direction des études (exemple)",
+    });
+    expect(await lireInformationDonnees()).toEqual({
+      conservationEvenementsJours: 30,
+      conservationResultatsJours: 365,
+      contact: "Direction des études (exemple)",
     });
   });
 });

@@ -15,6 +15,7 @@ import { erreurDepuisZod, erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { journaliserErreurInattendue } from "@/lib/journal-erreur";
 import { schemaEmail } from "@/lib/saisies";
+import type { InformationDonnees } from "@/lib/vue-entree";
 import { journaliser, journaliserLesRefus } from "@/modules/journal";
 
 export const VALIDITE_INVITATION_DEFAUT_JOURS = 7;
@@ -134,6 +135,28 @@ export async function lireValiditeInvitationJours(): Promise<number> {
 /** Durées de conservation et contact renseignés : condition du lancement d'une session (§9.4). */
 export async function parametresRgpdComplets(): Promise<boolean> {
   return rgpdComplet(await lireLigne());
+}
+
+/**
+ * Durées de conservation et contact affichés aux étudiants sur l'écran d'information (spec §9.4,
+ * décision D11 du plan du lot 4) : lecture publique, sans acteur. Null tant qu'ils ne sont pas tous
+ * renseignés : l'écran n'affiche jamais de texte provisoire.
+ */
+export async function lireInformationDonnees(): Promise<InformationDonnees | null> {
+  const ligne = await lireLigne();
+  if (
+    !ligne ||
+    ligne.conservationEvenementsJours === null ||
+    ligne.conservationResultatsJours === null ||
+    ligne.contactDonnees === null
+  ) {
+    return null;
+  }
+  return {
+    conservationEvenementsJours: ligne.conservationEvenementsJours,
+    conservationResultatsJours: ligne.conservationResultatsJours,
+    contact: ligne.contactDonnees,
+  };
 }
 
 /**

@@ -3,6 +3,7 @@ export {
   enregistrerEnvoiEmails,
   enregistrerValiditeInvitations,
   lireConfigurationEnvoi,
+  lireInformationDonnees,
   lireParametres,
   lireValiditeInvitationJours,
   parametresRgpdComplets,
