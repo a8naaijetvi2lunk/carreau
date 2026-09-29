@@ -5,6 +5,7 @@
  */
 import type { MotifDemande } from "./regles-session";
 import type { ResumeExamen } from "./resume-examen";
+import type { VueQuestion } from "./vue-question";
 
 /** En-tête commun : l'examen que l'étudiant rejoint (maquette « Rejoindre »). */
 export type SessionAffichee = { titre: string; classe: string; enseignant: string };
@@ -29,6 +30,27 @@ export type EtatEntree = { serveurMaintenant: string } & (
       etudiantId: string;
       statut: "en_attente" | "refusee" | "expiree";
       motif: MotifDemande;
+    }
+  | {
+      etape: "question";
+      session: SessionAffichee;
+      /** Question courante seulement, sans bonne réponse ; identifiants = positions affichées (D4). */
+      question: VueQuestion;
+      /** Sélection enregistrée, en identifiants de `question.propositions`. */
+      selection: string[];
+      /** Échéance qui s'applique (question en chrono par question, examen en chrono global) ; null sans chrono. */
+      echeance: string | null;
+    }
+  | {
+      etape: "fin";
+      session: SessionAffichee;
+      prenom: string;
+      enregistreesLe: string;
+      repondues: number;
+      total: number;
+      dureeS: number;
+      /** Note sur 20 si l'enseignant la rend visible, null sinon. */
+      note: number | null;
     }
   | { etape: "remplace"; session: SessionAffichee }
   | { etape: "fermee"; session: SessionAffichee; raison: "annulee" | "terminee" }

@@ -105,7 +105,7 @@ Assistant IA (MCP) ──┘                                  │
 ```
 src/
   app/
-    (public)/            accueil, rejoindre, examen (écrans étudiant)
+    (public)/            accueil, rejoindre (entrée puis passage de l'examen sur la même page : amendement A2 du plan du lot 5)
     (auth)/              connexion, activation, double authentification, réinitialisation
     enseignant/          accueil, qcm, classes, sessions, résultats, mcp
     admin/               enseignants, paramètres
@@ -184,7 +184,7 @@ La **liaison** est portée par `liee_a_suivante` sur la question du dessus. « L
 | --- | --- | --- |
 | `session_examen` | `qcm_id`, `classe_id`, `enseignant_id`, `type` (`classe`, `rattrapage`), `session_origine_id`, `statut` (`attente`, `en_cours`, `terminee`, `annulee`), `code_secret`, `contenu` (instantané JSONB), `creneau_prevu_le`, `demarre_le`, `fin_prevue_le`, `termine_le`, `note_visible`, `correction_visible` | — |
 | `session_autorisation` | `session_id`, `etudiant_id` | rattrapage uniquement |
-| `participation` | `session_id`, `etudiant_id`, `appareil_jeton_hash`, `statut` (`attente`, `en_cours`, `terminee`), `ordre` (JSONB), `index_courant`, `question_servie_le`, `echeance_question_le`, `echeance_globale_le`, `information_lue_le`, `rejointe_le`, `terminee_le`, `dernier_contact_le`, `points`, `note_sur_20`, `indice`, `indice_version`, `indice_detail` | `(session_id, etudiant_id)` unique |
+| `participation` | `session_id`, `etudiant_id`, `appareil_jeton_hash`, `statut` (`attente`, `en_cours`, `terminee`), `tiers_temps` (figé au démarrage : amendement A1 du plan du lot 5), `ordre` (JSONB), `index_courant`, `question_servie_le`, `echeance_question_le`, `echeance_globale_le`, `information_lue_le`, `rejointe_le`, `terminee_le`, `dernier_contact_le`, `points`, `note_sur_20`, `indice`, `indice_version`, `indice_detail` | `(session_id, etudiant_id)` unique |
 | `reponse` | `participation_id`, `question_cle`, `selection_brouillon`, `selection`, `validee_le`, `origine` (`validation`, `echeance`, `fin`), `points` | `(participation_id, question_cle)` unique |
 | `evenement` | `participation_id`, `type`, `recu_le`, `duree_ms`, `question_index`, `details` | index `(participation_id, recu_le)` |
 | `demande_appareil` | `participation_id`, `motif` (`second_appareil`, `reprise`), `jeton_hash`, `statut` (`en_attente`, `autorisee`, `refusee`, `expiree`), `cree_le`, `traitee_le`, `traitee_par` | une seule en attente par participation |
@@ -244,7 +244,7 @@ Les homonymes parfaits dans une classe sont refusés à l'import ; l'enseignant 
 - **Chrono global** : `echeance_globale_le = demarre_le + durée × facteur`, avec facteur 4/3 pour un étudiant en tiers-temps (arrondi à la seconde supérieure).
 - **Chrono par question** : `echeance_question_le = question_servie_le + durée de la question × facteur`.
 - **Rattrapage des échéances** : la fonction pure `moteur/echeances.appliquer(participation, maintenant)` valide les questions échues avec leur dernière sélection enregistrée (`origine = echeance`), passe aux suivantes, et clôt la participation quand l'échéance globale ou la dernière question est atteinte (questions restantes sans réponse, `origine = fin`). Elle est appelée avant toute lecture ou écriture d'une participation, et pour toutes les participations d'une session à chaque interrogation du tableau de bord, à chaque lecture des résultats et à la clôture. Un étudiant dont le téléphone s'est éteint est donc clos correctement sans qu'il revienne.
-- **Tolérance réseau** : une validation reçue jusqu'à 3 s après l'échéance est acceptée ; au-delà, la sélection enregistrée fait foi.
+- **Tolérance réseau** : une échéance devient effective 3 s après sa valeur, partout (lecture de l'état, sélection, validation, rattrapage par l'enseignant). Une validation reçue jusque-là est acceptée ; au-delà, la sélection enregistrée fait foi. Une question échue est close à cet instant d'expiration, et la suivante est servie au même instant (amendement A3 du plan du lot 5).
 - **Reprise** : même appareil, reprise directe ; autre appareil, demande à l'enseignant. Le temps a continué de courir pendant la coupure.
 - **Prolonger** (chrono global uniquement) : ajoute la durée choisie à `fin_prevue_le` et à l'échéance globale de chaque participation en cours.
 - **Terminer pour tous** : clôt toutes les participations comme à l'échéance globale.
@@ -388,7 +388,7 @@ Tant que `conservation_evenements_jours`, `conservation_resultats_jours` et `con
 | --- | --- | --- |
 | Connexion | compte / IP (comptes inconnus) | 5 échecs en 15 min, blocage 15 min / 100 échecs en 15 min |
 | Code TOTP | compte | 5 échecs en 15 min |
-| Rejoindre | IP | 120 par minute |
+| Rejoindre | IP | 600 par minute (amendement A4 du plan du lot 5 : un amphithéâtre qui scanne atteignait 120 de bonne foi) |
 | Recherche de nom | ticket d'entrée | 30 par minute |
 | Réclamer un nom | ticket d'entrée | 10 par minute |
 | État, sélection, réponse, événements | participation | 120 par minute chacun |

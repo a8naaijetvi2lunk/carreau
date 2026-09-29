@@ -8,6 +8,7 @@ import {
   evenement,
   participation,
   qcm,
+  reponse,
   sessionExamen,
   utilisateur,
 } from "@/db/schema";
@@ -204,5 +205,69 @@ describe("tables des sessions", () => {
       .returning();
     expect(typeof e?.id).toBe("number");
     expect(e).toMatchObject({ details: {}, dureeMs: null, questionIndex: null });
+  });
+
+  it("donne à une participation un passage vierge par défaut", async () => {
+    const { s, lea } = await sessionEtEtudiants();
+    const p = await nouvelleParticipation(s.id, lea.id);
+    expect(p).toMatchObject({
+      tiersTemps: false,
+      ordre: null,
+      indexCourant: 0,
+      questionServieLe: null,
+      echeanceQuestionLe: null,
+      echeanceGlobaleLe: null,
+      termineeLe: null,
+      points: null,
+      noteSur20: null,
+    });
+    expect(s).toMatchObject({ contenu: null, finPrevueLe: null });
+  });
+
+  it("n'accepte qu'une réponse par question et par participation", async () => {
+    const { s, lea } = await sessionEtEtudiants();
+    const p = await nouvelleParticipation(s.id, lea.id);
+    await db()
+      .insert(reponse)
+      .values({ participationId: p.id, questionCle: "q", selectionBrouillon: [1] });
+    expect(
+      await codeSql(() =>
+        db()
+          .insert(reponse)
+          .values({ participationId: p.id, questionCle: "q", selectionBrouillon: [0] }),
+      ),
+    ).toBe("23505");
+  });
+
+  it("refuse une validation incomplète", async () => {
+    const { s, lea } = await sessionEtEtudiants();
+    const p = await nouvelleParticipation(s.id, lea.id);
+    expect(
+      await codeSql(() =>
+        db().insert(reponse).values({ participationId: p.id, questionCle: "q", valideeLe: INSTANT }),
+      ),
+    ).toBe("23514");
+    expect(
+      await codeSql(() =>
+        db()
+          .insert(reponse)
+          .values({
+            participationId: p.id,
+            questionCle: "q",
+            selection: [0],
+            valideeLe: INSTANT,
+            origine: "validation",
+            points: 1,
+          }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("supprime les réponses avec leur participation", async () => {
+    const { s, lea } = await sessionEtEtudiants();
+    const p = await nouvelleParticipation(s.id, lea.id);
+    await db().insert(reponse).values({ participationId: p.id, questionCle: "q", selectionBrouillon: [] });
+    await db().delete(participation).where(eq(participation.id, p.id));
+    expect(await db().select().from(reponse).where(eq(reponse.participationId, p.id))).toEqual([]);
   });
 });
