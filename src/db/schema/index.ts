@@ -4,3 +4,4 @@ export * from "./images";
 export * from "./journal";
 export * from "./limiteur";
 export * from "./qcm";
+export * from "./sessions";

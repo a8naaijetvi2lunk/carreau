@@ -109,8 +109,9 @@ src/
     (auth)/              connexion, activation, double authentification, réinitialisation
     enseignant/          accueil, qcm, classes, sessions, résultats, mcp
     admin/               enseignants, paramètres
+    projection/          écran projeté d'une session, plein écran (amendement A2 du plan du lot 4)
     api/
-      etudiant/          rejoindre, recherche, reclamer, etat, selection, reponse, evenements
+      etudiant/          rejoindre, recherche, reclamer, information, etat, selection, reponse, evenements
       enseignant/        sessions/[id]/suivi, sessions/[id]/projection
       images/[id]/       service contrôlé des images
       mcp/               serveur MCP
@@ -210,7 +211,7 @@ Une session de **rattrapage** reprend l'instantané de sa session d'origine (et 
 - Chaque session a un `code_secret` aléatoire. Le code affiché vaut `HMAC-SHA256(code_secret, ⌊t / 30 s⌋)`, tronqué à 6 caractères en base32 de Crockford (sans I, L, O, U), affiché « K7M 4QP ».
 - Sont acceptés le code de la fenêtre courante et celui de la précédente (validité effective : 30 à 60 s).
 - Le QR code pointe vers `/rejoindre#K7M4QP` : le code reste dans le fragment d'URL, jamais dans les journaux du proxy ; la page l'envoie en POST.
-- Un code n'est accepté que si la session est en `attente`.
+- Un code n'est accepté que si la session est en `attente` ou `en_cours`. Pendant l'examen, il ne crée aucune participation : il ne sert qu'à demander la reprise d'une participation existante sur un autre appareil, que l'enseignant autorise ou refuse. Il n'est projeté qu'en salle d'attente ; pendant l'examen, l'enseignant l'affiche sur sa page de pilotage pour l'étudiant concerné (amendement A1 du plan du lot 4).
 
 ### 6.2 Rejoindre
 
@@ -220,7 +221,7 @@ Une session de **rattrapage** reprend l'instantané de sa session d'origine (et 
    - aucune participation : création, génération d'un jeton d'appareil (256 bits) posé en cookie `__Host-carreau-participation` (`HttpOnly`, `Secure`, `SameSite=Lax`), seul son hachage est stocké ;
    - participation existante avec le même jeton : reprise ;
    - participation existante avec un autre jeton : création d'une `demande_appareil` (`second_appareil` avant le démarrage, `reprise` après) et d'un événement sur la participation d'origine. Le téléphone patiente jusqu'à la décision de l'enseignant ; s'il autorise, l'ancien jeton est révoqué.
-4. Écran d'information : sa lecture est enregistrée (`information_lue_le`) avant l'entrée en salle d'attente.
+4. Écran d'information : sa lecture est enregistrée (`information_lue_le`, `POST /api/etudiant/information`, amendement A2 du plan du lot 4) avant l'entrée en salle d'attente.
 
 Après le démarrage, `rejoindre` refuse toute nouvelle participation (« La session a démarré. Préviens ton enseignant. ») ; seules les demandes d'appareil sur une participation existante restent possibles.
 
@@ -368,7 +369,7 @@ Tant que `conservation_evenements_jours`, `conservation_resultats_jours` et `con
 | Valider hors délai ou revenir en arrière | Échéances et rang vérifiés côté serveur, dans une transaction verrouillée |
 | Falsifier le chrono | Seule l'horloge du serveur compte |
 | Se faire passer pour un camarade | Nom lié au premier appareil ; toute seconde réclamation passe par l'enseignant, qui voit aussi connectés et absents |
-| Rejoindre depuis l'extérieur | Code valable 60 s au plus, uniquement en salle d'attente ; aucune entrée après le démarrage |
+| Rejoindre depuis l'extérieur | Code valable 60 s au plus, projeté seulement en salle d'attente ; aucune entrée après le démarrage : le code ne sert plus qu'à demander une reprise, que l'enseignant décide (amendement A1 du plan du lot 4) |
 | Deviner un code | 32⁶ combinaisons, fenêtre de 60 s, limiteur par IP |
 | Masquer ses sorties | Le silence est détecté par le serveur ; une coupure réseau déclarée reste visible pour l'enseignant |
 | Saturer l'application | Limiteur par participation et par ticket ; limites par IP larges, car toute la salle partage une IP |
