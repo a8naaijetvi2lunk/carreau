@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { erreurs } from "./erreurs";
-import { lireCorpsJson, reponseErreur, reponseOk } from "./reponse-api";
+import { lireCorpsBinaire, lireCorpsJson, reponseErreur, reponseImage, reponseOk } from "./reponse-api";
 
 function requeteJson(corps: string, type = "application/json"): Request {
   return new Request("http://localhost/api/essai", {
@@ -118,5 +118,62 @@ describe("lireCorpsJson", () => {
       headers: { "content-type": "application/json" },
     });
     await expect(lireCorpsJson(requete, schema, "Code")).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+});
+
+function requeteBinaire(corps: BodyInit | null, entetes: Record<string, string>): Request {
+  return new Request("http://localhost/api/essai", { method: "POST", headers: entetes, body: corps });
+}
+
+describe("lireCorpsBinaire", () => {
+  const TROP_LOURD = "Image trop lourde : 5 Mo au maximum.";
+
+  it("renvoie les octets d'un corps application/octet-stream", async () => {
+    const requete = requeteBinaire(new Uint8Array([1, 2, 3]), { "content-type": "application/octet-stream" });
+    expect(Array.from(await lireCorpsBinaire(requete, 10, TROP_LOURD))).toEqual([1, 2, 3]);
+  });
+
+  it.each(["multipart/form-data; boundary=x", "text/plain", "image/png", ""])(
+    "refuse le type « %s » (une page tierce pourrait l'envoyer sans requête préalable)",
+    async (type) => {
+      const requete = requeteBinaire(new Uint8Array([1]), type ? { "content-type": type } : {});
+      await expect(lireCorpsBinaire(requete, 10, TROP_LOURD)).rejects.toMatchObject({
+        code: "VALIDATION",
+        message: "Le corps de la requête doit être envoyé en application/octet-stream.",
+      });
+    },
+  );
+
+  it("refuse une taille annoncée trop grande avant de lire le corps", async () => {
+    const requete = requeteBinaire(new Uint8Array([1]), {
+      "content-type": "application/octet-stream",
+      "content-length": "11",
+    });
+    await expect(lireCorpsBinaire(requete, 10, TROP_LOURD)).rejects.toMatchObject({ message: TROP_LOURD });
+  });
+
+  it("refuse un corps plus long que la limite, même sans taille annoncée", async () => {
+    const requete = requeteBinaire(new Uint8Array(11), { "content-type": "application/octet-stream" });
+    await expect(lireCorpsBinaire(requete, 10, TROP_LOURD)).rejects.toMatchObject({ message: TROP_LOURD });
+  });
+
+  it("renvoie un tableau vide pour un corps absent", async () => {
+    const requete = requeteBinaire(null, { "content-type": "application/octet-stream" });
+    expect((await lireCorpsBinaire(requete, 10, TROP_LOURD)).byteLength).toBe(0);
+  });
+});
+
+describe("reponseImage", () => {
+  it("sert une image WebP jamais interprétée ni mise en cache partagé", async () => {
+    const reponse = reponseImage(new Uint8Array([1, 2]));
+    expect(reponse.status).toBe(200);
+    expect(Object.fromEntries(reponse.headers)).toMatchObject({
+      "content-type": "image/webp",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; sandbox",
+      "content-disposition": "inline",
+    });
+    expect(Array.from(new Uint8Array(await reponse.arrayBuffer()))).toEqual([1, 2]);
   });
 });

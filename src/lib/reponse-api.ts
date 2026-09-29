@@ -78,8 +78,13 @@ export async function lireCorpsJson<T>(
   return resultat.data;
 }
 
-async function lireTexteBorne(requete: Request, tailleMax: number): Promise<string> {
-  if (!requete.body) return "";
+/** Lit au plus `tailleMax` octets du corps, en flux ; au-delà, VALIDATION `messageTropLourd`. */
+async function lireOctetsBornes(
+  requete: Request,
+  tailleMax: number,
+  messageTropLourd: string,
+): Promise<Uint8Array> {
+  if (!requete.body) return new Uint8Array();
   const lecteur = requete.body.getReader();
   const morceaux: Uint8Array[] = [];
   let total = 0;
@@ -89,9 +94,49 @@ async function lireTexteBorne(requete: Request, tailleMax: number): Promise<stri
     total += value.byteLength;
     if (total > tailleMax) {
       await lecteur.cancel();
-      throw erreurs.validation("Le corps de la requête est trop volumineux.");
+      throw erreurs.validation(messageTropLourd);
     }
     morceaux.push(value);
   }
-  return new TextDecoder().decode(Buffer.concat(morceaux));
+  return new Uint8Array(Buffer.concat(morceaux));
+}
+
+async function lireTexteBorne(requete: Request, tailleMax: number): Promise<string> {
+  return new TextDecoder().decode(
+    await lireOctetsBornes(requete, tailleMax, "Le corps de la requête est trop volumineux."),
+  );
+}
+
+/**
+ * Lit un corps binaire (téléversement d'une image, décision D14 du plan du lot 3) :
+ * - `Content-Type: application/octet-stream` exigé. Ce type « non simple » impose une requête
+ *   préalable CORS, qu'aucune page tierce ne peut réussir : protection CSRF, comme le JSON exigé ailleurs ;
+ * - `Content-Length` annoncé au-delà de `tailleMax` : refusé avant toute lecture ;
+ * - flux borné ensuite (un `Content-Length` peut mentir ou manquer).
+ */
+export async function lireCorpsBinaire(
+  requete: Request,
+  tailleMax: number,
+  messageTropLourd: string,
+): Promise<Uint8Array> {
+  const type = requete.headers.get("content-type") ?? "";
+  if (!/^application\/octet-stream\s*(;|$)/i.test(type)) {
+    throw erreurs.validation("Le corps de la requête doit être envoyé en application/octet-stream.");
+  }
+  const annonce = requete.headers.get("content-length")?.trim() ?? "";
+  if (/^\d+$/.test(annonce) && Number(annonce) > tailleMax) throw erreurs.validation(messageTropLourd);
+  return lireOctetsBornes(requete, tailleMax, messageTropLourd);
+}
+
+const ENTETES_IMAGE = {
+  "Content-Type": "image/webp",
+  "Cache-Control": "private, no-store",
+  "X-Content-Type-Options": "nosniff",
+  "Content-Security-Policy": "default-src 'none'; sandbox",
+  "Content-Disposition": "inline",
+} as const;
+
+/** Image WebP servie par une route contrôlée (spec §2) : jamais interprétée, jamais mise en cache partagé. */
+export function reponseImage(contenu: Uint8Array): Response {
+  return new Response(Buffer.from(contenu), { status: 200, headers: ENTETES_IMAGE });
 }
