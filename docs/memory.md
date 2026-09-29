@@ -62,6 +62,15 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 5. `admin:creer` valide l'adresse avec la même règle que la connexion (regex de `z.email()`).
 6. Les tests de `src/modules` sont en `*.integration.test.ts` : seule la suite d'intégration mesure la couverture des modules.
 
+## Classes (lot 2)
+
+- **Propriété** : chaque compte a ses classes, invisibles pour tous les autres (super-admin compris). La ressource d'un autre compte répond « introuvable » (`erreurs.ressourceAutrui`, marqueur `refusAcces`) et fait journaliser `acces.refus` par `journaliserLesRefus`.
+- **Archivage au lieu de suppression** : 200 classes par compte, 500 étudiants par classe. Les homonymes parfaits (mêmes nom et prénom normalisés) sont refusés par les noms normalisés (`src/lib/noms.ts`, dans `lib` et non `moteur` : la page filtre la liste côté client avec la même fonction).
+- **Import en trois étages** : lecture (le type du fichier est décidé sur ses octets, jamais l'extension ; CSV en UTF-8 ou Windows-1252 ; séparateur lu sur la ligne des titres) → analyse (une archive XLSX est contrôlée avant décompression : 10 Mio décompressés au plus, 100 entrées au plus) → aperçu, puis import confirmé à partir des lignes de l'aperçu, entièrement revalidées (jamais le fichier lui-même). Toute écriture sur une classe ou ses étudiants passe par un verrou `SELECT … FOR UPDATE` sur la ligne `classe`.
+- **Module `classes`** : `classes.ts`, `etudiants.ts`, `import/` (`lecture`, `archive`, `analyse`, `import`, `messages`).
+- **À retenir pour le lot 7** : un nom importé peut commencer par `=`, `+`, `-` ou `@` ; les exports CSV et XLSX devront neutraliser ces cellules (décision D17).
+- **À retenir pour le lot 4** : la table `participation` référencera `etudiant` en `ON DELETE RESTRICT` et `retirerEtudiant` devra alors refuser (`ETAT`) un étudiant qui a déjà participé ; la création de session ne proposera que les classes non archivées.
+
 ## Ports locaux
 
 | Usage | Port |

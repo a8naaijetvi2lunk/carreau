@@ -2,6 +2,24 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-29 — Lot 2 : classes
+
+### Ajouté
+- Module `classes` : création, renommage, archivage et restauration de classe ; propriété stricte par compte (`classe.enseignant_id`), invisible même du super-admin.
+- Module `etudiants` : ajout, modification, changement de tiers-temps et retrait un par un ; homonymes parfaits refusés par les noms normalisés (`src/lib/noms.ts`).
+- Import de listes en trois étages (`import/lecture`, `import/archive`, `import/analyse`, `import/import`, `import/messages`) : fichier `.csv`/`.txt`, `.xlsx` ou texte collé, type décidé par les octets, CSV UTF-8 ou Windows-1252, séparateur détecté sur la ligne des titres, archive XLSX contrôlée par `fflate` avant lecture (`read-excel-file`).
+- Aperçu de l'import (`analyserImport`) détaillant chaque ligne rejetée et son motif, avant confirmation qui revalide entièrement les lignes (`importerEtudiants`).
+- Verrou `SELECT … FOR UPDATE` sur la classe pour toute écriture (renommage, archivage, ajout, tiers-temps, retrait, import).
+- Ressource d'un autre compte journalisée en `acces.refus` (`erreurs.ressourceAutrui`, marqueur `refusAcces`), via `journaliserLesRefus`.
+- Pages `/enseignant/classes` (liste et création) et `/enseignant/classes/[classeId]` (classe choisie, étudiants, import) ; lien « Classes » dans la navigation principale pour tous les rôles.
+- Dépendances validées (amendement A1 du spec §3.1) : `papaparse`, `read-excel-file`, `fflate` ; en développement `@types/papaparse` et `write-excel-file` (fabrique les classeurs des tests, passera en dépendance au lot 7). `exceljs` écarté (vulnérabilités, paquet non maintenu).
+- Tests d'intégration des modules `classes`, `etudiants` et `import/*` ; tests de bout en bout de l'import d'une liste de 30 étudiants avec rejets expliqués.
+
+### Modifié
+- `README.md` : classes et import de listes, bibliothèques d'import, imports bornés, lot 2 marqué livré.
+- `docs/memory.md` : propriété des classes, import en trois étages, points à retenir pour les lots 4 et 7.
+- `docs/choix.csv` : décisions A1 et D2 à D16 du plan du lot 2.
+
 ## 2026-09-29 — Lot 1 : comptes
 
 ### Ajouté

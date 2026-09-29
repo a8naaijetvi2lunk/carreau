@@ -44,7 +44,7 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 - **Compte sur invitation**, envoyée par email.
 - **Éditeur de QCM** : choix unique, choix multiples, vrai/faux, images dans les questions et les réponses, blocs de code, barème configurable (points négatifs compris), chrono au choix (aucun, global ou par question).
 - **Questions liées** : deux questions qui doivent se suivre restent consécutives, dans leur ordre, où qu’elles tombent dans le mélange.
-- **Classes** : import de la liste depuis un fichier CSV ou Excel, ou saisie manuelle ; tiers-temps par étudiant.
+- **Classes** : import de la liste depuis un fichier CSV ou Excel (`.xlsx`), ou collée depuis un tableur, avec un aperçu qui explique chaque ligne rejetée avant d’enregistrer ; ajout, modification et retrait un par un ; tiers-temps par étudiant ; deux étudiants aux mêmes nom et prénom sont refusés dans une classe (l’enseignant les distingue par une initiale).
 - **Sessions** : un QCM, une classe, un créneau. Le QR code projeté change toutes les 30 secondes pour qu’un lien partagé à l’extérieur de la salle ne serve à rien.
 - **Suivi en direct** : étudiants connectés et absents, progression, alertes et indice de suspicion, sur ordinateur comme sur téléphone.
 - **Résultats** : exports CSV et Excel, rapport détaillé par étudiant, note et correction visibles ou non par les étudiants.
@@ -101,6 +101,7 @@ flowchart LR
 | Interface | Tailwind CSS 4, PWA |
 | Données | PostgreSQL 17, Drizzle ORM |
 | Validation | Zod 4, systématique côté serveur |
+| Import de listes | `papaparse` (CSV et collage), `read-excel-file` (Excel), archives contrôlées par `fflate` |
 | Emails | Resend |
 | Assistant IA | Serveur MCP (`mcp-handler`) |
 | Tests | Vitest (unitaires et intégration), Playwright (parcours complets, dont téléphone) |
@@ -159,7 +160,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | --- | --- | --- |
 | 0 | Socle technique : Next.js 16 autonome, PostgreSQL et migrations, CSP à nonce, limiteur de débit, journal d’audit, tests et intégration continue | ✅ Livré |
 | 1 | Comptes : super-administrateur, invitations par email, double authentification (TOTP) obligatoire, rôles, paramètres d’envoi et de conservation | ✅ Livré |
-| 2 | Classes et étudiants : import CSV / Excel ou collage, tiers-temps | À venir |
+| 2 | Classes et étudiants : import CSV / Excel ou collage, tiers-temps | ✅ Livré |
 | 3 | Éditeur de QCM : types de questions, images, code, barème, questions liées, chrono | À venir |
 | 4 | Sessions : QR code renouvelé, écran projeté, salle d’attente, démarrage commun | À venir |
 | 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | À venir |
@@ -179,6 +180,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Secrets chiffrés** : les secrets conservés en base, comme la clé d’envoi des emails, sont chiffrés en AES-256-GCM.
 - **Erreurs sans fuite** : aucune pile d’appels ni requête SQL n’est renvoyée, et les journaux ne contiennent pas de données personnelles.
 - **Droits vérifiés côté serveur** : dans chaque service, jamais seulement dans l’interface ; la ressource d’un autre enseignant répond « introuvable ».
+- **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
 - **Comptes protégés** : mots de passe argon2id, double authentification TOTP obligatoire, sessions de 12 h (30 min d’inactivité) révoquées à la désactivation et à la réinitialisation du mot de passe, limitation des tentatives.
 
 Merci de signaler toute vulnérabilité de façon privée, comme décrit dans [`SECURITY.md`](SECURITY.md).
