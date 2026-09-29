@@ -143,6 +143,32 @@ describe("inviter", () => {
         ),
       );
     expect(enAttente).toHaveLength(1);
+    const [entreeSeconde] = await db()
+      .select()
+      .from(journal)
+      .where(eq(journal.cible, `invitation:${seconde.invitationId}`));
+    expect(entreeSeconde?.details).toEqual({ role: "enseignant", remplace: premiere.invitationId });
+  });
+
+  it("un admin ne remplace pas l'invitation d'un admin en attente pour la même adresse", async () => {
+    const superAdmin = await acteur("super_admin");
+    const admin = await acteur("admin");
+    const emiseAdmin = await inviter(superAdmin, { email: "karim.admin@exemple.fr", role: "admin" });
+    await expect(
+      inviter(admin, { email: "karim.admin@exemple.fr", role: "enseignant" }),
+    ).rejects.toMatchObject({ code: "ACCES_REFUSE" });
+    expect((await lireInvitation(jetonDe(emiseAdmin.lien)))?.etat).toBe("valide");
+  });
+
+  it("le super-admin remplace une invitation admin par une invitation enseignant pour la même adresse", async () => {
+    const superAdmin = await acteur("super_admin");
+    const emiseAdmin = await inviter(superAdmin, { email: "remplace@exemple.fr", role: "admin" });
+    const emiseEnseignant = await inviter(superAdmin, {
+      email: "remplace@exemple.fr",
+      role: "enseignant",
+    });
+    expect((await lireInvitation(jetonDe(emiseAdmin.lien)))?.etat).toBe("annulee");
+    expect((await lireInvitation(jetonDe(emiseEnseignant.lien)))?.etat).toBe("valide");
   });
 
   it("limite l'émetteur à 20 invitations par heure", async () => {

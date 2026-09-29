@@ -70,25 +70,36 @@ function nomInviteur(acteur: ActeurUtilisateur): string {
 }
 
 /**
- * Crée une invitation dans la transaction : refuse une adresse qui a déjà un compte, annule
- * l'invitation en attente de la même adresse (une seule en attente, index partiel).
+ * Crée une invitation dans la transaction : refuse une adresse qui a déjà un compte, contrôle et
+ * annule sous verrou l'invitation en attente de la même adresse (une seule en attente, index
+ * partiel) — seul un acteur habilité à gérer le rôle de l'invitation remplacée peut la remplacer.
  */
 async function creerInvitation(
   tx: Transaction,
   donnees: { email: string; role: Role; invitePar: string; instant: Date; validiteJours: number },
-): Promise<{ id: string; jeton: string; expireLe: Date }> {
+  acteur: ActeurUtilisateur,
+): Promise<{ id: string; jeton: string; expireLe: Date; remplace: string | null }> {
   const [compte] = await tx
     .select({ id: utilisateur.id })
     .from(utilisateur)
     .where(eq(utilisateur.email, donnees.email))
     .limit(1);
   if (compte) throw erreurs.conflit(MESSAGE_COMPTE_EXISTANT);
-  await tx
-    .update(invitation)
-    .set({ annuleeLe: donnees.instant })
+  const [enAttente] = await tx
+    .select({ id: invitation.id, role: invitation.role })
+    .from(invitation)
     .where(
       and(eq(invitation.email, donnees.email), isNull(invitation.utiliseeLe), isNull(invitation.annuleeLe)),
+    )
+    .for("update");
+  if (enAttente && !peutGererRole(acteur, enAttente.role)) {
+    throw erreurs.accesRefuse(
+      "Une invitation d'un autre rôle est en attente pour cette adresse : seul le super-admin peut la remplacer.",
     );
+  }
+  if (enAttente) {
+    await tx.update(invitation).set({ annuleeLe: donnees.instant }).where(eq(invitation.id, enAttente.id));
+  }
   const jeton = genererJeton();
   const expireLe = new Date(donnees.instant.getTime() + donnees.validiteJours * 24 * 60 * 60 * 1000);
   const [creee] = await tx
@@ -103,7 +114,7 @@ async function creerInvitation(
     })
     .returning({ id: invitation.id });
   if (!creee) throw new Error("Invitation non créée");
-  return { id: creee.id, jeton, expireLe };
+  return { id: creee.id, jeton, expireLe, remplace: enAttente?.id ?? null };
 }
 
 /** Deux invitations simultanées pour la même adresse : la seconde perd la course, message clair. */
@@ -140,19 +151,17 @@ export async function inviter(
   const validiteJours = await lireValiditeInvitationJours();
   const creee = await sansDoublon(() =>
     db().transaction(async (tx) => {
-      const nouvelle = await creerInvitation(tx, {
-        email,
-        role,
-        invitePar: acteur.id,
-        instant,
-        validiteJours,
-      });
+      const nouvelle = await creerInvitation(
+        tx,
+        { email, role, invitePar: acteur.id, instant, validiteJours },
+        acteur,
+      );
       await journaliser(
         {
           acteur: { type: "utilisateur", id: acteur.id },
           action: "comptes.inviter",
           cible: `invitation:${nouvelle.id}`,
-          details: { role },
+          details: nouvelle.remplace ? { role, remplace: nouvelle.remplace } : { role },
         },
         tx,
       );
@@ -203,13 +212,11 @@ export async function relancerInvitation(
   const { ancienne, nouvelle } = await sansDoublon(() =>
     db().transaction(async (tx) => {
       const ancienne = await invitationGerable(tx, acteur, resultat.data.invitationId);
-      const nouvelle = await creerInvitation(tx, {
-        email: ancienne.email,
-        role: ancienne.role,
-        invitePar: acteur.id,
-        instant,
-        validiteJours,
-      });
+      const nouvelle = await creerInvitation(
+        tx,
+        { email: ancienne.email, role: ancienne.role, invitePar: acteur.id, instant, validiteJours },
+        acteur,
+      );
       await journaliser(
         {
           acteur: { type: "utilisateur", id: acteur.id },
