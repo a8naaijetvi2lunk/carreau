@@ -58,9 +58,11 @@ test.describe("sessions", () => {
       );
     }
     await expect(page.getByRole("heading", { name: "Dans la salle · 30 / 30" })).toBeVisible();
+    await projection.bringToFront();
     await expect(projection.getByText("30 / 30", { exact: true })).toBeVisible();
 
     // Départ commun : tous les téléphones passent à « L’examen a commencé » au même instant.
+    await page.bringToFront();
     await page.getByRole("button", { name: "Démarrer l’examen" }).click();
     await page.getByRole("button", { name: "Démarrer maintenant" }).click();
     await Promise.all(
@@ -77,6 +79,7 @@ test.describe("sessions", () => {
     const ecart = Math.max(...instants) - Math.min(...instants);
     testInfo.annotations.push({ type: "écart de départ (ms)", description: String(ecart) });
     expect(ecart).toBeLessThan(2_000);
+    await projection.bringToFront();
     await expect(projection.getByRole("heading", { name: "L’examen a commencé" })).toBeVisible({
       timeout: 10_000,
     });
