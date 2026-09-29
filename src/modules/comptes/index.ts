@@ -1,5 +1,17 @@
 export { activerCompte, MESSAGES_INVITATION } from "./activation";
 export {
+  changerRole,
+  desactiverCompte,
+  listerComptes,
+  MESSAGE_PROPRE_COMPTE,
+  reactiverCompte,
+  reinitialiserDoubleAuth,
+  type ActionCompte,
+  type ActionInvitation,
+  type LigneCompte,
+  type LigneInvitationEnAttente,
+} from "./gestion";
+export {
   annulerInvitation,
   cleInvitationsEmetteur,
   inviter,
