@@ -42,6 +42,7 @@ export class Interrogation<T> {
   demarrer(): void {
     if (this.actif) return;
     this.actif = true;
+    this.echecs = 0;
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.surVisibilite);
     this.planifier(0);
   }

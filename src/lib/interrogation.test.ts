@@ -102,6 +102,28 @@ describe("Interrogation", () => {
     i.arreter();
   });
 
+  it("repart de zéro échec après arreter() puis demarrer()", async () => {
+    const echecs: number[] = [];
+    const i = new Interrogation<number>({
+      appeler: async () => {
+        throw new Error("réseau coupé");
+      },
+      periodeMs: () => 5000,
+      surResultat: () => undefined,
+      surEchec: (n) => echecs.push(n),
+    });
+    i.demarrer();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(echecs).toEqual([1, 2, 3]);
+    i.arreter();
+    i.demarrer();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(echecs).toEqual([1, 2, 3, 1]);
+    i.arreter();
+  });
+
   it("relancer() pendant un appel : l'appel en cours est abandonné, un nouveau part aussitôt", async () => {
     const attente: { resoudre?: (valeur: number) => void } = {};
     const recus: number[] = [];
