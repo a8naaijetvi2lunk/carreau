@@ -36,4 +36,24 @@ describe("periodeEntreeMs", () => {
       expect(periodeEntreeMs(etat(partiel), MAINTENANT)).toBeNull();
     }
   });
+
+  it("pendant l'examen : 5 s, ou juste après l'expiration de l'échéance si elle vient plus tôt", () => {
+    expect(periodeEntreeMs(etat({ etape: "question", echeance: null }), MAINTENANT)).toBe(5000);
+    // Échéance dans 60 s : 5 s.
+    expect(
+      periodeEntreeMs(etat({ etape: "question", echeance: "2026-09-21T14:14:20.000Z" }), MAINTENANT),
+    ).toBe(5000);
+    // Échéance dans 1 s : expiration (tolérance de 3 s) + 300 ms, soit 4,3 s.
+    expect(
+      periodeEntreeMs(etat({ etape: "question", echeance: "2026-09-21T14:13:21.000Z" }), MAINTENANT),
+    ).toBe(4300);
+    // Expiration déjà passée : 300 ms au plus tôt.
+    expect(
+      periodeEntreeMs(etat({ etape: "question", echeance: "2026-09-21T14:13:00.000Z" }), MAINTENANT),
+    ).toBe(300);
+  });
+
+  it("n'interroge plus sur l'écran de fin", () => {
+    expect(periodeEntreeMs(etat({ etape: "fin" }), MAINTENANT)).toBeNull();
+  });
 });

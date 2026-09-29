@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useEffectEvent } from "react";
 import { useRebours } from "@/components/examen/useRebours";
 import type { EtatEntree } from "@/lib/vue-entree";
 
@@ -7,11 +8,26 @@ type EtatDemarrage = Extract<EtatEntree, { etape: "demarrage" }>;
 
 /**
  * Départ commun (spec §6.3, décision D12) : compte à rebours calé sur l'heure du serveur, puis
- * « L’examen a commencé » (l'écran des questions arrive au lot 5). `data-commence-a` : heure locale du
- * passage à zéro, comparée d'un téléphone à l'autre par les tests de bout en bout.
+ * « L’examen a commencé » le temps que la première question arrive. `data-commence-a` : heure locale
+ * du passage à zéro, comparée d'un téléphone à l'autre par les tests de bout en bout.
  */
-export function EtapeDemarrage({ etat, decalageMs }: { etat: EtatDemarrage; decalageMs: number }) {
+export function EtapeDemarrage({
+  etat,
+  decalageMs,
+  onZero,
+}: {
+  etat: EtatDemarrage;
+  decalageMs: number;
+  onZero: (commenceA: number) => void;
+}) {
   const rebours = useRebours(etat.demarreLe, decalageMs);
+  // Au passage à zéro : le parent redemande aussitôt l'état (la première question) et garde l'heure
+  // locale du passage pour le test des trente téléphones (décision D14 du plan du lot 5).
+  const annoncerZero = useEffectEvent((commenceA: number) => onZero(commenceA));
+  const commenceA = rebours?.commenceA ?? null;
+  useEffect(() => {
+    if (commenceA !== null) annoncerZero(commenceA);
+  }, [commenceA]);
   if (!rebours) {
     return (
       <p role="status" className="text-encre-2">

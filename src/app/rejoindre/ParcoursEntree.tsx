@@ -7,14 +7,16 @@ import { decalageServeurMs } from "@/lib/horloge-serveur";
 import { Interrogation } from "@/lib/interrogation";
 import { periodeEntreeMs } from "@/lib/periode-entree";
 import type { EtatEntree } from "@/lib/vue-entree";
-import { choisirNom, envoyerCode, lireEtat, validerInformation } from "./api";
+import { choisirNom, envoyerCode, lireEtat, validerInformation, validerReponse } from "./api";
 import { EtapeAttente } from "./EtapeAttente";
 import { EtapeCode } from "./EtapeCode";
 import { EtapeDemande } from "./EtapeDemande";
 import { EtapeDemarrage } from "./EtapeDemarrage";
+import { EtapeFin } from "./EtapeFin";
 import { EtapeInformation } from "./EtapeInformation";
 import { EtapeMessage } from "./EtapeMessage";
 import { EtapeNom } from "./EtapeNom";
+import { EtapeQuestion } from "./EtapeQuestion";
 
 type Affichage = { etat: EtatEntree; decalageMs: number };
 type PremiereEntree = ReponseApi<EtatEntree> | "reseau" | null;
@@ -27,10 +29,14 @@ function EtapeCourante({
   affichage,
   executer,
   perdu,
+  relancer,
+  onZero,
 }: {
   affichage: Affichage;
   executer: Executer;
   perdu: (message: string) => void;
+  relancer: () => void;
+  onZero: (commenceA: number) => void;
 }) {
   const { etat } = affichage;
   switch (etat.etape) {
@@ -43,7 +49,19 @@ function EtapeCourante({
     case "attente":
       return <EtapeAttente etat={etat} />;
     case "demarrage":
-      return <EtapeDemarrage etat={etat} decalageMs={affichage.decalageMs} />;
+      return <EtapeDemarrage etat={etat} decalageMs={affichage.decalageMs} onZero={onZero} />;
+    case "question":
+      return (
+        <EtapeQuestion
+          key={`question-${etat.question.rang}`}
+          etat={etat}
+          decalageMs={affichage.decalageMs}
+          onValider={(rang, selection) => executer(() => validerReponse(rang, selection))}
+          onDesynchronise={relancer}
+        />
+      );
+    case "fin":
+      return <EtapeFin etat={etat} />;
     case "demande":
       return <EtapeDemande etat={etat} onRefaire={() => executer(() => choisirNom(etat.etudiantId))} />;
     case "remplace":
@@ -77,6 +95,7 @@ export function ParcoursEntree() {
   const [affichage, setAffichage] = useState<Affichage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [connexionPerdue, setConnexionPerdue] = useState(false);
+  const [commenceA, setCommenceA] = useState<number | null>(null);
   const interrogation = useRef<Interrogation<EtatEntree> | null>(null);
   const decalage = useRef(0);
   // Code du QR (fragment #K7M4QP) envoyé une seule fois, même si l'effet est rejoué (mode strict).
@@ -151,27 +170,58 @@ export function ParcoursEntree() {
     interrogation.current?.relancer();
   }
 
+  function relancer(): void {
+    interrogation.current?.relancer();
+  }
+
+  /** Départ commun : l'heure locale du premier passage à zéro est gardée, l'état redemandé aussitôt. */
+  function surZero(a: number): void {
+    setCommenceA((dejaVu) => dejaVu ?? a);
+    interrogation.current?.relancer();
+  }
+
   const etape = affichage?.etat.etape ?? null;
-  // Nouvelle étape : l'écran repart du haut (la précédente a pu être défilée jusqu'à son bouton).
+  // Nouvel écran (nouvelle étape, ou question suivante) : il repart du haut.
+  const ecran = affichage?.etat.etape === "question" ? `question-${affichage.etat.question.rang}` : etape;
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [etape]);
+  }, [ecran]);
   const modeExamen = etape !== null && ETAPES_EXAMEN.has(etape);
+  // La question porte son propre en-tête (« Question 7 / 20 », chrono, « Mode examen »).
+  const enTete = etape !== "question";
+  const pendantExamen = etape === "question";
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-5 pt-5 pb-7">
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <Marque />
-        {modeExamen ? (
-          <span className="flex items-center gap-2 rounded-full bg-bleu-pale px-3 py-1.5 text-[13px] font-bold text-bleu-fonce">
-            <span aria-hidden="true" className="size-2 rounded-full bg-bleu" />
-            Mode examen
-          </span>
-        ) : null}
-      </div>
-      {connexionPerdue ? <Alerte>Connexion perdue : on réessaie automatiquement.</Alerte> : null}
+    <main
+      className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-5 pt-5 pb-7"
+      data-commence-a={commenceA ?? undefined}
+    >
+      {enTete ? (
+        <div className="flex min-h-11 items-center justify-between gap-3">
+          <Marque />
+          {modeExamen ? (
+            <span className="flex items-center gap-2 rounded-full bg-bleu-pale px-3 py-1.5 text-[13px] font-bold text-bleu-fonce">
+              <span aria-hidden="true" className="size-2 rounded-full bg-bleu" />
+              Mode examen
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {connexionPerdue ? (
+        <Alerte>
+          {pendantExamen
+            ? "Connexion perdue : tes réponses sont enregistrées, on réessaie automatiquement."
+            : "Connexion perdue : on réessaie automatiquement."}
+        </Alerte>
+      ) : null}
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
       {affichage ? (
-        <EtapeCourante affichage={affichage} executer={executer} perdu={perdu} />
+        <EtapeCourante
+          affichage={affichage}
+          executer={executer}
+          perdu={perdu}
+          relancer={relancer}
+          onZero={surZero}
+        />
       ) : (
         <p role="status" className="text-[15px] text-encre-2">
           Connexion à la session…

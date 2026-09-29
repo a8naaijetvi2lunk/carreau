@@ -55,19 +55,36 @@ function BlocCode({ code }: { code: NonNullable<VueQuestion["code"]> }) {
 
 /**
  * Question telle que l'étudiant la voit sur son téléphone (maquettes « Question avec code » et
- * « Réponses en images », décision D18). Au lot 3, la sélection reste locale (aperçu) ; l'examen du
- * lot 5 la branchera sur le serveur. La vue ne contient jamais la bonne réponse.
+ * « Réponses en images »). Sans `selection` ni `onSelection`, la sélection reste locale (aperçu du
+ * lot 3) ; pendant l'examen (lot 5), elle est tenue par l'écran, qui l'enregistre à chaque touche.
+ * La vue ne contient jamais la bonne réponse.
  */
-export function QuestionEtudiant({ vue, chrono }: { vue: VueQuestion; chrono: string | null }) {
-  const [selection, setSelection] = useState<string[]>([]);
+export function QuestionEtudiant({
+  vue,
+  chrono,
+  selection,
+  onSelection,
+  desactivee = false,
+}: {
+  vue: VueQuestion;
+  chrono: string | null;
+  selection?: string[];
+  onSelection?: (selection: string[]) => void;
+  desactivee?: boolean;
+}) {
+  const [locale, setLocale] = useState<string[]>([]);
+  const choisies = selection ?? locale;
   const multiple = vue.type === "multiple";
   const enImages = vue.propositions.length > 0 && vue.propositions.every((p) => p.image !== null);
 
   function basculer(id: string): void {
-    setSelection((actuelle) => {
-      if (actuelle.includes(id)) return actuelle.filter((x) => x !== id);
-      return multiple ? [...actuelle, id] : [id];
-    });
+    const suivante = choisies.includes(id)
+      ? choisies.filter((x) => x !== id)
+      : multiple
+        ? [...choisies, id]
+        : [id];
+    if (onSelection) onSelection(suivante);
+    else setLocale(suivante);
   }
 
   return (
@@ -120,13 +137,14 @@ export function QuestionEtudiant({ vue, chrono }: { vue: VueQuestion; chrono: st
         className={enImages ? "grid grid-cols-2 gap-3" : "flex flex-col gap-2.5"}
       >
         {vue.propositions.map((p, i) => {
-          const choisie = selection.includes(p.id);
+          const choisie = choisies.includes(p.id);
           const lettre = LETTRES[i] ?? String(i + 1);
           return (
             <button
               key={p.id}
               type="button"
               aria-pressed={choisie}
+              disabled={desactivee}
               onClick={() => basculer(p.id)}
               className={`flex gap-2 rounded-xl p-2.5 text-left text-[17px] ${
                 enImages || p.image ? "flex-col" : "min-h-13 items-center px-3.5"

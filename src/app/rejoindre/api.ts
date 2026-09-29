@@ -22,3 +22,16 @@ export function validerInformation(): Promise<ReponseApi<EtatEntree>> {
 export function lireEtat(signal?: AbortSignal): Promise<ReponseApi<EtatEntree>> {
   return appelerApi("/api/etudiant/etat", {}, signal);
 }
+
+/** Sélection en cours de la question courante (brouillon), à chaque touche. */
+export function enregistrerSelection(
+  rang: number,
+  selection: string[],
+): Promise<ReponseApi<{ enregistree: true }>> {
+  return appelerApi("/api/etudiant/selection", { rang, selection });
+}
+
+/** Validation de la question courante : l'état suivant (question ou fin). */
+export function validerReponse(rang: number, selection: string[]): Promise<ReponseApi<EtatEntree>> {
+  return appelerApi("/api/etudiant/reponse", { rang, selection });
+}
