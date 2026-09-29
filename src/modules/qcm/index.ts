@@ -1,4 +1,5 @@
 export { apercuQcm, type ApercuQcm } from "./apercu";
+export { instantaneDuQcm } from "./instantane";
 export {
   archiverQcm,
   creerQcm,
