@@ -15,6 +15,13 @@
       "when": 1790661019736,
       "tag": "0001_comptes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790678140034,
+      "tag": "0002_classes",
+      "breakpoints": true
     }
   ]
 }
