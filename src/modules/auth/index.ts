@@ -1,4 +1,15 @@
 export {
+  connecter,
+  deconnecter,
+  MESSAGE_CODE_INCORRECT,
+  MESSAGE_IDENTIFIANTS,
+  MESSAGE_SESSION_EXPIREE,
+  MESSAGE_TOTP_INUTILISABLE,
+  preparerDoubleAuth,
+  validerDoubleAuth,
+  type EcranDoubleAuth,
+} from "./connexion";
+export {
   cleConnexionCompte,
   cleConnexionIp,
   cleDoubleAuth,
