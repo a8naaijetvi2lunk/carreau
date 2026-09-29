@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { nomsCookiesEntree } from "@/modules/sessions";
+import { examenEnCours, identifiants } from "@/test/examen";
 import { INSTANT_CODE_TEST, preparerSession, renseignerRgpd, SECRET_CODE_TEST } from "@/test/sessions";
 import { POST as etat } from "./etat/route";
 import { POST as information } from "./information/route";
 import { POST as recherche } from "./recherche/route";
 import { POST as reclamer } from "./reclamer/route";
 import { POST as rejoindre } from "./rejoindre/route";
+import { POST as reponse } from "./reponse/route";
+import { POST as selection } from "./selection/route";
 
 beforeEach(() => definirHorlogePourLesTests(horlogeFixe(INSTANT_CODE_TEST)));
 afterEach(() => definirHorlogePourLesTests());
@@ -92,5 +95,52 @@ describe("routes d'entrée des étudiants", () => {
     await expect(reponse.json()).resolves.toMatchObject({
       erreur: { message: "Code inconnu ou expiré : saisis le code affiché en ce moment au tableau." },
     });
+  });
+});
+
+describe("routes du passage de l'examen", () => {
+  const horloge = horlogeFixe(INSTANT_CODE_TEST);
+  beforeEach(() => {
+    horloge.fixer(INSTANT_CODE_TEST);
+    definirHorlogePourLesTests(horloge);
+  });
+
+  it("enregistre la sélection, valide, puis donne l'écran de fin, en no-store", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    const cookies = { [nomsCookiesEntree().appareil]: lea.jeton };
+    const oui = await identifiants(lea.participation.id, 1, ["Oui"]);
+
+    const r1 = await selection(requete("selection", { rang: 1, selection: oui }, cookies));
+    expect(r1.status).toBe(200);
+    expect(r1.headers.get("cache-control")).toBe("no-store");
+    await expect(r1.json()).resolves.toEqual({ enregistree: true });
+
+    const r2 = await etat(requete("etat", {}, cookies));
+    await expect(r2.json()).resolves.toMatchObject({ etape: "question", selection: oui });
+
+    const r3 = await reponse(requete("reponse", { rang: 1, selection: oui }, cookies));
+    await expect(r3.json()).resolves.toMatchObject({ etape: "question", question: { rang: 2 } });
+    const r4 = await reponse(requete("reponse", { rang: 2, selection: [] }, cookies));
+    const fin = (await r4.json()) as Record<string, unknown>;
+    expect(fin).toMatchObject({ etape: "fin", repondues: 1, total: 2, note: 10 });
+    expect(JSON.stringify(fin)).not.toContain("correcte");
+  });
+
+  it("refuse un téléphone sans participation (409) et une sélection mal formée (422)", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    const sans = await reponse(requete("reponse", { rang: 1, selection: [] }));
+    expect(sans.status).toBe(409);
+    const cookies = { [nomsCookiesEntree().appareil]: lea.jeton };
+    expect((await selection(requete("selection", { rang: 1, selection: ["x"] }, cookies))).status).toBe(422);
+    expect((await selection(requete("selection", { rang: 1 }, cookies))).status).toBe(422);
+    expect((await reponse(requete("reponse", { rang: 1, selection: [], plus: 1 }, cookies))).status).toBe(
+      422,
+    );
+    const rangFutur = await reponse(requete("reponse", { rang: 2, selection: [] }, cookies));
+    expect(rangFutur.status).toBe(409);
   });
 });
