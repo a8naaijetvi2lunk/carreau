@@ -1,1 +1,1 @@
-export { lireImage, televerserImage, verifierImagesDeLActeur } from "./images";
+export { contenuImage, lireImage, televerserImage, verifierImagesDeLActeur } from "./images";

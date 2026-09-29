@@ -96,3 +96,20 @@ export async function vuePassage(participationId: string): Promise<VuePassage | 
     echeance: echeance ? echeance.toISOString() : null,
   };
 }
+
+/**
+ * Vrai si l'image est citée par la question **courante** de la participation (énoncé ou réponse),
+ * après rattrapage, une fois le départ passé (spec §11.1, décision D12). Jamais pour la question
+ * suivante, jamais après la fin.
+ */
+export async function imageDeLaQuestionCourante(participationId: string, imageId: string): Promise<boolean> {
+  const instant = maintenant();
+  const passage = await passageAJour(participationId, instant);
+  if (!passage || passage.statut !== "en_cours" || !passage.ordre) return false;
+  const demarreLe = passage.session.demarreLe;
+  if (demarreLe === null || instant.getTime() < demarreLe.getTime()) return false;
+  const entree = passage.ordre[passage.etat.indexCourant];
+  if (!entree) return false;
+  const question = await lireQuestion(db(), passage.session.id, entree.q);
+  return question.image?.id === imageId || question.propositions.some((p) => p.image?.id === imageId);
+}

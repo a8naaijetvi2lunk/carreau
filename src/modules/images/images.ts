@@ -1,7 +1,7 @@
 /**
  * Images des QCM (spec §4.2, §9.1 et §11.1 ; décisions D1, D14 et D16 du plan du lot 3) :
- * téléversement contrôlé puis ré-encodé, lecture réservée au propriétaire (le lot 5 l'ouvrira aux
- * participations). Une image n'est jamais supprimée au lot 3.
+ * téléversement contrôlé puis ré-encodé, lecture réservée au propriétaire, et à la participation dont
+ * la question courante cite l'image (lot 5). Une image n'est jamais supprimée au lot 3.
  */
 import "server-only";
 import { randomUUID } from "node:crypto";
@@ -105,6 +105,21 @@ export async function lireImage(
     }
     return { contenu };
   });
+}
+
+/**
+ * Fichier d'une image, **sans contrôle d'accès** : réservé à un appelant qui a déjà vérifié le droit
+ * de lecture (image de la question courante d'une participation, décision D12 du plan du lot 5).
+ */
+export async function contenuImage(imageId: string): Promise<Buffer> {
+  const id = lireIdentifiant(imageId, "Image");
+  const contenu = await lireFichierImage(id);
+  if (!contenu) {
+    // Seul l'identifiant est écrit : aucune donnée personnelle.
+    console.error(`[images] Fichier absent du disque : image:${id}`);
+    throw erreurs.introuvable("Image");
+  }
+  return contenu;
 }
 
 /**

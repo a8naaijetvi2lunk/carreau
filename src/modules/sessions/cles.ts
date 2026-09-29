@@ -46,3 +46,9 @@ export function cleSelection(participationId: string): string {
 export function cleReponse(participationId: string): string {
   return `etudiant:reponse:${participationId}`;
 }
+
+export const REGLE_IMAGE: RegleLimite = { seuil: 240, fenetreSecondes: 60, blocageSecondes: 60 };
+
+export function cleImage(participationId: string): string {
+  return `etudiant:image:${participationId}`;
+}

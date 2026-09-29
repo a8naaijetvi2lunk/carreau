@@ -21,7 +21,14 @@ import {
 } from "@/lib/regles-session";
 import { lireIdentifiant, valider } from "@/lib/validation";
 import type { EtatEntree, InformationDonnees, ResultatRecherche } from "@/lib/vue-entree";
-import { enregistrerBrouillon, validerQuestion, vuePassage, type SaisieReponse } from "@/modules/examen";
+import {
+  enregistrerBrouillon,
+  imageDeLaQuestionCourante,
+  validerQuestion,
+  vuePassage,
+  type SaisieReponse,
+} from "@/modules/examen";
+import { contenuImage } from "@/modules/images";
 import { journaliser } from "@/modules/journal";
 import { reserverJournalise } from "@/modules/limiteur";
 import { lireInformationDonnees } from "@/modules/parametres";
@@ -29,6 +36,7 @@ import { normaliserCode } from "@/moteur/code-session";
 import {
   cleEtatAppareil,
   cleEtatTicket,
+  cleImage,
   cleInformation,
   cleRecherche,
   cleReclamer,
@@ -36,6 +44,7 @@ import {
   cleRejoindreIp,
   cleSelection,
   REGLE_ETAT,
+  REGLE_IMAGE,
   REGLE_INFORMATION,
   REGLE_RECHERCHE,
   REGLE_RECLAMER,
@@ -537,4 +546,23 @@ export async function validerReponse(telephone: Telephone, saisie: SaisieReponse
   });
   await validerQuestion(participationId, saisie);
   return { etat: await etatDuTelephone(telephone) };
+}
+
+/**
+ * Image de la question courante du téléphone (spec §11.1, décisions D12 et D13 du plan du lot 5).
+ * Tout refus répond « Image introuvable. » : image d'une autre question, examen terminé, jeton inconnu.
+ */
+export async function lireImageExamen(
+  telephone: Telephone,
+  saisie: { imageId: string },
+): Promise<{ contenu: Buffer }> {
+  const imageId = lireIdentifiant(saisie.imageId, "Image");
+  const participationId = await participationDe(telephone);
+  if (participationId === null) throw erreurs.introuvable("Image");
+  await reserverJournalise(cleImage(participationId), REGLE_IMAGE, {
+    action: "sessions.limite_image",
+    cible: `participation:${participationId}`,
+  });
+  if (!(await imageDeLaQuestionCourante(participationId, imageId))) throw erreurs.introuvable("Image");
+  return { contenu: await contenuImage(imageId) };
 }

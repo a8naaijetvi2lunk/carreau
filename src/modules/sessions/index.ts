@@ -10,6 +10,7 @@ export {
 export {
   confirmerInformation,
   lireEtatEntree,
+  lireImageExamen,
   rechercherEtudiants,
   reclamerNom,
   rejoindreSession,
