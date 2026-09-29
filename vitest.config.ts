@@ -18,6 +18,12 @@ export default defineConfig({
           branches: 85,
           statements: 90,
         },
+        "src/moteur/**": {
+          lines: 95,
+          functions: 95,
+          branches: 95,
+          statements: 95,
+        },
       },
     },
   },
