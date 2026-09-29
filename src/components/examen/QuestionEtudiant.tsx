@@ -129,7 +129,7 @@ export function QuestionEtudiant({ vue, chrono }: { vue: VueQuestion; chrono: st
               aria-pressed={choisie}
               onClick={() => basculer(p.id)}
               className={`flex gap-2 rounded-xl p-2.5 text-left text-[17px] ${
-                enImages ? "flex-col" : "min-h-13 items-center px-3.5"
+                enImages || p.image ? "flex-col" : "min-h-13 items-center px-3.5"
               } ${choisie ? "border-2 border-bleu bg-bleu-pale" : "border border-ligne bg-carte"}`}
             >
               {p.image ? (
