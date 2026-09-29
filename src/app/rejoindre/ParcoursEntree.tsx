@@ -151,7 +151,12 @@ export function ParcoursEntree() {
     interrogation.current?.relancer();
   }
 
-  const modeExamen = affichage !== null && ETAPES_EXAMEN.has(affichage.etat.etape);
+  const etape = affichage?.etat.etape ?? null;
+  // Nouvelle étape : l'écran repart du haut (la précédente a pu être défilée jusqu'à son bouton).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [etape]);
+  const modeExamen = etape !== null && ETAPES_EXAMEN.has(etape);
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-5 pt-5 pb-7">
       <div className="flex min-h-11 items-center justify-between gap-3">
