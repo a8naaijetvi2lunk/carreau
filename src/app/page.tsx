@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Marque } from "@/components/ui";
 
 export default function Accueil() {
@@ -24,6 +25,12 @@ export default function Accueil() {
           Scanne le QR code affiché par ton enseignant avec l’appareil photo de ton téléphone.
         </p>
       </section>
+      <p className="text-[15px] text-muet">
+        Enseignant ?{" "}
+        <Link href="/connexion" className="font-bold text-bleu">
+          Espace enseignant
+        </Link>
+      </p>
     </main>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
-type Variante = "primaire" | "secondaire";
+type Variante = "primaire" | "secondaire" | "danger";
 
 // Cible tactile de 44 px au minimum (min-h-11), comme dans les maquettes.
 const BASE =
@@ -10,6 +10,7 @@ const BASE =
 const VARIANTES: Record<Variante, string> = {
   primaire: "bg-bleu text-blanc hover:bg-bleu-fonce",
   secondaire: "border border-ligne-forte bg-carte text-encre hover:bg-papier",
+  danger: "border border-orange bg-carte text-orange-fonce hover:bg-orange-pale",
 };
 
 export function Bouton({
