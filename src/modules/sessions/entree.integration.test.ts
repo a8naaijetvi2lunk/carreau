@@ -287,6 +287,23 @@ describe("reclamerNom", () => {
     });
   });
 
+  it("refuse la demande d'un téléphone déjà associé à un autre nom (étape 6, D9)", async () => {
+    const { session, lea, sacha } = await salle();
+    const premier = await reclamer(telephone(session.id), lea.id);
+    await reclamer(telephone(session.id), sacha.id);
+    await expect(reclamerNom(premier.telephone, { etudiantId: sacha.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.telephoneDejaAssocie,
+    });
+    const pSacha = exiger(
+      (await participationsDe(session.id)).find((p) => p.etudiantId === sacha.id),
+      "participation de Sacha",
+    );
+    expect(await demandesDe(pSacha.id)).toEqual([]);
+    const evenements = await db().select().from(evenement).where(eq(evenement.participationId, pSacha.id));
+    expect(evenements).toEqual([]);
+  });
+
   it("refuse une session annulée et un téléphone sans ticket", async () => {
     const { session, lea } = await salle();
     const t = telephone(session.id);

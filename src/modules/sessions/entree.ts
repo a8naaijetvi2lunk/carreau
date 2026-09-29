@@ -329,6 +329,20 @@ async function demanderAppareil(
   return { jetonAppareil: jeton };
 }
 
+/** Le jeton de ce téléphone désigne-t-il déjà une participation de la session (décision D9) ? */
+async function exigerTelephoneLibre(
+  tx: Transaction,
+  sessionId: string,
+  empreinte: string | null,
+): Promise<void> {
+  if (empreinte === null) return;
+  const [dejaAssocie] = await tx
+    .select({ id: participation.id })
+    .from(participation)
+    .where(and(eq(participation.sessionId, sessionId), eq(participation.appareilJetonHash, empreinte)));
+  if (dejaAssocie) throw erreurs.etat(MESSAGES_SESSION.telephoneDejaAssocie);
+}
+
 /** Réclamation dans une transaction, verrous dans l'ordre session, étudiant, participation (D9, D14). */
 async function reclamerDansTransaction(
   tx: Transaction,
@@ -354,13 +368,7 @@ async function reclamerDansTransaction(
   let existante = await participationVerrouillee(tx, sessionId, etudiantId);
   if (!existante) {
     if (session.statut === "en_cours") throw erreurs.etat(MESSAGES_SESSION.sessionDemarree);
-    if (empreinte !== null) {
-      const [dejaAssocie] = await tx
-        .select({ id: participation.id })
-        .from(participation)
-        .where(and(eq(participation.sessionId, sessionId), eq(participation.appareilJetonHash, empreinte)));
-      if (dejaAssocie) throw erreurs.etat(MESSAGES_SESSION.telephoneDejaAssocie);
-    }
+    await exigerTelephoneLibre(tx, sessionId, empreinte);
     const jeton = genererJeton();
     const instant = maintenant();
     const [creee] = await tx
@@ -380,6 +388,8 @@ async function reclamerDansTransaction(
     if (!existante) throw new Error("Participation introuvable après un conflit d'insertion.");
   }
   if (empreinte !== null && existante.appareilJetonHash === empreinte) return {};
+  // La participation réclamée n'a pas le jeton de ce téléphone : une ligne trouvée ici est forcément une autre participation.
+  await exigerTelephoneLibre(tx, sessionId, empreinte);
   return demanderAppareil(
     tx,
     existante.id,
