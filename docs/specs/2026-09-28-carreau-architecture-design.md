@@ -119,7 +119,7 @@ src/
       sante/             healthcheck
   modules/               un dossier par domaine, index.ts public
     auth/  comptes/  parametres/  classes/  qcm/  images/  sessions/
-    examen/  surveillance/  resultats/  mcp/  journal/  limiteur/  sante/  purges/
+    examen/ (passage, événements, indice : amendement A3 du plan du lot 6)  resultats/  mcp/  journal/  limiteur/  sante/  purges/
   moteur/                logique pure, sans I/O : melange, notation, echeances, indice, code-session, recherche
   db/schema/             un fichier par domaine
   lib/                   erreurs, journal-erreur, action, reponse-api, page, env, horloge, ip, chiffrement, csp (sans accès à la base)
@@ -285,7 +285,7 @@ Les signaux **primaires** sont observés par le serveur et ne peuvent pas être 
 - **silence** : aucun contact pendant plus de 15 s alors que la participation est en cours ;
 - **temps de réponse** : validation très rapide juste après un retour ;
 - **second appareil** : réclamation du même nom depuis un autre téléphone ;
-- **rechargement** : chargement de la page d'examen sur une participation déjà en cours (fréquent sur iOS, qui peut recharger une page restée en arrière-plan).
+- **rechargement** : chargement de la page d'examen sur une participation déjà en cours (fréquent sur iOS, qui peut recharger une page restée en arrière-plan). Chaque page chargée tire un identifiant aléatoire ; deux identifiants pendant un même passage font un rechargement (amendement A4 du plan du lot 6).
 
 Les signaux **complémentaires** viennent du navigateur et peuvent manquer :
 
@@ -295,7 +295,7 @@ Les signaux **complémentaires** viennent du navigateur et peuvent manquer :
 - redimensionnement marqué pendant que la page est visible (**heuristique** d'écran partagé, faible poids) ;
 - `online` et `offline`, échecs de requêtes (coupure réseau).
 
-Le module client `modules/surveillance/client` numérote les transitions, les met en file et les envoie par `POST /api/etudiant/evenements` (lots de 50 au plus, `fetch` avec `keepalive`, `sendBeacon` sur `pagehide`).
+La capture côté navigateur (`src/lib/capture-examen.ts`, classe sans React : amendement A1 du plan du lot 6) numérote les transitions, les met en file et les envoie par `POST /api/etudiant/evenements` (lots de 50 au plus), toujours par `fetch` avec `keepalive`, y compris à la sortie de la page : Chromium refuse `sendBeacon` avec un contenu `application/json` (amendement A2).
 
 ### 8.3 Règles de consolidation
 

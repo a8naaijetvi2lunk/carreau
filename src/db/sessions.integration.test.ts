@@ -270,4 +270,34 @@ describe("tables des sessions", () => {
     await db().delete(participation).where(eq(participation.id, p.id));
     expect(await db().select().from(reponse).where(eq(reponse.participationId, p.id))).toEqual([]);
   });
+
+  it("dédoublonne les événements du téléphone par chargement et numéro, jamais ceux du serveur", async () => {
+    const { s, lea } = await sessionEtEtudiants();
+    const p = await nouvelleParticipation(s.id, lea.id);
+    const telephone = {
+      participationId: p.id,
+      type: "masquee",
+      recuLe: INSTANT,
+      chargement: "abcdefgh",
+      sequence: 1,
+    };
+    await db().insert(evenement).values(telephone);
+    expect(await codeSql(() => db().insert(evenement).values(telephone))).toBe("23505");
+    expect(
+      await codeSql(() =>
+        db()
+          .insert(evenement)
+          .values({ ...telephone, chargement: "ijklmnop" }),
+      ),
+    ).toBeUndefined();
+    const serveur = { participationId: p.id, type: "silence", recuLe: INSTANT, dureeMs: 20_000 };
+    await db().insert(evenement).values(serveur);
+    expect(await codeSql(() => db().insert(evenement).values(serveur))).toBeUndefined();
+  });
+
+  it("laisse l'indice vide tant que le passage n'est pas terminé", async () => {
+    const { s, lea } = await sessionEtEtudiants();
+    const p = await nouvelleParticipation(s.id, lea.id);
+    expect(p).toMatchObject({ indice: null, indiceVersion: null, indiceDetail: null });
+  });
 });

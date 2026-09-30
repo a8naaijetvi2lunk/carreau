@@ -43,6 +43,13 @@
       "when": 1790722659596,
       "tag": "0005_examen",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790739889587,
+      "tag": "0006_surveillance",
+      "breakpoints": true
     }
   ]
 }

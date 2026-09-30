@@ -4,6 +4,7 @@ import {
   formaterDateCourte,
   formaterDateHeure,
   formaterHeure,
+  formaterHeureSecondes,
   saisieHeureDeParis,
 } from "./dates";
 
@@ -23,6 +24,12 @@ describe("formaterHeure", () => {
   it("affiche l'heure de Paris sur deux chiffres", () => {
     expect(formaterHeure(new Date("2026-09-29T08:05:00.000Z"))).toBe("10:05");
     expect(formaterHeure(new Date("2026-12-01T08:05:00.000Z"))).toBe("09:05");
+  });
+});
+
+describe("formaterHeureSecondes", () => {
+  it("affiche l'heure de Paris à la seconde", () => {
+    expect(formaterHeureSecondes(new Date("2026-09-29T08:42:13.400Z"))).toBe("10:42:13");
   });
 });
 

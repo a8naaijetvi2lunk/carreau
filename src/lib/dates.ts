@@ -32,6 +32,18 @@ export function formaterHeure(date: Date): string {
   return FORMAT_HEURE.format(date);
 }
 
+const FORMAT_HEURE_SECONDES = new Intl.DateTimeFormat("fr-FR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "Europe/Paris",
+});
+
+/** « 10:42:13 » : tableau de bord et alertes de la surveillance. */
+export function formaterHeureSecondes(date: Date): string {
+  return FORMAT_HEURE_SECONDES.format(date);
+}
+
 const FORMAT_PARTIES = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Paris",
   hourCycle: "h23",

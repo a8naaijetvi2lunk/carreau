@@ -23,6 +23,7 @@ import {
 } from "../../lib/regles-session";
 import type { ContenuSession, OrdrePassage } from "../../lib/instantane";
 import { ORIGINES_REPONSE } from "../../lib/regles-examen";
+import type { LigneIndice } from "../../lib/regles-surveillance";
 import { classe, etudiant } from "./classes";
 import { utilisateur } from "./comptes";
 import { qcm } from "./qcm";
@@ -102,6 +103,10 @@ export const participation = pgTable(
     // Nom de colonne explicite (spec §4.3, D1) : la conversion snake_case automatique de drizzle-kit
     // donnerait "note_sur20" (un seul chiffre final n'est pas séparé par un underscore).
     noteSur20: numeric("note_sur_20", { precision: 5, scale: 2, mode: "number" }),
+    // Indice écrit à la fin du passage (spec §4.3 et §8.4, décision D9 du plan du lot 6).
+    indice: integer(),
+    indiceVersion: integer(),
+    indiceDetail: jsonb().$type<LigneIndice[]>(),
   },
   (t) => [
     uniqueIndex("participation_session_etudiant_unique").on(t.sessionId, t.etudiantId),
@@ -140,8 +145,8 @@ export const demandeAppareil = pgTable(
 );
 
 /**
- * Événements horodatés par le serveur (spec §4.3 et §8.2). Au lot 4, seul « second_appareil » est
- * écrit ; la capture côté téléphone arrive au lot 6.
+ * Événements horodatés par le serveur (spec §4.3 et §8.2) : `second_appareil` (lot 4), `silence` et
+ * ceux du téléphone (lot 6).
  */
 export const evenement = pgTable(
   "evenement",
@@ -155,8 +160,14 @@ export const evenement = pgTable(
     dureeMs: integer(),
     questionIndex: integer(),
     details: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    // Identifiant du chargement de la page et numéro d'ordre (événements du téléphone ; D1 et A4 du lot 6).
+    chargement: text(),
+    sequence: integer(),
   },
-  (t) => [index("evenement_participation_recu_idx").on(t.participationId, t.recuLe)],
+  (t) => [
+    index("evenement_participation_recu_idx").on(t.participationId, t.recuLe),
+    uniqueIndex("evenement_chargement_sequence_unique").on(t.participationId, t.chargement, t.sequence),
+  ],
 );
 
 /**

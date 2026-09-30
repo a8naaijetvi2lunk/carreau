@@ -1,0 +1,2281 @@
+{
+  "id": "e0c47435-e6fa-44de-87fa-92c691a08183",
+  "prevId": "0d83423b-8318-44ff-a9f2-4bbb96f96ddc",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.classe": {
+      "name": "classe",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "enseignant_id": {
+          "name": "enseignant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archivee": {
+          "name": "archivee",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "classe_enseignant_nom_unique": {
+          "name": "classe_enseignant_nom_unique",
+          "columns": [
+            {
+              "expression": "enseignant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"nom\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "classe_enseignant_id_utilisateur_id_fk": {
+          "name": "classe_enseignant_id_utilisateur_id_fk",
+          "tableFrom": "classe",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "enseignant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.etudiant": {
+      "name": "etudiant",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "classe_id": {
+          "name": "classe_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom_normalise": {
+          "name": "nom_normalise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom_normalise": {
+          "name": "prenom_normalise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tiers_temps": {
+          "name": "tiers_temps",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "etudiant_classe_nom_unique": {
+          "name": "etudiant_classe_nom_unique",
+          "columns": [
+            {
+              "expression": "classe_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "nom_normalise",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "prenom_normalise",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "etudiant_classe_id_classe_id_fk": {
+          "name": "etudiant_classe_id_classe_id_fk",
+          "tableFrom": "etudiant",
+          "tableTo": "classe",
+          "columnsFrom": [
+            "classe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.invitation": {
+      "name": "invitation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role_utilisateur",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invite_par": {
+          "name": "invite_par",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expire_le": {
+          "name": "expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilisee_le": {
+          "name": "utilisee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "annulee_le": {
+          "name": "annulee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "invitation_jeton_hash_unique": {
+          "name": "invitation_jeton_hash_unique",
+          "columns": [
+            {
+              "expression": "jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invitation_email_en_attente_unique": {
+          "name": "invitation_email_en_attente_unique",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"invitation\".\"utilisee_le\" IS NULL AND \"invitation\".\"annulee_le\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "invitation_invite_par_utilisateur_id_fk": {
+          "name": "invitation_invite_par_utilisateur_id_fk",
+          "tableFrom": "invitation",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "invite_par"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "invitation_email_minuscules": {
+          "name": "invitation_email_minuscules",
+          "value": "\"invitation\".\"email\" = lower(\"invitation\".\"email\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.jeton_mcp": {
+      "name": "jeton_mcp",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "enseignant_id": {
+          "name": "enseignant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prefixe": {
+          "name": "prefixe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "portee": {
+          "name": "portee",
+          "type": "portee_jeton_mcp",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dernier_usage_le": {
+          "name": "dernier_usage_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoque_le": {
+          "name": "revoque_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "jeton_mcp_jeton_hash_unique": {
+          "name": "jeton_mcp_jeton_hash_unique",
+          "columns": [
+            {
+              "expression": "jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "jeton_mcp_enseignant_idx": {
+          "name": "jeton_mcp_enseignant_idx",
+          "columns": [
+            {
+              "expression": "enseignant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "jeton_mcp_enseignant_id_utilisateur_id_fk": {
+          "name": "jeton_mcp_enseignant_id_utilisateur_id_fk",
+          "tableFrom": "jeton_mcp",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "enseignant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.jeton_reinitialisation": {
+      "name": "jeton_reinitialisation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expire_le": {
+          "name": "expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilise_le": {
+          "name": "utilise_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "jeton_reinitialisation_jeton_hash_unique": {
+          "name": "jeton_reinitialisation_jeton_hash_unique",
+          "columns": [
+            {
+              "expression": "jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "jeton_reinitialisation_utilisateur_idx": {
+          "name": "jeton_reinitialisation_utilisateur_idx",
+          "columns": [
+            {
+              "expression": "utilisateur_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "jeton_reinitialisation_utilisateur_id_utilisateur_id_fk": {
+          "name": "jeton_reinitialisation_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "jeton_reinitialisation",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.parametres": {
+      "name": "parametres",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "resend_cle_chiffree": {
+          "name": "resend_cle_chiffree",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_expediteur": {
+          "name": "email_expediteur",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nom_expediteur": {
+          "name": "nom_expediteur",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "validite_invitation_jours": {
+          "name": "validite_invitation_jours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 7
+        },
+        "conservation_evenements_jours": {
+          "name": "conservation_evenements_jours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conservation_resultats_jours": {
+          "name": "conservation_resultats_jours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_donnees": {
+          "name": "contact_donnees",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modifie_le": {
+          "name": "modifie_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "parametres_ligne_unique": {
+          "name": "parametres_ligne_unique",
+          "value": "\"parametres\".\"id\" = 1"
+        },
+        "parametres_validite_invitation": {
+          "name": "parametres_validite_invitation",
+          "value": "\"parametres\".\"validite_invitation_jours\" BETWEEN 1 AND 30"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.session_connexion": {
+      "name": "session_connexion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "derniere_activite_le": {
+          "name": "derniere_activite_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expire_le": {
+          "name": "expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "double_auth_validee": {
+          "name": "double_auth_validee",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "rester_connecte": {
+          "name": "rester_connecte",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "totp_en_attente_chiffre": {
+          "name": "totp_en_attente_chiffre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "session_connexion_jeton_hash_unique": {
+          "name": "session_connexion_jeton_hash_unique",
+          "columns": [
+            {
+              "expression": "jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "session_connexion_utilisateur_idx": {
+          "name": "session_connexion_utilisateur_idx",
+          "columns": [
+            {
+              "expression": "utilisateur_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "session_connexion_utilisateur_id_utilisateur_id_fk": {
+          "name": "session_connexion_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "session_connexion",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.utilisateur": {
+      "name": "utilisateur",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role_utilisateur",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mot_de_passe_hash": {
+          "name": "mot_de_passe_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "totp_secret_chiffre": {
+          "name": "totp_secret_chiffre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_dernier_pas": {
+          "name": "totp_dernier_pas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "derniere_connexion_le": {
+          "name": "derniere_connexion_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "utilisateur_email_unique": {
+          "name": "utilisateur_email_unique",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "utilisateur_email_minuscules": {
+          "name": "utilisateur_email_minuscules",
+          "value": "\"utilisateur\".\"email\" = lower(\"utilisateur\".\"email\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.image": {
+      "name": "image",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "enseignant_id": {
+          "name": "enseignant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "largeur": {
+          "name": "largeur",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hauteur": {
+          "name": "hauteur",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "octets": {
+          "name": "octets",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "image_enseignant_idx": {
+          "name": "image_enseignant_idx",
+          "columns": [
+            {
+              "expression": "enseignant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "image_enseignant_id_utilisateur_id_fk": {
+          "name": "image_enseignant_id_utilisateur_id_fk",
+          "tableFrom": "image",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "enseignant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.journal": {
+      "name": "journal",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "acteur_type": {
+          "name": "acteur_type",
+          "type": "type_acteur",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acteur_id": {
+          "name": "acteur_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cible": {
+          "name": "cible",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "journal_cree_le_idx": {
+          "name": "journal_cree_le_idx",
+          "columns": [
+            {
+              "expression": "cree_le",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.limiteur": {
+      "name": "limiteur",
+      "schema": "",
+      "columns": {
+        "cle": {
+          "name": "cle",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "compteur": {
+          "name": "compteur",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fenetre_debut": {
+          "name": "fenetre_debut",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bloque_jusqu_au": {
+          "name": "bloque_jusqu_au",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.proposition": {
+      "name": "proposition",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "question_id": {
+          "name": "question_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texte": {
+          "name": "texte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "image_id": {
+          "name": "image_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correcte": {
+          "name": "correcte",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "proposition_question_position_unique": {
+          "name": "proposition_question_position_unique",
+          "columns": [
+            {
+              "expression": "question_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "proposition_question_id_question_id_fk": {
+          "name": "proposition_question_id_question_id_fk",
+          "tableFrom": "proposition",
+          "tableTo": "question",
+          "columnsFrom": [
+            "question_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "proposition_image_id_image_id_fk": {
+          "name": "proposition_image_id_image_id_fk",
+          "tableFrom": "proposition",
+          "tableTo": "image",
+          "columnsFrom": [
+            "image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.qcm": {
+      "name": "qcm",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "enseignant_id": {
+          "name": "enseignant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titre": {
+          "name": "titre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_qcm",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'brouillon'"
+        },
+        "origine": {
+          "name": "origine",
+          "type": "origine_qcm",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'interface'"
+        },
+        "mode_chrono": {
+          "name": "mode_chrono",
+          "type": "mode_chrono",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aucun'"
+        },
+        "duree_globale_s": {
+          "name": "duree_globale_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duree_question_s": {
+          "name": "duree_question_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note_visible_defaut": {
+          "name": "note_visible_defaut",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "correction_visible_defaut": {
+          "name": "correction_visible_defaut",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modifie_le": {
+          "name": "modifie_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "qcm_enseignant_idx": {
+          "name": "qcm_enseignant_idx",
+          "columns": [
+            {
+              "expression": "enseignant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "qcm_enseignant_id_utilisateur_id_fk": {
+          "name": "qcm_enseignant_id_utilisateur_id_fk",
+          "tableFrom": "qcm",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "enseignant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.question": {
+      "name": "question",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "qcm_id": {
+          "name": "qcm_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "type_question",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unique'"
+        },
+        "enonce": {
+          "name": "enonce",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "image_id": {
+          "name": "image_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_langage": {
+          "name": "code_langage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_source": {
+          "name": "code_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "points_bonne": {
+          "name": "points_bonne",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "points_mauvaise": {
+          "name": "points_mauvaise",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "points_vide": {
+          "name": "points_vide",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "duree_s": {
+          "name": "duree_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "liee_a_suivante": {
+          "name": "liee_a_suivante",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "question_qcm_position_unique": {
+          "name": "question_qcm_position_unique",
+          "columns": [
+            {
+              "expression": "qcm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "question_qcm_id_qcm_id_fk": {
+          "name": "question_qcm_id_qcm_id_fk",
+          "tableFrom": "question",
+          "tableTo": "qcm",
+          "columnsFrom": [
+            "qcm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "question_image_id_image_id_fk": {
+          "name": "question_image_id_image_id_fk",
+          "tableFrom": "question",
+          "tableTo": "image",
+          "columnsFrom": [
+            "image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "question_code_complet": {
+          "name": "question_code_complet",
+          "value": "(\"question\".\"code_langage\" is null) = (\"question\".\"code_source\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.demande_appareil": {
+      "name": "demande_appareil",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "participation_id": {
+          "name": "participation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motif": {
+          "name": "motif",
+          "type": "motif_demande",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jeton_hash": {
+          "name": "jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ancien_jeton_hash": {
+          "name": "ancien_jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_demande",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'en_attente'"
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "traitee_le": {
+          "name": "traitee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "traitee_par": {
+          "name": "traitee_par",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "demande_appareil_jeton_unique": {
+          "name": "demande_appareil_jeton_unique",
+          "columns": [
+            {
+              "expression": "jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "demande_appareil_en_attente_unique": {
+          "name": "demande_appareil_en_attente_unique",
+          "columns": [
+            {
+              "expression": "participation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"demande_appareil\".\"statut\" = 'en_attente'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "demande_appareil_ancien_jeton_idx": {
+          "name": "demande_appareil_ancien_jeton_idx",
+          "columns": [
+            {
+              "expression": "ancien_jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "demande_appareil_participation_id_participation_id_fk": {
+          "name": "demande_appareil_participation_id_participation_id_fk",
+          "tableFrom": "demande_appareil",
+          "tableTo": "participation",
+          "columnsFrom": [
+            "participation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "demande_appareil_traitee_par_utilisateur_id_fk": {
+          "name": "demande_appareil_traitee_par_utilisateur_id_fk",
+          "tableFrom": "demande_appareil",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "traitee_par"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.evenement": {
+      "name": "evenement",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "participation_id": {
+          "name": "participation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recu_le": {
+          "name": "recu_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duree_ms": {
+          "name": "duree_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "question_index": {
+          "name": "question_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "chargement": {
+          "name": "chargement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "evenement_participation_recu_idx": {
+          "name": "evenement_participation_recu_idx",
+          "columns": [
+            {
+              "expression": "participation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "recu_le",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "evenement_chargement_sequence_unique": {
+          "name": "evenement_chargement_sequence_unique",
+          "columns": [
+            {
+              "expression": "participation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "chargement",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "evenement_participation_id_participation_id_fk": {
+          "name": "evenement_participation_id_participation_id_fk",
+          "tableFrom": "evenement",
+          "tableTo": "participation",
+          "columnsFrom": [
+            "participation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.participation": {
+      "name": "participation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "etudiant_id": {
+          "name": "etudiant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appareil_jeton_hash": {
+          "name": "appareil_jeton_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_participation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'attente'"
+        },
+        "information_lue_le": {
+          "name": "information_lue_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejointe_le": {
+          "name": "rejointe_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dernier_contact_le": {
+          "name": "dernier_contact_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tiers_temps": {
+          "name": "tiers_temps",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "ordre": {
+          "name": "ordre",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "index_courant": {
+          "name": "index_courant",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "question_servie_le": {
+          "name": "question_servie_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "echeance_question_le": {
+          "name": "echeance_question_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "echeance_globale_le": {
+          "name": "echeance_globale_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terminee_le": {
+          "name": "terminee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "points": {
+          "name": "points",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note_sur_20": {
+          "name": "note_sur_20",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "indice": {
+          "name": "indice",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "indice_version": {
+          "name": "indice_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "indice_detail": {
+          "name": "indice_detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "participation_session_etudiant_unique": {
+          "name": "participation_session_etudiant_unique",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "etudiant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "participation_appareil_unique": {
+          "name": "participation_appareil_unique",
+          "columns": [
+            {
+              "expression": "appareil_jeton_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "participation_session_statut_idx": {
+          "name": "participation_session_statut_idx",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "participation_session_id_session_examen_id_fk": {
+          "name": "participation_session_id_session_examen_id_fk",
+          "tableFrom": "participation",
+          "tableTo": "session_examen",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "participation_etudiant_id_etudiant_id_fk": {
+          "name": "participation_etudiant_id_etudiant_id_fk",
+          "tableFrom": "participation",
+          "tableTo": "etudiant",
+          "columnsFrom": [
+            "etudiant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reponse": {
+      "name": "reponse",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "participation_id": {
+          "name": "participation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_cle": {
+          "name": "question_cle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selection_brouillon": {
+          "name": "selection_brouillon",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "selection": {
+          "name": "selection",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "validee_le": {
+          "name": "validee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origine": {
+          "name": "origine",
+          "type": "origine_reponse",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "points": {
+          "name": "points",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "reponse_participation_question_unique": {
+          "name": "reponse_participation_question_unique",
+          "columns": [
+            {
+              "expression": "participation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "question_cle",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reponse_participation_id_participation_id_fk": {
+          "name": "reponse_participation_id_participation_id_fk",
+          "tableFrom": "reponse",
+          "tableTo": "participation",
+          "columnsFrom": [
+            "participation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reponse_validation_complete": {
+          "name": "reponse_validation_complete",
+          "value": "(\"reponse\".\"validee_le\" is null) = (\"reponse\".\"selection\" is null) and (\"reponse\".\"validee_le\" is null) = (\"reponse\".\"origine\" is null) and (\"reponse\".\"validee_le\" is null) = (\"reponse\".\"points\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.session_examen": {
+      "name": "session_examen",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "qcm_id": {
+          "name": "qcm_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "classe_id": {
+          "name": "classe_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enseignant_id": {
+          "name": "enseignant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_session",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'attente'"
+        },
+        "code_secret": {
+          "name": "code_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creneau_prevu_le": {
+          "name": "creneau_prevu_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note_visible": {
+          "name": "note_visible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correction_visible": {
+          "name": "correction_visible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cree_le": {
+          "name": "cree_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "demarre_le": {
+          "name": "demarre_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "termine_le": {
+          "name": "termine_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contenu": {
+          "name": "contenu",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fin_prevue_le": {
+          "name": "fin_prevue_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "session_examen_enseignant_idx": {
+          "name": "session_examen_enseignant_idx",
+          "columns": [
+            {
+              "expression": "enseignant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "session_examen_statut_idx": {
+          "name": "session_examen_statut_idx",
+          "columns": [
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "session_examen_qcm_id_qcm_id_fk": {
+          "name": "session_examen_qcm_id_qcm_id_fk",
+          "tableFrom": "session_examen",
+          "tableTo": "qcm",
+          "columnsFrom": [
+            "qcm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "session_examen_classe_id_classe_id_fk": {
+          "name": "session_examen_classe_id_classe_id_fk",
+          "tableFrom": "session_examen",
+          "tableTo": "classe",
+          "columnsFrom": [
+            "classe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "session_examen_enseignant_id_utilisateur_id_fk": {
+          "name": "session_examen_enseignant_id_utilisateur_id_fk",
+          "tableFrom": "session_examen",
+          "tableTo": "utilisateur",
+          "columnsFrom": [
+            "enseignant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.portee_jeton_mcp": {
+      "name": "portee_jeton_mcp",
+      "schema": "public",
+      "values": [
+        "lecture",
+        "ecriture"
+      ]
+    },
+    "public.role_utilisateur": {
+      "name": "role_utilisateur",
+      "schema": "public",
+      "values": [
+        "super_admin",
+        "admin",
+        "enseignant"
+      ]
+    },
+    "public.type_acteur": {
+      "name": "type_acteur",
+      "schema": "public",
+      "values": [
+        "utilisateur",
+        "participation",
+        "jeton",
+        "systeme",
+        "anonyme"
+      ]
+    },
+    "public.mode_chrono": {
+      "name": "mode_chrono",
+      "schema": "public",
+      "values": [
+        "aucun",
+        "global",
+        "par_question"
+      ]
+    },
+    "public.origine_qcm": {
+      "name": "origine_qcm",
+      "schema": "public",
+      "values": [
+        "interface",
+        "mcp"
+      ]
+    },
+    "public.statut_qcm": {
+      "name": "statut_qcm",
+      "schema": "public",
+      "values": [
+        "brouillon",
+        "pret",
+        "archive"
+      ]
+    },
+    "public.type_question": {
+      "name": "type_question",
+      "schema": "public",
+      "values": [
+        "unique",
+        "multiple",
+        "vrai_faux"
+      ]
+    },
+    "public.motif_demande": {
+      "name": "motif_demande",
+      "schema": "public",
+      "values": [
+        "second_appareil",
+        "reprise"
+      ]
+    },
+    "public.origine_reponse": {
+      "name": "origine_reponse",
+      "schema": "public",
+      "values": [
+        "validation",
+        "echeance",
+        "fin"
+      ]
+    },
+    "public.statut_demande": {
+      "name": "statut_demande",
+      "schema": "public",
+      "values": [
+        "en_attente",
+        "autorisee",
+        "refusee",
+        "expiree"
+      ]
+    },
+    "public.statut_participation": {
+      "name": "statut_participation",
+      "schema": "public",
+      "values": [
+        "attente",
+        "en_cours",
+        "terminee"
+      ]
+    },
+    "public.statut_session": {
+      "name": "statut_session",
+      "schema": "public",
+      "values": [
+        "attente",
+        "en_cours",
+        "terminee",
+        "annulee"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
