@@ -316,8 +316,15 @@ test("captures du README", async ({ page, browser }) => {
   await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText("Bonjour Léa");
   await lea.page.screenshot({ path: capture("salle-attente") });
 
-  // 7. Examen : départ commun, puis Léa répond à chaque question par sa première réponse. La question
-  // avec du code est capturée (l'ordre des questions est mélangé pour chaque étudiant), puis l'écran de fin.
+  // 7. Examen : départ commun, puis Léa répond à chaque question. La question avec du code est
+  // capturée (l'ordre des questions est mélangé pour chaque étudiant), puis l'écran de fin.
+  // Trois réponses justes et une fausse : une fin d'examen réaliste (13,75 / 20 avec le barème à −0,25).
+  const REPONSES_LEA: Record<string, string> = {
+    "Quelle est la complexité d’une boucle simple sur n éléments ?": "O(n)",
+    "Qu’affiche ce programme ?": "24",
+    "Quel graphique montre une fonction croissante sur [0 ; 5] ?": "Le graphique B",
+    "Une pile suit l’ordre FIFO.": "Faux",
+  };
   await page.bringToFront();
   await page.getByRole("button", { name: "Démarrer l’examen" }).click();
   await page.getByRole("button", { name: "Démarrer maintenant" }).click();
@@ -325,18 +332,23 @@ test("captures du README", async ({ page, browser }) => {
   for (let rang = 1; rang <= 4; rang += 1) {
     const question = lea.page.locator(`[data-etat="question"][data-rang="${rang}"]`);
     await expect(question).toBeVisible({ timeout: 20_000 });
-    const premiere = question.getByRole("group", { name: "Réponses" }).getByRole("button").first();
-    await premiere.click();
-    await expect(premiere).toHaveAttribute("aria-pressed", "true");
+    const enonce = (await question.getByRole("heading", { level: 2 }).textContent()) ?? "";
+    const texte = REPONSES_LEA[enonce];
+    if (!texte) throw new Error(`Énoncé inattendu : ${enonce}`);
+    const choisie = question.getByRole("group", { name: "Réponses" }).getByRole("button", { name: texte });
+    await choisie.click();
+    await expect(choisie).toHaveAttribute("aria-pressed", "true");
     if (!questionCapturee && (await question.getByRole("group", { name: /^Code / }).count()) > 0) {
       await lea.page.evaluate(() => window.scrollTo(0, 0));
       await lea.page.screenshot({ path: capture("examen-question") });
       questionCapturee = true;
     }
+    await lea.page.waitForTimeout(2_500);
     await question.getByRole("button", { name: "Valider et continuer" }).click();
   }
   expect(questionCapturee).toBe(true);
   await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText("Examen terminé");
+  await expect(lea.page.getByText("13,75 / 20", { exact: true })).toBeVisible();
   await lea.page.screenshot({ path: capture("examen-fin") });
 
   await Promise.all([...telephones, doublon].map((t) => t.contexte.close()));
