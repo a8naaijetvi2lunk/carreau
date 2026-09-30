@@ -27,10 +27,12 @@
     "admin:reinitialiser-totp": "node --env-file-if-exists=.env scripts/admin-reinitialiser-totp.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.2.0",
     "@node-rs/argon2": "^2.2.1",
     "@shikijs/langs": "^4.4.3",
     "drizzle-orm": "^0.45.3",
     "fflate": "^0.8.3",
+    "mcp-handler": "^2.2.0",
     "next": "16.3.6",
     "papaparse": "^5.7.0",
     "pg": "^8.23.0",

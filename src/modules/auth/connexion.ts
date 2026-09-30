@@ -218,6 +218,6 @@ export async function validerDoubleAuth(saisie: {
 }
 
 export async function deconnecter(acteur: ActeurUtilisateur): Promise<void> {
-  await supprimerSession(acteur.sessionId);
+  if (acteur.sessionId !== null) await supprimerSession(acteur.sessionId);
   await journaliser({ acteur: { type: "utilisateur", id: acteur.id }, action: "auth.deconnexion" });
 }

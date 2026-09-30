@@ -1,4 +1,5 @@
 import { erreurs } from "./erreurs";
+import type { PorteeMcp } from "./regles-mcp";
 import type { Role } from "./roles";
 
 export { LIBELLES_ROLE, ROLES, type Role } from "./roles";
@@ -10,8 +11,13 @@ export { LIBELLES_ROLE, ROLES, type Role } from "./roles";
 export type ActeurUtilisateur = {
   type: "utilisateur";
   id: string;
-  /** Identifiant de la ligne `session_connexion` (déconnexion). */
-  sessionId: string;
+  /** Identifiant de la ligne `session_connexion` (déconnexion) ; null pour un appel MCP. */
+  sessionId: string | null;
+  /**
+   * Jeton d'un appel MCP (décision D2 du plan du lot 8) : les services limitent alors l'acteur aux
+   * brouillons de QCM et aux noms des classes. Absent pour une session de l'interface.
+   */
+  jetonMcp?: { id: string; portee: PorteeMcp };
   email: string;
   nom: string;
   prenom: string;

@@ -350,7 +350,7 @@ Tant que `conservation_evenements_jours`, `conservation_resultats_jours` et `con
 
 ## 10. Serveur MCP
 
-- Route `/api/mcp`, `createMcpHandler` en Streamable HTTP sans état. Le jeton Bearer est vérifié par `modules/mcp/authentification` avant `withMcpAuth`, qui ne fait que transmettre l'identité du jeton.
+- Route `/api/mcp`, `createMcpHandler` en Streamable HTTP sans état. Le jeton Bearer est vérifié par `modules/mcp/verification` (appelé par `modules/mcp/serveur`, amendement A2 du plan du lot 8) avant `withMcpAuth`, qui ne fait que transmettre l'identité du jeton.
 - Jetons `carreau_…` : 256 bits, affichés une seule fois, stockés hachés, portée `lecture` ou `ecriture`, révocables, `dernier_usage_le` mis à jour au plus une fois par minute.
 - Outils :
   - lecture : `classes_lister` (noms uniquement), `qcm_lister`, `qcm_lire` ;
