@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="public/icons/icon-192.png" alt="" width="96" height="96">
+
 # Carreau
 
 **Des QCM sur téléphone, en classe, pour des examens équitables.**
@@ -80,17 +82,21 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 ![Page Connexion MCP : adresse du serveur, un jeton tout juste créé et montré une seule fois, la liste des jetons avec leur portée et leur dernier usage](docs/captures/connexion-mcp.png)
 *La connexion MCP : l’enseignant crée un jeton pour son assistant IA, montré une seule fois ; l’assistant ne prépare que des brouillons.*
 
+<img src="docs/captures/rejoindre-telephone.png" alt="Écran « Rejoindre un examen » sur téléphone : bouton Scanner le QR code et saisie du code" width="320">
+
+*L’entrée dans un examen : le scanner du QR code, intégré à l’application installée, ou la saisie du code affiché au tableau.*
+
 ## Fonctionnement
 
 ### Pour l’étudiant
 
-1. Il scanne le QR code projeté au tableau, ou saisit le code de la session.
+1. Il scanne le QR code projeté au tableau, avec l’appareil photo de son téléphone ou depuis Carreau installé, ou saisit le code de la session.
 2. Il tape les trois premières lettres de son nom ou de son prénom et se choisit dans la liste de sa classe. Son téléphone est alors associé à son nom pour toute la durée de l’examen ; si ce nom est déjà pris sur un autre téléphone, l’enseignant autorise ou refuse le nouveau.
 3. Un écran d’information lui explique ce qui est noté pendant l’examen, pourquoi, et combien de temps c’est conservé.
 4. Il patiente en salle d’attente : l’examen démarre pour tout le monde en même temps.
 5. Il répond question par question, sans retour en arrière : chaque touche est enregistrée, « Valider et continuer » passe à la suivante. Si le temps de la question (ou de l’examen) s’écoule, sa dernière sélection est validée. Un téléphone qui s’éteint ne bloque rien : à son retour, le temps a continué de courir. À la fin, il voit combien de questions il a répondues et sa note, si l’enseignant la rend visible ; si la correction est publiée, il la consulte sur le même téléphone, une fois l’examen et ses rattrapages terminés.
 
-Aucun compte ni installation n’est nécessaire. L’application peut être installée sur l’écran d’accueil (PWA) pour ceux qui le souhaitent.
+Aucun compte ni installation n’est nécessaire. L’application peut être installée sur l’écran d’accueil (PWA) pour ceux qui le souhaitent. Installée, elle s’ouvre sur « Rejoindre un examen » et scanne elle-même le QR code.
 
 ### Pour l’enseignant
 
@@ -154,7 +160,7 @@ flowchart LR
 | Domaine | Choix |
 | --- | --- |
 | Application | Next.js 16 (App Router), React 19, TypeScript |
-| Interface | Tailwind CSS 4, PWA |
+| Interface | Tailwind CSS 4, application installable (manifeste, service worker en réseau d’abord, sans cache), scanner de QR code `qr-scanner` |
 | Données | PostgreSQL 17, Drizzle ORM |
 | Validation | Zod 4, systématique côté serveur |
 | Import et export | `papaparse` (CSV et collage), `read-excel-file` et `write-excel-file` (Excel), archives contrôlées par `fflate` |
@@ -220,6 +226,17 @@ claude mcp add --transport http carreau http://localhost:50173/api/mcp --header 
 
 Tout client MCP compatible Streamable HTTP se configure avec la même adresse et le même en-tête. Demande-lui par exemple : « Crée un QCM de 10 questions sur les tris, dont 2 avec du code Python ». Le brouillon apparaît dans tes QCM, à relire.
 
+## Installer Carreau sur un téléphone
+
+Carreau fonctionne dans le navigateur ; l’installer est facultatif.
+
+- **Android (Chrome)** : menu du navigateur, puis « Installer l’application ».
+- **iPhone (Safari)** : bouton Partager, puis « Sur l’écran d’accueil ».
+
+L’application installée s’ouvre sur « Rejoindre un examen » : l’étudiant y scanne le QR code projeté, sans passer par l’appareil photo. Hors connexion, elle affiche une page d’attente ; un examen ne se passe jamais hors ligne.
+
+Les icônes dérivent d’une source unique, `docs/identite/carreau-icone-source.png`, par `npm run icones`.
+
 ## Feuille de route
 
 Chaque lot est livré avec ses tests, sa documentation et une intégration continue verte.
@@ -235,7 +252,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | ✅ Livré |
 | 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | ✅ Livré |
 | 8 | Connexion MCP : jetons par enseignant, création de brouillons | ✅ Livré |
-| 9 | PWA et identité visuelle : installation, scanner intégré, icônes | À venir |
+| 9 | PWA et identité visuelle : installation, scanner intégré, icônes | ✅ Livré |
 | 10 | Mise en production : Coolify, purges automatiques, sauvegardes | À venir |
 
 ## Sécurité
@@ -253,6 +270,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Surveillance** : le téléphone n’envoie que la nature d’un événement et un numéro d’ordre, jamais d’heure ni de durée ; lots bornés (50 événements, 4 Ko), dédoublonnés, 1 000 événements au plus par passage, 120 lots par minute ; un silence de plus de 15 s est constaté par le serveur, même si le téléphone se tait.
 - **Résultats** : exports réservés à l’enseignant de la session, téléchargés en pièce jointe privée ; dans un CSV, une cellule de texte qui commencerait une formule de tableur est neutralisée, et le classeur Excel n’écrit le texte que comme du texte ; la correction n’est servie qu’au téléphone de l’étudiant, une fois l’examen et ses rattrapages terminés.
 - **Serveur MCP** : jeton `carreau_…` de 256 bits montré une seule fois et stocké haché, en lecture seule ou en lecture et écriture, révocable, coupé à la désactivation du compte ; vérifié avant tout traitement, sans découverte OAuth ; 60 requêtes par minute et par jeton, corps limité à 512 Ko ; l’assistant n’atteint que les brouillons de QCM et le nom des classes, par les mêmes services que l’interface ; chaque appel est journalisé sans ses arguments.
+- **Application installable** : le service worker ne garde rien en cache (aucune page ni réponse d’examen ne reste sur un téléphone partagé) et ne répond qu’aux navigations ; la caméra n’est permise que sur l’écran « Rejoindre un examen » et s’arrête à la première lecture ; du QR code scanné, seul le code de session est tiré, l’adresse n’est jamais suivie.
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
 - **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire, à l’étudiant dont c’est la question courante pendant l’examen, puis à l’étudiant de l’examen quand la correction est publiée ; jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.

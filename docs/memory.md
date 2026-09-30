@@ -157,6 +157,15 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Révocation** (amendement A1) : désactivation, réinitialisation du mot de passe et de la double authentification (service et script) révoquent les jetons MCP du compte (`src/modules/comptes/jetons-mcp.ts`).
 - **À retenir pour le lot 10** : `proxy_buffering off` sur `/api/mcp` dans Nginx Proxy Manager (spec §2) : les réponses du serveur MCP sont des flux.
 
+## PWA et identité (lot 9)
+
+- **Identité** : source unique `docs/identite/carreau-icone-source.png` (1024 × 1024, générée par Codex imagegen, choisie par Yves) ; `npm run icones` (`scripts/icones.mjs`, `sharp`) en dérive `src/app/favicon.ico` (PNG 16, 32, 48), `src/app/apple-icon.png`, `public/icons/icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (zone sûre à 80 %) et `public/marque.png` (motif recadré, affiché à 24 px par `Marque`).
+- **Manifeste** (`src/app/manifest.ts`, servi par Next en `application/manifest+json`) : démarrage sur `/rejoindre`, `standalone`, couleurs `#f4f1ea` ; `metadata.appleWebApp`.
+- **Service worker** (`public/sw.js`, enregistré par `EnregistrementServiceWorker`) : navigations `GET` seulement, réseau d'abord, aucune Cache API ; page de repli « Pas de connexion » construite dans le script (503, `no-store`, CSP stricte). `sw.js` sort du matcher de `proxy.ts` et reçoit de `next.config.ts` `no-cache, no-store, must-revalidate` et sa CSP.
+- **Scanner** (`src/app/rejoindre/ScannerQr.tsx`, `qr-scanner` chargé à la demande) : code tiré par `codeDepuisQr` (`src/lib/qr-rejoindre.ts`) d'une adresse `/rejoindre` de la même origine, jamais suivie ; caméra arrêtée à la première lecture et à la fermeture. CSP `worker-src 'self' blob:` ; `Permissions-Policy` `camera=(self)` sur `/rejoindre` seulement. Le lien de l'accueil vers `/rejoindre` est un `<a>` ordinaire : la `Permissions-Policy` est figée au chargement du document, une navigation côté client garderait `camera=()`.
+- **Tests** : `e2e/pwa.spec.ts` et `e2e/scanner.spec.ts` (caméra factice de Chromium : vidéo Y4M d'un QR code, `e2e/outils/camera.ts`).
+- **À retenir pour le lot 10** : dans Nginx Proxy Manager, ne pas activer la mise en cache des ressources pour `sw.js` et `manifest.webmanifest` ; vérifier en production le type `application/manifest+json` et l'en-tête `Cache-Control` de `sw.js` : une copie servie d’abord par un cache montrerait d’anciennes versions après une mise en ligne.
+
 ## Ports locaux
 
 | Usage | Port |

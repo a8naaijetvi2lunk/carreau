@@ -4,8 +4,9 @@
  * aperçu sur téléphone, puis une session : six téléphones dans la salle d'attente et un
  * septième qui demande un nom déjà pris ; puis l'examen : une question avec du code et l'écran
  * de fin sur le téléphone de Léa ; puis les résultats, le rapport d'un étudiant et la correction
- * sur le téléphone de Léa ; enfin la page Connexion MCP, avec un jeton déjà utilisé par un
- * assistant et un second tout juste créé. Données fictives (`@exemple.fr`). Ne tourne jamais
+ * sur le téléphone de Léa ; puis la page Connexion MCP, avec un jeton déjà utilisé par un
+ * assistant et un second tout juste créé ; enfin l'écran « Rejoindre un examen » sur téléphone,
+ * avec le scanner du QR code. Données fictives (`@exemple.fr`). Ne tourne jamais
  * avec `npm run test:e2e` (voir playwright.captures.config.ts).
  */
 import { devices, expect, test, type Page } from "@playwright/test";
@@ -56,7 +57,7 @@ async function capturerHautDePage(page: Page, nom: string, hauteur = 900) {
 }
 
 test("captures du README", async ({ page, browser }) => {
-  test.setTimeout(270_000);
+  test.setTimeout(300_000);
   viderCaptures();
 
   // 1. Super-admin fictif : conservation des données renseignée (le bandeau RGPD ne doit apparaître
@@ -436,6 +437,15 @@ test("captures du README", async ({ page, browser }) => {
   ).toBeVisible();
   await expect(page.locator('[data-jeton="Ordinateur du bureau"]')).toContainText("dernier usage le");
   await capturerHautDePage(page, "connexion-mcp", 1180);
+
+  // 10. Écran d'entrée sur téléphone : le scanner du QR code, pour l'application installée.
+  const contexteEntree = await browser.newContext({ ...devices["iPhone 15"], baseURL: URL_E2E });
+  const pageEntree = await contexteEntree.newPage();
+  await pageEntree.goto("/rejoindre");
+  await expect(pageEntree.getByRole("heading", { level: 1 })).toHaveText("Rejoindre un examen");
+  await expect(pageEntree.getByRole("button", { name: "Scanner le QR code" })).toBeVisible();
+  await pageEntree.screenshot({ path: capture("rejoindre-telephone") });
+  await contexteEntree.close();
 
   await Promise.all([...telephones, doublon].map((t) => t.contexte.close()));
 });

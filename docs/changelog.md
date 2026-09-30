@@ -2,6 +2,21 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-30 — Lot 9 : PWA et identité
+
+### Ajouté
+- Icône institutionnelle (générée par Codex, choisie par Yves) et `npm run icones`, qui en dérive le favicon, l’icône d’écran d’accueil d’Apple, les icônes de l’application installée et la marque de l’interface.
+- Manifeste de l’application installable (`src/app/manifest.ts`), démarrage sur « Rejoindre un examen ».
+- Service worker en réseau d’abord, sans cache, avec une page de repli hors ligne.
+- Scanner du QR code sur l’écran d’entrée (`qr-scanner` 1.4.2), code tiré d’une adresse `/rejoindre` de la même origine.
+- Tests unitaires (`codeDepuisQr`, encodeur ICO, manifeste) et de bout en bout (`e2e/pwa.spec.ts`, `e2e/scanner.spec.ts`) ; capture du README `rejoindre-telephone.png`.
+
+### Modifié
+- `Marque` : l’icône remplace l’ancien dessin des quatre carreaux.
+- CSP : `worker-src 'self' blob:` ; `Permissions-Policy` : caméra permise sur `/rejoindre` seulement.
+- Accueil : « Scanner ou saisir le code ».
+- Accueil : le lien vers « Rejoindre un examen » charge la page en entier, pour que la caméra y soit permise.
+
 ## 2026-09-30 — Lot 8 : connexion MCP
 
 ### Ajouté
