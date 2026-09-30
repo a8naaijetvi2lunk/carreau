@@ -12,10 +12,17 @@ import { urlImage } from "@/lib/images";
 import type { QuestionInstantanee } from "@/lib/instantane";
 import type { ImageAffichee, VueQuestion } from "@/lib/vue-question";
 import { lireQuestion } from "./commun";
+import { sortieRecente } from "./indice";
 import { passageAJour, type Passage } from "./passage";
 
 export type VuePassage =
-  | { etape: "question"; question: VueQuestion; selection: string[]; echeance: string | null }
+  | {
+      etape: "question";
+      question: VueQuestion;
+      selection: string[];
+      echeance: string | null;
+      sortieNotee: { dureeS: number } | null;
+    }
   | {
       etape: "fin";
       enregistreesLe: string;
@@ -94,6 +101,7 @@ export async function vuePassage(participationId: string): Promise<VuePassage | 
       .sort((a, b) => a - b)
       .map(String),
     echeance: echeance ? echeance.toISOString() : null,
+    sortieNotee: await sortieRecente(db(), passage.id, instant),
   };
 }
 

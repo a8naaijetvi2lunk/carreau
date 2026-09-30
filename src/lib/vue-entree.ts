@@ -40,6 +40,8 @@ export type EtatEntree = { serveurMaintenant: string } & (
       selection: string[];
       /** Échéance qui s'applique (question en chrono par question, examen en chrono global) ; null sans chrono. */
       echeance: string | null;
+      /** Dernière sortie notée, finie depuis moins de 30 s (bandeau neutre, D15 du plan du lot 6) ; null sinon. */
+      sortieNotee: { dureeS: number } | null;
     }
   | {
       etape: "fin";

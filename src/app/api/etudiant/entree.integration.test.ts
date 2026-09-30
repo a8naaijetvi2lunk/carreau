@@ -4,6 +4,7 @@ import { nomsCookiesEntree } from "@/modules/sessions";
 import { examenEnCours, identifiants } from "@/test/examen";
 import { INSTANT_CODE_TEST, preparerSession, renseignerRgpd, SECRET_CODE_TEST } from "@/test/sessions";
 import { POST as etat } from "./etat/route";
+import { POST as evenements } from "./evenements/route";
 import { POST as information } from "./information/route";
 import { POST as recherche } from "./recherche/route";
 import { POST as reclamer } from "./reclamer/route";
@@ -142,5 +143,25 @@ describe("routes du passage de l'examen", () => {
     );
     const rangFutur = await reponse(requete("reponse", { rang: 2, selection: [] }, cookies));
     expect(rangFutur.status).toBe(409);
+  });
+
+  it("reçoit les événements (no-store), refuse un corps mal formé ou trop gros (422)", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    const cookies = { [nomsCookiesEntree().appareil]: lea.jeton };
+    const lot = { chargement: "chargement-a1", evenements: [{ n: 1, type: "masquee" }] };
+    const r1 = await evenements(requete("evenements", lot, cookies));
+    expect(r1.status).toBe(200);
+    expect(r1.headers.get("cache-control")).toBe("no-store");
+    await expect(r1.json()).resolves.toEqual({ enregistres: 1 });
+    expect((await evenements(requete("evenements", lot))).status).toBe(409);
+    expect(
+      (await evenements(requete("evenements", { ...lot, evenements: [{ n: 1, type: "silence" }] }, cookies)))
+        .status,
+    ).toBe(422);
+    expect((await evenements(requete("evenements", { ...lot, le: 1 }, cookies))).status).toBe(422);
+    const gros = { chargement: "x".repeat(5_000), evenements: [{ n: 1, type: "copie" }] };
+    expect((await evenements(requete("evenements", gros, cookies))).status).toBe(422);
   });
 });

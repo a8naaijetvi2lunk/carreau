@@ -23,6 +23,7 @@ import { lireIdentifiant, valider } from "@/lib/validation";
 import type { EtatEntree, InformationDonnees, ResultatRecherche } from "@/lib/vue-entree";
 import {
   enregistrerBrouillon,
+  enregistrerEvenements,
   imageDeLaQuestionCourante,
   validerQuestion,
   vuePassage,
@@ -36,6 +37,7 @@ import { normaliserCode } from "@/moteur/code-session";
 import {
   cleEtatAppareil,
   cleEtatTicket,
+  cleEvenements,
   cleImage,
   cleInformation,
   cleRecherche,
@@ -44,6 +46,7 @@ import {
   cleRejoindreIp,
   cleSelection,
   REGLE_ETAT,
+  REGLE_EVENEMENTS,
   REGLE_IMAGE,
   REGLE_INFORMATION,
   REGLE_RECHERCHE,
@@ -555,6 +558,22 @@ export async function validerReponse(telephone: Telephone, saisie: SaisieReponse
   });
   await validerQuestion(participationId, saisie);
   return { etat: await etatDuTelephone(telephone) };
+}
+
+/**
+ * Lot d'événements de la page d'examen (spec §8.2 ; D7 du plan du lot 6) : participation du jeton,
+ * limiteur posé après l'avoir retrouvée, puis enregistrement dans la transaction du passage.
+ */
+export async function envoyerEvenements(
+  telephone: Telephone,
+  saisie: { chargement: string; evenements: { n: number; type: string }[] },
+): Promise<{ enregistres: number }> {
+  const participationId = await participationDuTelephone(telephone);
+  await reserverJournalise(cleEvenements(participationId), REGLE_EVENEMENTS, {
+    action: "sessions.limite_evenements",
+    cible: `participation:${participationId}`,
+  });
+  return enregistrerEvenements(participationId, saisie);
 }
 
 /**

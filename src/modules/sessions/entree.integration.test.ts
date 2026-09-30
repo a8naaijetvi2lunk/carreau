@@ -20,6 +20,7 @@ import { REGLE_REJOINDRE_IP } from "./cles";
 import { MESSAGES_SESSION } from "./commun";
 import {
   confirmerInformation,
+  envoyerEvenements,
   lireEtatEntree,
   rechercherEtudiants,
   reclamerNom,
@@ -597,5 +598,26 @@ describe("passage de l'examen par le téléphone", () => {
       .from(evenement)
       .where(and(eq(evenement.participationId, lea.participation.id), eq(evenement.type, "silence")));
     expect(silences.map((s) => s.dureeMs)).toEqual([20_000]);
+  });
+
+  it("enregistre les événements et limite par participation, jamais pour un jeton inconnu", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    const lot = { chargement: "chargement-a1", evenements: [{ n: 1, type: "debut" }] };
+    await expect(envoyerEvenements(telephoneDe(lea.jeton), lot)).resolves.toEqual({ enregistres: 1 });
+    const cles = await db()
+      .select({ cle: limiteur.cle })
+      .from(limiteur)
+      .where(like(limiteur.cle, "etudiant:evenements:%"));
+    expect(cles.map((c) => c.cle)).toEqual([`etudiant:evenements:${lea.participation.id}`]);
+    for (const jeton of ["mal-forme", genererJeton()]) {
+      await expect(envoyerEvenements(telephoneDe(jeton), lot)).rejects.toMatchObject({ code: "ETAT" });
+    }
+    const apres = await db()
+      .select({ cle: limiteur.cle })
+      .from(limiteur)
+      .where(like(limiteur.cle, "etudiant:evenements:%"));
+    expect(apres).toHaveLength(1);
   });
 });

@@ -52,3 +52,10 @@ export const REGLE_IMAGE: RegleLimite = { seuil: 240, fenetreSecondes: 60, bloca
 export function cleImage(participationId: string): string {
   return `etudiant:image:${participationId}`;
 }
+
+/** Événements de la page d'examen (spec §11.2, D7 du plan du lot 6) : 120 lots par minute et par participation. */
+export const REGLE_EVENEMENTS: RegleLimite = { seuil: 120, fenetreSecondes: 60, blocageSecondes: 60 };
+
+export function cleEvenements(participationId: string): string {
+  return `etudiant:evenements:${participationId}`;
+}

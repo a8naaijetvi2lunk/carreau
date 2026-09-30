@@ -9,6 +9,7 @@ export {
 } from "./cookies";
 export {
   confirmerInformation,
+  envoyerEvenements,
   lireEtatEntree,
   lireImageExamen,
   rechercherEtudiants,

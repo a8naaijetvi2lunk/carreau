@@ -56,6 +56,7 @@ describe("vuePassage", () => {
     expect(json).not.toContain(autre.enonce);
     expect(vue.selection).toEqual([]);
     expect(vue.echeance).toBe(new Date(x.demarreLe.getTime() + 1_200_000).toISOString());
+    expect(vue.sortieNotee).toBeNull();
   });
 
   it("rend le brouillon en positions affichées", async () => {

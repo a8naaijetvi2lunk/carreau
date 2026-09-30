@@ -29,6 +29,15 @@ export const FENETRE_EXPLICATION_MS = 10_000;
 export const INTERVALLE_MIN_MS = 1_000;
 export const LOT_EVENEMENTS_MAX = 50;
 export const TAILLE_MAX_CORPS_EVENEMENTS = 4096;
+/** Événements du téléphone gardés par passage : au-delà, un lot n'enregistre rien (base et tableau de bord protégés). */
+export const EVENEMENTS_MAX_PAR_PASSAGE = 1000;
+export const MESSAGE_EVENEMENTS_INVALIDES = "Événements invalides.";
+
+/** Lot envoyé par la page d'examen (D7) : un numéro croissant par événement, jamais d'heure ni de durée. */
+export type LotEvenementsTelephone = {
+  chargement: string;
+  evenements: { n: number; type: TypeEvenementTelephone }[];
+};
 /** Bandeau du téléphone : sortie terminée depuis moins de 30 s et d'au moins 2 s (D15). */
 export const BANDEAU_SORTIE_MS = 30_000;
 export const BANDEAU_SORTIE_MIN_MS = 2_000;
