@@ -17,6 +17,7 @@ import { EtapeInformation } from "./EtapeInformation";
 import { EtapeMessage } from "./EtapeMessage";
 import { EtapeNom } from "./EtapeNom";
 import { EtapeQuestion } from "./EtapeQuestion";
+import { useCaptureExamen } from "./useCaptureExamen";
 
 type Affichage = { etat: EtatEntree; decalageMs: number };
 type PremiereEntree = ReponseApi<EtatEntree> | "reseau" | null;
@@ -196,6 +197,7 @@ export function ParcoursEntree() {
   // La question porte son propre en-tête (« Question 7 / 20 », chrono, « Mode examen »).
   const enTete = etape !== "question";
   const pendantExamen = etape === "question";
+  useCaptureExamen(pendantExamen);
   return (
     <main
       className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-5 pt-5 pb-7"

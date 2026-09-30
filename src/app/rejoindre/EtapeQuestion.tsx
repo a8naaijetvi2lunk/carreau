@@ -95,6 +95,15 @@ export function EtapeQuestion({
 
   return (
     <section data-etat="question" data-rang={rang} className="flex flex-col gap-5">
+      {etat.sortieNotee ? (
+        <p
+          role="status"
+          className="rounded-xl border border-bleu bg-bleu-pale px-4 py-3 text-[15px] font-bold text-bleu-fonce"
+        >
+          Tu as quitté l’examen pendant {etat.sortieNotee.dureeS} s, c’est noté. Reste sur cette page jusqu’à
+          la fin.
+        </p>
+      ) : null}
       <QuestionEtudiant
         vue={etat.question}
         chrono={secondes === null ? null : formaterChrono(secondes)}
