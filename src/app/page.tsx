@@ -25,9 +25,12 @@ export default function Accueil() {
           Scanne le QR code affiché par ton enseignant avec l’appareil photo de ton téléphone, ou depuis
           Carreau.
         </p>
-        <Link href="/rejoindre" className="self-start font-bold text-bleu underline">
+        {/* Lien ordinaire, pas <Link> : la page se charge en entier et reçoit la Permissions-Policy de
+            /rejoindre (caméra permise), figée au chargement du document ; une navigation côté client
+            garderait camera=() et le scanner échouerait sans rien demander. */}
+        <a href="/rejoindre" className="self-start font-bold text-bleu underline">
           Scanner ou saisir le code
-        </Link>
+        </a>
       </section>
       <p className="text-[15px] text-muet">
         Enseignant ?{" "}
