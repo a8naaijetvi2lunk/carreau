@@ -2,6 +2,34 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-30 — Lot 6 : surveillance et suivi en direct
+
+### Ajouté
+- Migration `0006_surveillance` : événements de rechargement (`chargement`, `sequence`) et indice figé sur la participation (`indice`, `indice_version`, `indice_detail`).
+- Règles de la surveillance (`src/lib/regles-surveillance.ts`) : types d'événements, pondération v1 publique, libellés des faits et des alertes.
+- Moteur `indice` (`src/moteur/indice.ts`) : consolidation des événements bruts puis calcul de l'indice v1, fonction pure testée sur les cinq scénarios de référence du plan.
+- Contact et silences : chaque requête du téléphone pendant l'examen note un contact dans la transaction verrouillée du passage ; un silence de plus de 15 s est inséré par le serveur, y compris à la fin d'un passage muet ; l'indice final est écrit à la clôture.
+- Route `POST /api/etudiant/evenements` : réception des événements du téléphone, dédoublonnée par (participation, chargement, numéro).
+- Capture du téléphone (`src/lib/capture-examen.ts`, amendement A1) et bandeau neutre au retour d'une sortie.
+- Vue du suivi enrichie (`VueSuivi`) : statut, indice, dernier événement, compteurs, échéance globale, alertes.
+- Tableau de bord (`TableauDeBord`, ordinateur et téléphone) : temps restant, compteurs, liste filtrable triée par indice, alertes en direct, demandes d'appareil.
+- « Prolonger » et « Terminer pour tous » (chrono global) : `prolongerSession` et `terminerSession`.
+- Tests unitaires du moteur, tests d'intégration des nouveaux services et routes, test de bout en bout du scénario principal (spec §13) ; deux captures du README (`tableau-de-bord.png`, `tableau-de-bord-telephone.png`).
+
+### Modifié
+- Spec amendé (A1 à A4, tranchés en autonomie) : capture dans `src/lib/capture-examen.ts` ; `fetch` `keepalive` à la place de `sendBeacon` ; surveillance intégrée au module `examen`, sans module séparé ; rechargement constaté par l'identifiant de chargement de la page.
+- `cloturerSiFinie` gagne un pré-contrôle sans verrou (on ne verrouille la session que s'il n'y a plus de passage ouvert ou si la fin prévue est dépassée de 10 min).
+- Pendant l'examen, l'état du téléphone ne met plus `dernier_contact_le` à jour lui-même : c'est la vue, dans sa transaction, qui note le contact.
+- La page de pilotage montre le tableau de bord pendant et après l'examen, à la place des listes de salle d'attente.
+
+### Corrigé
+- Une sortie restée ouverte (rechargement de la page, `visible` perdu) ne court plus jusqu'à la fin de l'examen et n'absorbe plus les absences suivantes.
+- Une coupure réseau n'est plus comptée deux fois, ni reclassée en sortie par une absence qui la suit.
+- Une réponse validée à l'instant même du retour compte comme réponse rapide.
+- Le dernier contact du téléphone ne recule jamais (requêtes servies dans le désordre).
+- Chaque alerte du tableau de bord a une clé unique (plusieurs copier-coller d'un même envoi).
+- Tableau de bord : la mention « Ce n'est pas une preuve. » et les alertes en direct restaient hors de vue tant que la liste des étudiants ou le panneau de reprise n'étaient pas parcourus (constaté sur la capture du README) ; la mention est désormais affichée en haut du suivi, et les alertes en direct précèdent le panneau de reprise.
+
 ## 2026-09-30 — Lot 5 : passage de l'examen
 
 ### Ajouté

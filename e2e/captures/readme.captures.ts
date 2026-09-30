@@ -328,6 +328,32 @@ test("captures du README", async ({ page, browser }) => {
   await page.bringToFront();
   await page.getByRole("button", { name: "Démarrer l’examen" }).click();
   await page.getByRole("button", { name: "Démarrer maintenant" }).click();
+  // Tableau de bord pendant l'examen : un étudiant quitte la page 6 s, un autre copie ; la demande
+  // d'appareil du septième téléphone attend encore. Capture sur ordinateur, puis à la largeur d'un téléphone.
+  const [, sortant, copieur] = telephones;
+  if (!sortant || !copieur) throw new Error("téléphones absents");
+  for (const t of telephones) {
+    await expect(t.page.locator('[data-etat="question"][data-rang="1"]')).toBeVisible({ timeout: 20_000 });
+  }
+  await sortant.page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await sortant.page.waitForTimeout(6_000);
+  await sortant.page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await copieur.page.evaluate(() => document.dispatchEvent(new Event("copy")));
+  const alertesDirect = page.getByRole("region", { name: "Alertes en direct" });
+  await expect(alertesDirect).toContainText(/Sortie de l’application · \d+ s/, { timeout: 15_000 });
+  await expect(alertesDirect).toContainText("Copier-coller", { timeout: 15_000 });
+  await capturerHautDePage(page, "tableau-de-bord");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sansDefilementHorizontal(page);
+  await page.screenshot({ path: capture("tableau-de-bord-telephone") });
+  await page.setViewportSize({ width: 1440, height: 900 });
   let questionCapturee = false;
   for (let rang = 1; rang <= 4; rang += 1) {
     const question = lea.page.locator(`[data-etat="question"][data-rang="${rang}"]`);

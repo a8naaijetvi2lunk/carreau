@@ -60,6 +60,13 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 ![Page de pilotage d’une session avec une demande d’appareil à autoriser et la liste des étudiants dans la salle](docs/captures/pilotage.png)
 *Le pilotage de la session : un nom réclamé depuis un second téléphone attend la décision de l’enseignant.*
 
+![Tableau de bord pendant l’examen : temps restant, compteurs, étudiants triés par indice avec leur dernier événement, alertes en direct](docs/captures/tableau-de-bord.png)
+*Le suivi en direct : une sortie de 6 s et un copier-coller apparaissent aussitôt, avec l’heure et la question ; l’indice n’est jamais présenté comme une preuve.*
+
+<img src="docs/captures/tableau-de-bord-telephone.png" alt="Le même tableau de bord sur le téléphone de l’enseignant" width="320">
+
+*Le même tableau de bord sur le téléphone de l’enseignant.*
+
 ## Fonctionnement
 
 ### Pour l’étudiant
@@ -78,8 +85,8 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 - **Éditeur de QCM** : choix unique, choix multiples, vrai/faux, images dans les questions et les réponses, blocs de code colorés (Python, JavaScript, Java, C, SQL…), barème par question (points négatifs compris), chrono au choix (aucun, global ou par question). Tout s’enregistre au fil de la saisie ; l’éditeur montre ce qui manque, et un QCM ne passe en « prêt » que complet. Un aperçu montre chaque question comme sur le téléphone d’un étudiant.
 - **Questions liées** : deux questions qui doivent se suivre restent consécutives, dans leur ordre, où qu’elles tombent dans le mélange. Les boutons Monter et Descendre déplacent le bloc entier.
 - **Classes** : import de la liste depuis un fichier CSV ou Excel (`.xlsx`), ou collée depuis un tableur, avec un aperçu qui explique chaque ligne rejetée avant d’enregistrer ; ajout, modification et retrait un par un ; tiers-temps par étudiant ; deux étudiants aux mêmes nom et prénom sont refusés dans une classe (l’enseignant les distingue par une initiale).
-- **Sessions** : un QCM prêt, une classe, un créneau facultatif. Le QR code projeté change toutes les 30 secondes pour qu’un lien partagé à l’extérieur de la salle ne serve à rien. L’enseignant voit la salle se remplir, autorise ou refuse un second téléphone, et démarre l’examen pour tous au même instant. Pendant l’examen, il voit où en est chacun ; la session se termine seule quand tout le monde a fini ou que le temps est écoulé.
-- **Suivi en direct** : étudiants connectés et absents, progression, alertes et indice de suspicion, sur ordinateur comme sur téléphone.
+- **Sessions** : un QCM prêt, une classe, un créneau facultatif. Le QR code projeté change toutes les 30 secondes pour qu’un lien partagé à l’extérieur de la salle ne serve à rien. L’enseignant voit la salle se remplir, autorise ou refuse un second téléphone, et démarre l’examen pour tous au même instant. Pendant l’examen, il peut prolonger le chrono global ou terminer l’examen pour tous ; sinon la session se termine seule quand tout le monde a fini ou que le temps est écoulé.
+- **Suivi en direct** : statut, progression, indice de suspicion et dernier événement de chaque étudiant, compteurs, alertes (sortie de l’application avec sa durée, copier-coller, écran partagé, connexion perdue), sur ordinateur comme sur téléphone.
 - **Résultats** : exports CSV et Excel, rapport détaillé par étudiant, note et correction visibles ou non par les étudiants.
 - **Rattrapage** : un étudiant arrivé après le démarrage ne peut plus rejoindre la session ; l’enseignant lui ouvre une session de rattrapage.
 - **Connexion MCP** : l’enseignant peut connecter son assistant IA pour préparer des QCM. Tout arrive en brouillon, à relire avant usage.
@@ -97,16 +104,17 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 | Détecté et horodaté | Hors de portée d’un navigateur |
 | --- | --- |
 | Sortie de l’application ou changement d’onglet, avec sa durée | Un second appareil |
-| Perte de focus : notification ouverte, écran partagé | Une capture d’écran sur iPhone |
+| Perte de focus (notification ouverte) et redimensionnement marqué (écran partagé, heuristique) | Une capture d’écran sur iPhone |
 | Copier-coller | Une réponse soufflée par un voisin |
 | Temps passé sur chaque question | |
 | Un même nom utilisé sur deux appareils | |
+| Silence du téléphone de plus de 15 s, mesuré par le serveur | |
 
 Principes retenus :
 
 - **Un sujet différent pour chacun** : l’ordre des questions et celui des réponses sont mélangés pour chaque étudiant.
 - **Le serveur fait foi** : le chrono, l’ordre des questions, les bonnes réponses et le score ne dépendent jamais du téléphone. Les bonnes réponses ne quittent pas le serveur pendant l’examen.
-- **Un indice, pas un verdict** : les événements bruts sont enregistrés côté serveur, puis pondérés en un indice de 0 à 100. L’enseignant voit le détail du calcul. Ce n’est pas une preuve.
+- **Un indice, pas un verdict** : les événements bruts sont enregistrés côté serveur, puis pondérés en un indice de 0 à 100 (pondération v1 publique, dans `src/lib/regles-surveillance.ts`). Le téléphone ne dit que la nature de ce qu’il observe : les durées sont mesurées par le serveur. Le détail du calcul est enregistré avec l’indice. Ce n’est pas une preuve.
 - **Pas de faux positifs réseau** : une coupure de connexion n’est jamais comptée comme une sortie.
 - **Un ton non accusateur** : côté étudiant, l’interface parle de « mode examen » et explique ce qui est noté, sans soupçonner personne.
 
@@ -149,7 +157,7 @@ flowchart LR
 src/
   app/          pages et routes d’API (App Router)
   modules/      un dossier par domaine métier, exposé par son index.ts ; les droits sont vérifiés dans les services
-  moteur/       logique pure, sans accès à la base : code de session tournant (lot 4), mélange, échéances et notation (lot 5) ; l’indice arrive avec le lot 6
+  moteur/       logique pure, sans accès à la base : code de session tournant (lot 4), mélange, échéances et notation (lot 5), consolidation des événements et indice (lot 6)
   lib/          contrats partagés : erreurs, enveloppes, environnement, horloge, chiffrement, CSP
   db/           schéma Drizzle
   components/   composants d’interface partagés
@@ -200,7 +208,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | 3 | Éditeur de QCM : types de questions, images, code, barème, questions liées, chrono | ✅ Livré |
 | 4 | Sessions : QR code renouvelé, écran projeté, salle d’attente, démarrage commun, demandes d’appareil | ✅ Livré |
 | 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | ✅ Livré |
-| 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | À venir |
+| 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | ✅ Livré |
 | 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | À venir |
 | 8 | Connexion MCP : jetons par enseignant, création de brouillons | À venir |
 | 9 | PWA et identité visuelle : installation, scanner intégré, icônes | À venir |
@@ -218,6 +226,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Droits vérifiés côté serveur** : dans chaque service, jamais seulement dans l’interface ; la ressource d’un autre enseignant répond « introuvable ».
 - **Entrée des étudiants** : code de session tiré d’un HMAC et renouvelé toutes les 30 secondes (32⁶ combinaisons, projeté seulement en salle d’attente), ticket d’entrée signé valable 10 minutes, jeton d’appareil de 256 bits dont seule l’empreinte est stockée, cookies `HttpOnly` et `SameSite=Lax`, limitation par adresse IP, par ticket et par appareil ; un nom déjà pris sur un autre téléphone passe par l’enseignant.
 - **Passage de l’examen** : le téléphone ne reçoit que la question courante, sans l’indicateur de bonne réponse ; ses réponses y sont identifiées par leur position affichée, jamais par leur place dans le QCM. Ordre, chrono (tolérance réseau de 3 s), points et note sont calculés par le serveur, dans une transaction verrouillée ; une validation rejouée ne change rien ; un QCM modifié après le départ ne change pas l’examen en cours (instantané figé au démarrage).
+- **Surveillance** : le téléphone n’envoie que la nature d’un événement et un numéro d’ordre, jamais d’heure ni de durée ; lots bornés (50 événements, 4 Ko), dédoublonnés, 1 000 événements au plus par passage, 120 lots par minute ; un silence de plus de 15 s est constaté par le serveur, même si le téléphone se tait.
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
 - **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire et, pendant l’examen, à l’étudiant dont c’est la question courante, jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.
