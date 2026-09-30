@@ -7,7 +7,7 @@ import "server-only";
 import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Executeur } from "@/db";
-import { demandeAppareil, etudiant, participation, sessionExamen } from "@/db/schema";
+import { demandeAppareil, etudiant, participation, sessionAutorisation, sessionExamen } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { maintenant } from "@/lib/horloge";
 import type { ModeChrono } from "@/lib/regles-qcm";
@@ -86,7 +86,22 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
       participation,
       and(eq(participation.etudiantId, etudiant.id), eq(participation.sessionId, session.id)),
     )
-    .where(and(eq(etudiant.classeId, session.classeId), isNull(participation.id)))
+    .where(
+      and(
+        eq(etudiant.classeId, session.classeId),
+        isNull(participation.id),
+        // Rattrapage : seuls les étudiants autorisés sont attendus (D4 du plan du lot 7).
+        session.type === "rattrapage"
+          ? inArray(
+              etudiant.id,
+              executeur
+                .select({ id: sessionAutorisation.etudiantId })
+                .from(sessionAutorisation)
+                .where(eq(sessionAutorisation.sessionId, session.id)),
+            )
+          : undefined,
+      ),
+    )
     .orderBy(asc(etudiant.nomNormalise), asc(etudiant.prenomNormalise));
   const demandes = await executeur
     .select({

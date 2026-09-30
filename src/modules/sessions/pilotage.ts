@@ -41,12 +41,15 @@ export async function demarrerSession(
       // FOR UPDATE : les réclamations en cours (FOR SHARE) aboutissent d'abord (décision D14).
       const lue = await sessionDeLActeur(tx, acteur, sessionId, true);
       if (lue.statut !== "attente") throw erreurs.etat(messageStatut(lue.statut));
-      const [leQcm] = await tx
-        .select({ statut: qcm.statut })
-        .from(qcm)
-        .where(eq(qcm.id, lue.qcmId))
-        .for("share");
-      if (leQcm?.statut !== "pret") throw erreurs.etat(MESSAGES_SESSION.qcmPlusPret);
+      // Un rattrapage démarre sur l'instantané de son origine : le QCM peut avoir changé (D4 du lot 7).
+      if (lue.type === "classe") {
+        const [leQcm] = await tx
+          .select({ statut: qcm.statut })
+          .from(qcm)
+          .where(eq(qcm.id, lue.qcmId))
+          .for("share");
+        if (leQcm?.statut !== "pret") throw erreurs.etat(MESSAGES_SESSION.qcmPlusPret);
+      }
       if (!(await parametresRgpdComplets())) throw erreurs.etat(MESSAGES_SESSION.rgpd);
       const [inscrits] = await tx
         .select({ total: count() })

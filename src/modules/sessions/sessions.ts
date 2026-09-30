@@ -3,22 +3,36 @@
  * options du formulaire, création, liste, lecture pour la page de pilotage, annulation.
  */
 import "server-only";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { classe, etudiant, participation, qcm, question, sessionExamen, utilisateur } from "@/db/schema";
+import {
+  classe,
+  etudiant,
+  participation,
+  qcm,
+  question,
+  sessionAutorisation,
+  sessionExamen,
+  utilisateur,
+} from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
-import { dateDepuisHeureDeParis } from "@/lib/dates";
-import { erreurDepuisDetails, erreurs, type ErreurService } from "@/lib/erreurs";
+import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { genererJeton } from "@/lib/jetons";
-import { LIMITES_SESSION, type StatutSession } from "@/lib/regles-session";
+import type { StatutSession, TypeSession } from "@/lib/regles-session";
 import { resumerExamen, type ResumeExamen } from "@/lib/resume-examen";
 import { lireIdentifiant, valider } from "@/lib/validation";
 import type { VueSuivi } from "@/lib/vue-session";
 import { journaliser, journaliserLesRefus } from "@/modules/journal";
 import { parametresRgpdComplets } from "@/modules/parametres";
-import { MESSAGES_SESSION, resumeDuQcm, sessionDeLActeur } from "./commun";
+import {
+  exigerPlaceLibre,
+  lireCreneau,
+  MESSAGES_SESSION,
+  resumeDeLaSession,
+  sessionDeLActeur,
+} from "./commun";
 import { construireSuivi, sessionAJour } from "./suivi";
 
 export type QcmProposable = {
@@ -48,6 +62,7 @@ export type SessionResume = {
   id: string;
   titre: string;
   classe: string;
+  type: TypeSession;
   statut: StatutSession;
   creneauPrevuLe: Date | null;
   creeLe: Date;
@@ -63,6 +78,8 @@ export type SessionDetaillee = {
   titre: string;
   classe: string;
   statut: StatutSession;
+  type: TypeSession;
+  sessionOrigineId: string | null;
   creneauPrevuLe: Date | null;
   noteVisible: boolean;
   correctionVisible: boolean;
@@ -84,22 +101,6 @@ const schemaCreation = z.strictObject({
   correctionVisible: z.boolean({ error: "Réglage invalide." }),
 });
 const schemaSession = z.strictObject({ sessionId: z.string() });
-
-function erreurCreneau(message: string): ErreurService {
-  return erreurDepuisDetails([{ chemin: "creneauPrevu", message }], "Session");
-}
-
-/** Créneau facultatif, lu en heure de Paris : 24 h dans le passé, 365 jours à l'avance au plus (D3). */
-function lireCreneau(saisie: string): Date | null {
-  const texte = saisie.trim();
-  if (texte === "") return null;
-  const date = dateDepuisHeureDeParis(texte);
-  if (!date) throw erreurCreneau(MESSAGES_SESSION.creneauInvalide);
-  const ecart = date.getTime() - maintenant().getTime();
-  if (ecart < -LIMITES_SESSION.creneauPasseMaxMs) throw erreurCreneau(MESSAGES_SESSION.creneauPasse);
-  if (ecart > LIMITES_SESSION.creneauFuturMaxMs) throw erreurCreneau(MESSAGES_SESSION.creneauLointain);
-  return date;
-}
 
 /** QCM prêts et classes non archivées non vides de l'acteur : choix du formulaire de création (D18). */
 export async function optionsNouvelleSession(acteur: ActeurUtilisateur): Promise<OptionsNouvelleSession> {
@@ -170,17 +171,7 @@ export async function creerSession(
         .where(eq(etudiant.classeId, classeId));
       if ((effectif?.total ?? 0) === 0) throw erreurs.etat(MESSAGES_SESSION.classeVide);
       if (!(await parametresRgpdComplets())) throw erreurs.etat(MESSAGES_SESSION.rgpd);
-      const [ouvertes] = await tx
-        .select({ total: count() })
-        .from(sessionExamen)
-        .where(
-          and(
-            eq(sessionExamen.enseignantId, acteur.id),
-            inArray(sessionExamen.statut, ["attente", "en_cours"]),
-          ),
-        );
-      if ((ouvertes?.total ?? 0) >= LIMITES_SESSION.ouvertesParCompte)
-        throw erreurs.etat(MESSAGES_SESSION.limite);
+      await exigerPlaceLibre(tx, acteur.id);
       const [creee] = await tx
         .insert(sessionExamen)
         .values({
@@ -237,6 +228,7 @@ export async function listerSessions(acteur: ActeurUtilisateur): Promise<Session
         id: sessionExamen.id,
         titre: qcm.titre,
         classe: classe.nom,
+        type: sessionExamen.type,
         statut: sessionExamen.statut,
         creneauPrevuLe: sessionExamen.creneauPrevuLe,
         creeLe: sessionExamen.creeLe,
@@ -246,10 +238,12 @@ export async function listerSessions(acteur: ActeurUtilisateur): Promise<Session
           sql<number>`(select count(*) from ${participation} where ${participation.sessionId} = ${sessionExamen.id})`.mapWith(
             Number,
           ),
-        effectif:
-          sql<number>`(select count(*) from ${etudiant} where ${etudiant.classeId} = ${sessionExamen.classeId})`.mapWith(
-            Number,
-          ),
+        // Rattrapage : les étudiants autorisés ; sinon la classe (D4 du plan du lot 7).
+        effectif: sql<number>`case when ${sessionExamen.type} = 'rattrapage'
+          then (select count(*) from ${sessionAutorisation} where ${sessionAutorisation.sessionId} = ${sessionExamen.id})
+          else (select count(*) from ${etudiant} where ${etudiant.classeId} = ${sessionExamen.classeId}) end`.mapWith(
+          Number,
+        ),
       })
       .from(sessionExamen)
       .innerJoin(qcm, eq(qcm.id, sessionExamen.qcmId))
@@ -271,6 +265,8 @@ export async function lireSession(
       .select({
         titre: qcm.titre,
         classe: classe.nom,
+        type: sessionExamen.type,
+        sessionOrigineId: sessionExamen.sessionOrigineId,
         creneauPrevuLe: sessionExamen.creneauPrevuLe,
         noteVisible: sessionExamen.noteVisible,
         correctionVisible: sessionExamen.correctionVisible,
@@ -301,7 +297,7 @@ export async function lireSession(
             },
             false,
           )
-        : await resumeDuQcm(db(), lue.qcmId, false),
+        : await resumeDeLaSession(db(), { id: lue.id, qcmId: lue.qcmId }, false),
       suivi: await construireSuivi(db(), lue),
     };
   });

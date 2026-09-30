@@ -3,12 +3,14 @@
  * session, en-tête et résumé affichés aux étudiants, messages des états impossibles.
  */
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import type { Executeur } from "@/db";
 import { classe, qcm, question, sessionExamen, utilisateur } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
-import { erreurs } from "@/lib/erreurs";
-import { LIMITES_SESSION, type StatutSession } from "@/lib/regles-session";
+import { dateDepuisHeureDeParis } from "@/lib/dates";
+import { erreurDepuisDetails, erreurs, type ErreurService } from "@/lib/erreurs";
+import { maintenant } from "@/lib/horloge";
+import { LIMITES_SESSION, type StatutSession, type TypeSession } from "@/lib/regles-session";
 import { resumerExamen, type ResumeExamen } from "@/lib/resume-examen";
 import type { SessionAffichee } from "@/lib/vue-entree";
 
@@ -36,6 +38,10 @@ export const MESSAGES_SESSION = {
   retraitImpossible: "La session a démarré : ce participant ne peut plus être retiré.",
   demandeTraitee: "Cette demande a déjà été traitée.",
   demandeExpiree: "Cette demande a expiré : l'étudiant doit la renouveler depuis son téléphone.",
+  rattrapageDepuisOrigine: "Un rattrapage se crée depuis les résultats de la session d'origine.",
+  rattrapageAvantFin: "Un rattrapage se crée une fois l'examen terminé.",
+  rattrapageEtudiants:
+    "Un des étudiants choisis a déjà passé l'examen ou a déjà un rattrapage prévu : actualise la page.",
   // Étudiant (vocabulaire non accusateur).
   codeFormat: "Le code comporte 6 lettres ou chiffres.",
   codeInvalide: "Code inconnu ou expiré : saisis le code affiché en ce moment au tableau.",
@@ -57,6 +63,7 @@ export type SessionLue = {
   qcmId: string;
   classeId: string;
   statut: StatutSession;
+  type: TypeSession;
   codeSecret: string;
   demarreLe: Date | null;
 };
@@ -79,6 +86,7 @@ export async function sessionDeLActeur(
       qcmId: sessionExamen.qcmId,
       classeId: sessionExamen.classeId,
       statut: sessionExamen.statut,
+      type: sessionExamen.type,
       codeSecret: sessionExamen.codeSecret,
       demarreLe: sessionExamen.demarreLe,
     })
@@ -92,6 +100,7 @@ export async function sessionDeLActeur(
     qcmId: ligne.qcmId,
     classeId: ligne.classeId,
     statut: ligne.statut,
+    type: ligne.type,
     codeSecret: ligne.codeSecret,
     demarreLe: ligne.demarreLe,
   };
@@ -105,10 +114,47 @@ export function messageStatut(statut: StatutSession): string {
   return "";
 }
 
+function erreurCreneau(message: string): ErreurService {
+  return erreurDepuisDetails([{ chemin: "creneauPrevu", message }], "Session");
+}
+
+/** Créneau facultatif, lu en heure de Paris : 24 h dans le passé, 365 jours à l'avance au plus (D3 du lot 4). */
+export function lireCreneau(saisie: string): Date | null {
+  const texte = saisie.trim();
+  if (texte === "") return null;
+  const date = dateDepuisHeureDeParis(texte);
+  if (!date) throw erreurCreneau(MESSAGES_SESSION.creneauInvalide);
+  const ecart = date.getTime() - maintenant().getTime();
+  if (ecart < -LIMITES_SESSION.creneauPasseMaxMs) throw erreurCreneau(MESSAGES_SESSION.creneauPasse);
+  if (ecart > LIMITES_SESSION.creneauFuturMaxMs) throw erreurCreneau(MESSAGES_SESSION.creneauLointain);
+  return date;
+}
+
+/** Limite des sessions ouvertes (salle d'attente ou en cours) d'un compte, dans la transaction de création. */
+export async function exigerPlaceLibre(executeur: Executeur, enseignantId: string): Promise<void> {
+  const [ouvertes] = await executeur
+    .select({ total: count() })
+    .from(sessionExamen)
+    .where(
+      and(
+        eq(sessionExamen.enseignantId, enseignantId),
+        inArray(sessionExamen.statut, ["attente", "en_cours"]),
+      ),
+    );
+  if ((ouvertes?.total ?? 0) >= LIMITES_SESSION.ouvertesParCompte)
+    throw erreurs.etat(MESSAGES_SESSION.limite);
+}
+
 /** Titre du QCM, nom de la classe et de l'enseignant : en-tête des écrans étudiants (maquette « Rejoindre »). */
 export async function sessionAffichee(executeur: Executeur, sessionId: string): Promise<SessionAffichee> {
   const [ligne] = await executeur
-    .select({ titre: qcm.titre, classe: classe.nom, prenom: utilisateur.prenom, nom: utilisateur.nom })
+    .select({
+      // Après le départ, et dès la création d'un rattrapage, le titre vient de l'instantané.
+      titre: sql<string>`coalesce(${sessionExamen.contenu} ->> 'titre', ${qcm.titre})`,
+      classe: classe.nom,
+      prenom: utilisateur.prenom,
+      nom: utilisateur.nom,
+    })
     .from(sessionExamen)
     .innerJoin(qcm, eq(qcm.id, sessionExamen.qcmId))
     .innerJoin(classe, eq(classe.id, sessionExamen.classeId))
@@ -147,4 +193,30 @@ export async function resumeDuQcm(
     .where(eq(question.qcmId, qcmId))
     .orderBy(asc(question.position));
   return resumerExamen({ ...lu, questions }, tiersTemps);
+}
+
+/**
+ * Résumé de l'examen d'une session : lu dans l'instantané s'il existe (session démarrée, ou rattrapage
+ * dès sa création : D4 du plan du lot 7), sinon sur le QCM.
+ */
+export async function resumeDeLaSession(
+  executeur: Executeur,
+  session: { id: string; qcmId: string },
+  tiersTemps: boolean,
+): Promise<ResumeExamen> {
+  const [lue] = await executeur
+    .select({ contenu: sessionExamen.contenu })
+    .from(sessionExamen)
+    .where(eq(sessionExamen.id, session.id));
+  const contenu = lue?.contenu;
+  if (!contenu) return resumeDuQcm(executeur, session.qcmId, tiersTemps);
+  return resumerExamen(
+    {
+      modeChrono: contenu.modeChrono,
+      dureeGlobaleS: contenu.dureeGlobaleS,
+      dureeQuestionS: null,
+      questions: contenu.questions,
+    },
+    tiersTemps,
+  );
 }

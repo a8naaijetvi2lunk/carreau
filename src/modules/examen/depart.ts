@@ -2,7 +2,8 @@
  * Départ commun (spec §6.3, décisions D3 à D5 du plan du lot 5), dans la transaction de
  * `demarrerSession`, qui tient déjà la session en FOR UPDATE : instantané et fin prévue de la
  * session, puis pour chaque participation tiers-temps figé (A1), ordre (mélange par blocs), première
- * question servie au départ et échéances.
+ * question servie au départ et échéances. Un rattrapage réutilise l'instantané de sa session
+ * d'origine, copié à sa création (lot 7).
  */
 import "server-only";
 import { randomInt } from "node:crypto";
@@ -19,7 +20,12 @@ export async function preparerDepart(
   tx: Transaction,
   depart: { sessionId: string; qcmId: string; demarreLe: Date },
 ): Promise<{ participants: number; questions: number }> {
-  const contenu = schemaContenuSession.parse(await instantaneDuQcm(tx, depart.qcmId));
+  // Un rattrapage garde l'instantané copié de sa session d'origine (D4 du plan du lot 7).
+  const [existant] = await tx
+    .select({ contenu: sessionExamen.contenu })
+    .from(sessionExamen)
+    .where(eq(sessionExamen.id, depart.sessionId));
+  const contenu = schemaContenuSession.parse(existant?.contenu ?? (await instantaneDuQcm(tx, depart.qcmId)));
   const participants = await tx
     .select({ id: participation.id, tiersTemps: etudiant.tiersTemps })
     .from(participation)

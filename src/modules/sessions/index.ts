@@ -42,3 +42,9 @@ export {
   type SessionResume,
 } from "./sessions";
 export { projeterSession, suivreSession } from "./suivi";
+export {
+  creerRattrapage,
+  situationsExamen,
+  type SaisieRattrapage,
+  type SituationEtudiant,
+} from "./rattrapage";

@@ -2,8 +2,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { participation, reponse, sessionExamen } from "@/db/schema";
-import { definirHorlogePourLesTests, type horlogeFixe } from "@/lib/horloge";
+import { definirHorlogePourLesTests, maintenant, type horlogeFixe } from "@/lib/horloge";
+import { cloturerSiFinie } from "@/modules/examen";
 import { demarrerSession } from "@/modules/sessions";
+import { creerEtudiantTest } from "./classes";
 import { exiger } from "./comptes";
 import { creerParticipationTest, preparerSession, renseignerRgpd } from "./sessions";
 
@@ -90,4 +92,30 @@ export async function poserBrouillon(participationId: string, rang: number, text
 /** Réponses d'une participation, par clé de question. */
 export async function reponsesEnBase(participationId: string) {
   return db().select().from(reponse).where(eq(reponse.participationId, participationId));
+}
+
+/**
+ * Examen terminé pour tous (Léa, Sacha et Hugo par défaut, 60 s après le départ), et deux absents
+ * ajoutés à la classe sans participation : Inès Martin et Tom Bernard (rattrapages, lot 7).
+ * `pendant` joue les réponses et les événements à 30 s du départ, avant la fin.
+ */
+export async function examenTermine(
+  horloge: ReturnType<typeof horlogeFixe>,
+  options: Parameters<typeof preparerSession>[0] & {
+    pendant?: (x: Awaited<ReturnType<typeof examenEnCours>>) => Promise<void>;
+  } = {},
+) {
+  const { pendant, ...preparation } = options;
+  const x = await examenEnCours(horloge, preparation);
+  const ines = await creerEtudiantTest(x.classe.id, { nom: "Martin", prenom: "Inès" });
+  const tom = await creerEtudiantTest(x.classe.id, { nom: "Bernard", prenom: "Tom" });
+  if (pendant) {
+    horloge.fixer(new Date(x.demarreLe.getTime() + 30_000));
+    await pendant(x);
+  }
+  horloge.fixer(new Date(x.demarreLe.getTime() + 60_000));
+  if (!(await cloturerSiFinie(x.session.id, maintenant(), { forcer: true }))) {
+    throw new Error("examen de test non clos");
+  }
+  return { ...x, absents: [ines, tom] as const };
 }

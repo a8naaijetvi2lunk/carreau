@@ -5,10 +5,17 @@
  * ticket d'entrée et son jeton d'appareil, dont seule l'empreinte est stockée.
  */
 import "server-only";
-import { and, asc, count, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
-import { demandeAppareil, etudiant, evenement, participation, sessionExamen } from "@/db/schema";
+import {
+  demandeAppareil,
+  etudiant,
+  evenement,
+  participation,
+  sessionAutorisation,
+  sessionExamen,
+} from "@/db/schema";
 import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { FORMAT_JETON, genererJeton, sha256Hex } from "@/lib/jetons";
@@ -56,7 +63,7 @@ import {
   REGLE_SELECTION,
 } from "./cles";
 import { sessionParCode } from "./code";
-import { MESSAGES_SESSION, resumeDuQcm, sessionAffichee } from "./commun";
+import { MESSAGES_SESSION, resumeDeLaSession, sessionAffichee } from "./commun";
 import { emettreTicket, lireTicket, type Ticket } from "./ticket";
 
 /** Cookies reçus du téléphone (`lireCookiesEntree`). */
@@ -165,7 +172,7 @@ async function etatDeLaParticipation(p: ParticipationLue): Promise<EtatEntree> {
     etape: "attente",
     prenom: p.prenom,
     connectes: inscrits?.total ?? 0,
-    examen: await resumeDuQcm(db(), p.qcmId, p.tiersTemps),
+    examen: await resumeDeLaSession(db(), { id: p.sessionId, qcmId: p.qcmId }, p.tiersTemps),
   };
 }
 
@@ -293,7 +300,7 @@ export async function rechercherEtudiants(
   const debut = normaliserNom(valider(schemaRecherche, saisie, "Recherche").debut);
   if (debut.length < LIMITES_SESSION.rechercheMin) throw erreurs.validation(MESSAGES_SESSION.rechercheCourte);
   const [session] = await db()
-    .select({ classeId: sessionExamen.classeId, statut: sessionExamen.statut })
+    .select({ classeId: sessionExamen.classeId, statut: sessionExamen.statut, type: sessionExamen.type })
     .from(sessionExamen)
     .where(eq(sessionExamen.id, ticket.sessionId));
   if (!session) throw erreurs.etat(MESSAGES_SESSION.ticketExpire, { raison: "ticket" });
@@ -312,6 +319,16 @@ export async function rechercherEtudiants(
           sql`starts_with(${e.prenomNormalise} || ' ' || ${e.nomNormalise}, ${debut})`,
           sql`starts_with(${e.nomNormalise} || ' ' || ${e.prenomNormalise}, ${debut})`,
         ),
+        // Rattrapage : seulement les étudiants autorisés (D4 du plan du lot 7).
+        session.type === "rattrapage"
+          ? inArray(
+              e.id,
+              db()
+                .select({ id: sessionAutorisation.etudiantId })
+                .from(sessionAutorisation)
+                .where(eq(sessionAutorisation.sessionId, ticket.sessionId)),
+            )
+          : undefined,
       ),
     )
     .orderBy(asc(e.nomNormalise), asc(e.prenomNormalise))
@@ -401,7 +418,7 @@ async function reclamerDansTransaction(
 ): Promise<IssueReclamation> {
   // FOR SHARE : les réclamations passent en parallèle, « Démarrer » (FOR UPDATE) attend qu'elles aboutissent.
   const [session] = await tx
-    .select({ classeId: sessionExamen.classeId, statut: sessionExamen.statut })
+    .select({ classeId: sessionExamen.classeId, statut: sessionExamen.statut, type: sessionExamen.type })
     .from(sessionExamen)
     .where(eq(sessionExamen.id, sessionId))
     .for("share");
@@ -414,6 +431,16 @@ async function reclamerDansTransaction(
     .where(and(eq(etudiant.id, etudiantId), eq(etudiant.classeId, session.classeId)))
     .for("key share");
   if (!eleve) throw erreurs.introuvable("Étudiant");
+  if (session.type === "rattrapage") {
+    // Un nom de la classe sans autorisation n'est pas proposé : même réponse qu'un nom inconnu (D4).
+    const [autorise] = await tx
+      .select({ etudiantId: sessionAutorisation.etudiantId })
+      .from(sessionAutorisation)
+      .where(
+        and(eq(sessionAutorisation.sessionId, sessionId), eq(sessionAutorisation.etudiantId, etudiantId)),
+      );
+    if (!autorise) throw erreurs.introuvable("Étudiant");
+  }
   let existante = await participationVerrouillee(tx, sessionId, etudiantId);
   if (!existante) {
     if (session.statut === "en_cours") throw erreurs.etat(MESSAGES_SESSION.sessionDemarree);
