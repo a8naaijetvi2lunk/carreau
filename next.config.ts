@@ -116,6 +116,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Scanner du QR code (décision D5 du plan du lot 9) : la caméra n'est permise que sur l'écran
+        // d'entrée. Même clé que la règle globale : la dernière règle qui correspond l'emporte.
+        source: "/rejoindre",
+        headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" }],
+      },
+      {
         // Service worker (décision D4 du plan du lot 9) : jamais mis en cache, CSP propre au script.
         source: "/sw.js",
         headers: [

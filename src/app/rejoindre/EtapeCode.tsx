@@ -2,20 +2,35 @@
 
 import { useState, type FormEvent } from "react";
 import { Bouton, Champ } from "@/components/ui";
+import { ScannerQr } from "./ScannerQr";
 
-/** Saisie du code affiché au tableau (spec §6.1), pour qui n'a pas scanné le QR code. */
+/**
+ * Entrée dans un examen (spec §6.1) : scanner du QR code projeté (lot 9) ou saisie du code affiché au
+ * tableau. Le code lu part exactement comme une saisie.
+ */
 export function EtapeCode({ onCode }: { onCode: (code: string) => Promise<void> }) {
   const [code, setCode] = useState("");
   const [enCours, setEnCours] = useState(false);
+  const [scanner, setScanner] = useState(false);
 
-  async function envoyer(evenement: FormEvent<HTMLFormElement>): Promise<void> {
-    evenement.preventDefault();
+  async function soumettre(valeur: string): Promise<void> {
     setEnCours(true);
     try {
-      await onCode(code);
+      await onCode(valeur);
     } finally {
       setEnCours(false);
     }
+  }
+
+  function envoyer(evenement: FormEvent<HTMLFormElement>): void {
+    evenement.preventDefault();
+    void soumettre(code);
+  }
+
+  function lu(valeur: string): void {
+    setScanner(false);
+    setCode(valeur);
+    void soumettre(valeur);
   }
 
   return (
@@ -25,27 +40,40 @@ export function EtapeCode({ onCode }: { onCode: (code: string) => Promise<void> 
           Rejoindre un examen
         </h1>
         <p className="text-base text-encre-2">
-          Scanne le QR code projeté avec l’appareil photo de ton téléphone, ou saisis le code affiché au
-          tableau.
+          Scanne le QR code projeté, ou saisis le code affiché au tableau.
         </p>
       </div>
-      <form onSubmit={(evenement) => void envoyer(evenement)} className="flex flex-col gap-3" noValidate>
-        <Champ
-          id="code-session"
-          libelle="Code de la session"
-          value={code}
-          onChange={(evenement) => setCode(evenement.target.value)}
-          autoComplete="off"
-          autoCapitalize="characters"
-          spellCheck={false}
-          maxLength={12}
-          placeholder="K7M 4QP"
-          className="font-code text-xl tracking-[0.08em]"
-        />
-        <Bouton type="submit" disabled={enCours || code.trim() === ""} className="min-h-14 text-[17px]">
-          Rejoindre
-        </Bouton>
-      </form>
+      {scanner ? (
+        <ScannerQr onCode={lu} onFermer={() => setScanner(false)} />
+      ) : (
+        <>
+          <Bouton
+            variante="secondaire"
+            disabled={enCours}
+            onClick={() => setScanner(true)}
+            className="min-h-14 text-[17px]"
+          >
+            Scanner le QR code
+          </Bouton>
+          <form onSubmit={envoyer} className="flex flex-col gap-3" noValidate>
+            <Champ
+              id="code-session"
+              libelle="Code de la session"
+              value={code}
+              onChange={(evenement) => setCode(evenement.target.value)}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={12}
+              placeholder="K7M 4QP"
+              className="font-code text-xl tracking-[0.08em]"
+            />
+            <Bouton type="submit" disabled={enCours || code.trim() === ""} className="min-h-14 text-[17px]">
+              Rejoindre
+            </Bouton>
+          </form>
+        </>
+      )}
     </section>
   );
 }

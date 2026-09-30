@@ -22,10 +22,11 @@ export default function Accueil() {
           Rejoindre un examen
         </h2>
         <p className="text-encre-2">
-          Scanne le QR code affiché par ton enseignant avec l’appareil photo de ton téléphone.
+          Scanne le QR code affiché par ton enseignant avec l’appareil photo de ton téléphone, ou depuis
+          Carreau.
         </p>
         <Link href="/rejoindre" className="self-start font-bold text-bleu underline">
-          Saisir le code de la session
+          Scanner ou saisir le code
         </Link>
       </section>
       <p className="text-[15px] text-muet">
