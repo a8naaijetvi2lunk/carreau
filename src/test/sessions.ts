@@ -4,7 +4,13 @@ import { demandeAppareil, parametres, participation, sessionExamen } from "@/db/
 import { maintenant } from "@/lib/horloge";
 import { genererJeton, sha256Hex } from "@/lib/jetons";
 import type { ModeChrono } from "@/lib/regles-qcm";
-import type { MotifDemande, StatutDemande, StatutParticipation, StatutSession } from "@/lib/regles-session";
+import type {
+  MotifDemande,
+  StatutDemande,
+  StatutParticipation,
+  StatutSession,
+  TypeSession,
+} from "@/lib/regles-session";
 import { creerClasseTest, creerEtudiantTest } from "./classes";
 import { acteurDe, creerUtilisateur, exiger } from "./comptes";
 import { creerQcmTest, creerQuestionTest } from "./qcm";
@@ -24,6 +30,8 @@ export async function creerSessionTest(
     creneauPrevuLe?: Date | null;
     demarreLe?: Date | null;
     termineLe?: Date | null;
+    type?: TypeSession;
+    sessionOrigineId?: string | null;
   } = {},
 ) {
   const [creee] = await db()
@@ -33,6 +41,8 @@ export async function creerSessionTest(
       classeId,
       enseignantId,
       statut: options.statut ?? "attente",
+      type: options.type ?? "classe",
+      sessionOrigineId: options.sessionOrigineId ?? null,
       codeSecret: options.codeSecret ?? genererJeton(),
       creneauPrevuLe: options.creneauPrevuLe ?? null,
       noteVisible: true,
