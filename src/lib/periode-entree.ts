@@ -1,11 +1,12 @@
-import { PERIODE_EXAMEN_MS, TOLERANCE_ECHEANCE_MS } from "./regles-examen";
+import { PERIODE_EXAMEN_MS, PERIODE_FIN_MS, TOLERANCE_ECHEANCE_MS } from "./regles-examen";
 import type { EtatEntree } from "./vue-entree";
 
 /**
  * Période d'interrogation de l'état du téléphone selon l'étape (spec §7, décision D16 du plan du
  * lot 4) ; null : aucune interrogation (saisie en cours, écran final). `maintenantServeurMs` : heure
  * du serveur estimée par le navigateur. Pendant l'examen, 5 s ou juste après l'expiration de
- * l'échéance (décision D14 du plan du lot 5) ; rien sur l'écran de fin.
+ * l'échéance (décision D14 du plan du lot 5) ; toutes les 15 s sur l'écran de fin (correction, D11
+ * du plan du lot 7).
  */
 export function periodeEntreeMs(etat: EtatEntree, maintenantServeurMs: number): number | null {
   switch (etat.etape) {
@@ -23,6 +24,8 @@ export function periodeEntreeMs(etat: EtatEntree, maintenantServeurMs: number): 
       const expiration = Date.parse(etat.echeance) + TOLERANCE_ECHEANCE_MS + 300;
       return Math.max(300, Math.min(PERIODE_EXAMEN_MS, expiration - maintenantServeurMs));
     }
+    case "fin":
+      return PERIODE_FIN_MS;
     default:
       return null;
   }

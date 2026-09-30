@@ -27,10 +27,13 @@ import {
   type StatutSession,
 } from "@/lib/regles-session";
 import { lireIdentifiant, valider } from "@/lib/validation";
+import type { VueCorrection } from "@/lib/vue-correction";
 import type { EtatEntree, InformationDonnees, ResultatRecherche } from "@/lib/vue-entree";
 import {
+  correctionDuPassage,
   enregistrerBrouillon,
   enregistrerEvenements,
+  imageDeLaCorrection,
   imageDeLaQuestionCourante,
   validerQuestion,
   vuePassage,
@@ -42,6 +45,7 @@ import { reserverJournalise } from "@/modules/limiteur";
 import { lireInformationDonnees } from "@/modules/parametres";
 import { normaliserCode } from "@/moteur/code-session";
 import {
+  cleCorrection,
   cleEtatAppareil,
   cleEtatTicket,
   cleEvenements,
@@ -52,6 +56,7 @@ import {
   cleReponse,
   cleRejoindreIp,
   cleSelection,
+  REGLE_CORRECTION,
   REGLE_ETAT,
   REGLE_EVENEMENTS,
   REGLE_IMAGE,
@@ -604,8 +609,24 @@ export async function envoyerEvenements(
 }
 
 /**
- * Image de la question courante du téléphone (spec §11.1, décisions D12 et D13 du plan du lot 5).
- * Tout refus répond « Image introuvable. » : image d'une autre question, examen terminé, jeton inconnu.
+ * Correction de l'examen sur le téléphone (spec §9.1, A1 et D11 du plan du lot 7) : participation du
+ * jeton, limiteur posé après l'avoir retrouvée, puis la correction si elle est publiée.
+ */
+export async function lireCorrection(telephone: Telephone): Promise<VueCorrection> {
+  const participationId = await participationDuTelephone(telephone);
+  await reserverJournalise(cleCorrection(participationId), REGLE_CORRECTION, {
+    action: "sessions.limite_correction",
+    cible: `participation:${participationId}`,
+  });
+  const correction = await correctionDuPassage(participationId);
+  if (!correction) throw erreurs.etat(MESSAGES_SESSION.correctionIndisponible);
+  return correction;
+}
+
+/**
+ * Image de la question courante du téléphone (spec §11.1, décisions D12 et D13 du plan du lot 5),
+ * ou d'une question de la correction publiée (lot 7). Tout refus répond « Image introuvable. » :
+ * image d'une autre question, examen terminé, jeton inconnu.
  */
 export async function lireImageExamen(
   telephone: Telephone,
@@ -618,6 +639,9 @@ export async function lireImageExamen(
     action: "sessions.limite_image",
     cible: `participation:${participationId}`,
   });
-  if (!(await imageDeLaQuestionCourante(participationId, imageId))) throw erreurs.introuvable("Image");
+  const permise =
+    (await imageDeLaQuestionCourante(participationId, imageId)) ||
+    (await imageDeLaCorrection(participationId, imageId));
+  if (!permise) throw erreurs.introuvable("Image");
   return { contenu: await contenuImage(imageId) };
 }

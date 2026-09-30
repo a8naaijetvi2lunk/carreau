@@ -53,7 +53,7 @@ describe("periodeEntreeMs", () => {
     ).toBe(300);
   });
 
-  it("n'interroge plus sur l'écran de fin", () => {
-    expect(periodeEntreeMs(etat({ etape: "fin" }), MAINTENANT)).toBeNull();
+  it("relit l'état toutes les 15 s sur l'écran de fin (correction publiée plus tard)", () => {
+    expect(periodeEntreeMs(etat({ etape: "fin" }), MAINTENANT)).toBe(15_000);
   });
 });

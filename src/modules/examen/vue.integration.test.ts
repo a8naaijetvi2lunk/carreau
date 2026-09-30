@@ -95,6 +95,7 @@ describe("vuePassage", () => {
       total: 2,
       dureeS: 42,
       note: 10,
+      correction: false,
     });
     await db().update(sessionExamen).set({ noteVisible: false }).where(eq(sessionExamen.id, x.session.id));
     expect(await vuePassage(p)).toMatchObject({ etape: "fin", note: null });

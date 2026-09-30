@@ -17,6 +17,9 @@ export const DELAI_CLOTURE_MS = 10 * 60_000;
 /** Période de l'état du téléphone pendant l'examen (spec §7). */
 export const PERIODE_EXAMEN_MS = 5_000;
 
+/** Écran de fin : l'état est relu toutes les 15 s, pour montrer la correction dès sa publication (D11 du lot 7). */
+export const PERIODE_FIN_MS = 15_000;
+
 /** Messages des états impossibles de l'examen (spec §12, décisions D7 et D8). */
 export const MESSAGES_EXAMEN = {
   pasCourante: "Cette question n'est plus modifiable : elle a déjà été validée ou son temps est écoulé.",

@@ -59,3 +59,10 @@ export const REGLE_EVENEMENTS: RegleLimite = { seuil: 120, fenetreSecondes: 60, 
 export function cleEvenements(participationId: string): string {
   return `etudiant:evenements:${participationId}`;
 }
+
+/** Correction du téléphone (D11 du plan du lot 7) : 30 lectures par minute et par participation. */
+export const REGLE_CORRECTION: RegleLimite = { seuil: 30, fenetreSecondes: 60, blocageSecondes: 60 };
+
+export function cleCorrection(participationId: string): string {
+  return `etudiant:correction:${participationId}`;
+}

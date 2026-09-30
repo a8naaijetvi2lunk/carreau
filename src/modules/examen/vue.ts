@@ -14,6 +14,7 @@ import type { ImageAffichee, VueQuestion } from "@/lib/vue-question";
 import { lireQuestion } from "./commun";
 import { sortieRecente } from "./indice";
 import { passageAJour, type Passage } from "./passage";
+import { correctionPubliee } from "./publication";
 
 export type VuePassage =
   | {
@@ -30,6 +31,7 @@ export type VuePassage =
       total: number;
       dureeS: number;
       note: number | null;
+      correction: boolean;
     };
 
 function affichee(image: { id: string; largeur: number; hauteur: number } | null): ImageAffichee | null {
@@ -72,6 +74,7 @@ async function vueFin(passage: Passage, instant: Date): Promise<VuePassage> {
     total: passage.ordre?.length ?? validees.length,
     dureeS: Math.max(0, Math.round((termineeLe.getTime() - demarreLe.getTime()) / 1000)),
     note: passage.session.noteVisible ? passage.noteSur20 : null,
+    correction: await correctionPubliee(db(), passage.session.id),
   };
 }
 

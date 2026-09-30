@@ -56,6 +56,7 @@ export const MESSAGES_SESSION = {
   informationIndisponible:
     "Les informations sur tes données ne sont pas encore disponibles : préviens ton enseignant.",
   participationIntrouvable: "Ton téléphone n'est associé à aucun nom pour cet examen : choisis ton nom.",
+  correctionIndisponible: "La correction n'est pas disponible.",
 } as const;
 
 export type SessionLue = {

@@ -28,7 +28,7 @@ function IconeChrono() {
 }
 
 /** Bloc de code en jetons colorés par le serveur : du texte, jamais du HTML (spec §11.1). */
-function BlocCode({ code }: { code: NonNullable<VueQuestion["code"]> }) {
+export function BlocCode({ code }: { code: NonNullable<VueQuestion["code"]> }) {
   return (
     <div
       role="group"

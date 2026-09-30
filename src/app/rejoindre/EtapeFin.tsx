@@ -1,12 +1,50 @@
+"use client";
+
+import { useState } from "react";
+import { Alerte, Bouton } from "@/components/ui";
+import { MESSAGE_RESEAU } from "@/lib/appel-api";
 import { formaterHeure } from "@/lib/dates";
 import { formaterNote } from "@/lib/points";
 import { formaterDuree } from "@/lib/textes";
+import type { VueCorrection } from "@/lib/vue-correction";
 import type { EtatEntree } from "@/lib/vue-entree";
+import { lireCorrection } from "./api";
+import { CorrectionEtudiant } from "./CorrectionEtudiant";
 
 type EtatFin = Extract<EtatEntree, { etape: "fin" }>;
 
-/** Fin de l'examen (maquette « Fin de l’examen », décision D14 du plan du lot 5). La correction arrive au lot 7. */
+/** Fin de l'examen (maquette « Fin de l’examen », D14 du plan du lot 5) ; « Voir la correction » quand elle est publiée (D11 et D13 du plan du lot 7). */
 export function EtapeFin({ etat }: { etat: EtatFin }) {
+  const [correction, setCorrection] = useState<VueCorrection | null>(null);
+  const [chargement, setChargement] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  async function voirCorrection(): Promise<void> {
+    setErreur(null);
+    setChargement(true);
+    try {
+      const reponse = await lireCorrection();
+      if (reponse.ok) setCorrection(reponse.donnees);
+      else setErreur(reponse.erreur.message);
+    } catch {
+      setErreur(MESSAGE_RESEAU);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  const bouton = etat.correction ? (
+    correction ? (
+      <Bouton variante="secondaire" onClick={() => setCorrection(null)}>
+        Masquer la correction
+      </Bouton>
+    ) : (
+      <Bouton variante="secondaire" disabled={chargement} onClick={() => void voirCorrection()}>
+        Voir la correction
+      </Bouton>
+    )
+  ) : null;
+
   return (
     <section data-etat="fin" className="flex flex-1 flex-col gap-6">
       <div className="flex flex-col items-center gap-3 pt-3 text-center">
@@ -37,6 +75,9 @@ export function EtapeFin({ etat }: { etat: EtatFin }) {
           <p className="font-titre text-5xl font-extrabold">{formaterNote(etat.note)} / 20</p>
         </div>
       )}
+      {bouton}
+      {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
+      {correction ? <CorrectionEtudiant correction={correction} /> : null}
       <p className="text-center text-[15px] text-muet">Tu peux fermer cette page.</p>
     </section>
   );

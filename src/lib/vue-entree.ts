@@ -53,6 +53,8 @@ export type EtatEntree = { serveurMaintenant: string } & (
       dureeS: number;
       /** Note sur 20 si l'enseignant la rend visible, null sinon. */
       note: number | null;
+      /** Correction publiée pour ce téléphone (D11 du plan du lot 7) : « Voir la correction ». */
+      correction: boolean;
     }
   | { etape: "remplace"; session: SessionAffichee }
   | { etape: "fermee"; session: SessionAffichee; raison: "annulee" | "terminee" }

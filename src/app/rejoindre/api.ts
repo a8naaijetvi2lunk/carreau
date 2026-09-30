@@ -1,5 +1,6 @@
 import { appelerApi, type ReponseApi } from "@/lib/appel-api";
 import type { LotEvenementsTelephone } from "@/lib/regles-surveillance";
+import type { VueCorrection } from "@/lib/vue-correction";
 import type { EtatEntree, ResultatRecherche } from "@/lib/vue-entree";
 
 /** Appels des routes d'entrée (spec §6.2) : les cookies du téléphone sont posés et lus par le serveur. */
@@ -35,6 +36,11 @@ export function enregistrerSelection(
 /** Validation de la question courante : l'état suivant (question ou fin). */
 export function validerReponse(rang: number, selection: string[]): Promise<ReponseApi<EtatEntree>> {
   return appelerApi("/api/etudiant/reponse", { rang, selection });
+}
+
+/** Correction de l'examen, une fois publiée (D11 du plan du lot 7). */
+export function lireCorrection(): Promise<ReponseApi<VueCorrection>> {
+  return appelerApi("/api/etudiant/correction", {});
 }
 
 /**

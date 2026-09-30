@@ -1,8 +1,12 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { db } from "@/db";
+import { sessionExamen } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { nomsCookiesEntree } from "@/modules/sessions";
-import { examenEnCours, identifiants } from "@/test/examen";
+import { examenEnCours, examenTermine, identifiants } from "@/test/examen";
 import { INSTANT_CODE_TEST, preparerSession, renseignerRgpd, SECRET_CODE_TEST } from "@/test/sessions";
+import { POST as correction } from "./correction/route";
 import { POST as etat } from "./etat/route";
 import { POST as evenements } from "./evenements/route";
 import { POST as information } from "./information/route";
@@ -163,5 +167,29 @@ describe("routes du passage de l'examen", () => {
     expect((await evenements(requete("evenements", { ...lot, le: 1 }, cookies))).status).toBe(422);
     const gros = { chargement: "x".repeat(5_000), evenements: [{ n: 1, type: "copie" }] };
     expect((await evenements(requete("evenements", gros, cookies))).status).toBe(422);
+  });
+
+  it("sert la correction publiée au même téléphone, sinon 409 (D11 du plan du lot 7)", async () => {
+    const x = await examenTermine(horloge);
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    const cookies = { [nomsCookiesEntree().appareil]: lea.jeton };
+    expect((await correction(requete("correction", {}))).status).toBe(409);
+    const cachee = await correction(requete("correction", {}, cookies));
+    expect(cachee.status).toBe(409);
+    await expect(cachee.json()).resolves.toMatchObject({
+      erreur: { code: "ETAT", message: "La correction n'est pas disponible." },
+    });
+    await db()
+      .update(sessionExamen)
+      .set({ correctionVisible: true })
+      .where(eq(sessionExamen.id, x.session.id));
+    const publiee = await correction(requete("correction", {}, cookies));
+    expect(publiee.status).toBe(200);
+    expect(publiee.headers.get("cache-control")).toBe("no-store");
+    const corps = (await publiee.json()) as { note: number | null; questions: unknown[] };
+    expect(Object.keys(corps)).toEqual(["note", "questions"]);
+    expect(corps.questions).toHaveLength(2);
+    expect((await correction(requete("correction", { plus: 1 }, cookies))).status).toBe(422);
   });
 });
