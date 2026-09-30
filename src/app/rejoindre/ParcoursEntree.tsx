@@ -106,6 +106,12 @@ export function ParcoursEntree() {
     const recevoir = (etat: EtatEntree) => {
       decalage.current = decalageServeurMs(etat.serveurMaintenant, Date.now());
       setAffichage({ etat, decalageMs: decalage.current });
+      // Première question reçue avant le passage à zéro du compte à rebours (l'interrogation l'a devancé) :
+      // l'heure du départ est celle de sa réception (décision D14 du plan du lot 5).
+      if (etat.etape === "question") {
+        const recueA = Date.now();
+        setCommenceA((dejaVu) => dejaVu ?? recueA);
+      }
     };
     const suivi = new Interrogation<EtatEntree>({
       appeler: async (signal) => {
