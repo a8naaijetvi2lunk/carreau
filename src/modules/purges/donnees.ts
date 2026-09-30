@@ -5,7 +5,7 @@
  * tables et de colonnes en clair, instant applicatif en paramètre (jamais now()).
  */
 import "server-only";
-import { inArray, sql } from "drizzle-orm";
+import { and, inArray, ne, or, sql } from "drizzle-orm";
 import { db, type Executeur } from "@/db";
 import { sessionExamen } from "@/db/schema";
 
@@ -43,8 +43,12 @@ async function groupesEchus(executeur: Executeur, jours: number, instant: Date):
 /**
  * Supprime les groupes échus (amendement A2) : rattrapages d'abord (clé `session_origine_id` en
  * RESTRICT), puis la session de classe ; la cascade emporte participations, réponses, événements,
- * demandes d'appareil et autorisations. Sous verrou des sessions de classe, comme la création d'un
- * rattrapage : un rattrapage créé entre-temps rouvre son groupe, recalculé après le verrou.
+ * demandes d'appareil et autorisations. Sous verrou de tout le groupe — la session de classe et ses
+ * rattrapages —, comme la création d'un rattrapage (qui verrouille la session de classe) et son
+ * démarrage (qui verrouille le rattrapage) : un rattrapage créé ou démarré entre-temps rouvre ou
+ * protège son groupe, recalculé après le verrou. Défense en profondeur : une session `en_cours` qui
+ * aurait échappé au recalcul n'est jamais supprimée (si c'est un rattrapage, la suppression de sa
+ * session de classe échoue sur la clé RESTRICT et l'étape se refait la nuit suivante).
  */
 export async function purgerSessions(jours: number, instant: Date): Promise<number> {
   const candidates = await groupesEchus(db(), jours, instant);
@@ -53,17 +57,17 @@ export async function purgerSessions(jours: number, instant: Date): Promise<numb
     await tx
       .select({ id: sessionExamen.id })
       .from(sessionExamen)
-      .where(inArray(sessionExamen.id, candidates))
+      .where(or(inArray(sessionExamen.id, candidates), inArray(sessionExamen.sessionOrigineId, candidates)))
       .for("update");
     const echus = (await groupesEchus(tx, jours, instant)).filter((id) => candidates.includes(id));
     if (echus.length === 0) return 0;
     const rattrapages = await tx
       .delete(sessionExamen)
-      .where(inArray(sessionExamen.sessionOrigineId, echus))
+      .where(and(inArray(sessionExamen.sessionOrigineId, echus), ne(sessionExamen.statut, "en_cours")))
       .returning({ id: sessionExamen.id });
     const origines = await tx
       .delete(sessionExamen)
-      .where(inArray(sessionExamen.id, echus))
+      .where(and(inArray(sessionExamen.id, echus), ne(sessionExamen.statut, "en_cours")))
       .returning({ id: sessionExamen.id });
     return rattrapages.length + origines.length;
   });

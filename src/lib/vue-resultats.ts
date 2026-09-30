@@ -128,6 +128,8 @@ export type VueRapport = {
   dureeS: number;
   indice: { valeur: number; version: number; lignes: LigneDetailIndice[]; plafonne: boolean } | null;
   chronologie: EntreeChronologie[];
+  /** Événements supprimés à l'échéance de leur conservation (lot 10) : la chronologie n'en montre plus. */
+  evenementsSupprimes: boolean;
   evolution: PointEvolution[];
 };
 

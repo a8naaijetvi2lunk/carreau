@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { classe, etudiant, participation, qcm, reponse, sessionExamen } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { erreurs } from "@/lib/erreurs";
+import { maintenant } from "@/lib/horloge";
 import type { OrdrePassage } from "@/lib/instantane";
 import { LIBELLES_SIGNAL, PONDERATION_V1, type LigneIndice, type Signal } from "@/lib/regles-surveillance";
 import { formaterDuree } from "@/lib/textes";
@@ -17,6 +18,7 @@ import { lireIdentifiant, valider } from "@/lib/validation";
 import type { LigneDetailIndice, PointEvolution, RapportEtudiant } from "@/lib/vue-resultats";
 import { evenementsBruts, rattraperSession } from "@/modules/examen";
 import { journaliserLesRefus } from "@/modules/journal";
+import { lireInformationDonnees } from "@/modules/parametres";
 import { chronologie, type ReponseDatee } from "@/moteur/chronologie";
 import { consolider, type Consolidation, type Intervalle } from "@/moteur/indice";
 import { bonnesReponses } from "./commun";
@@ -94,6 +96,7 @@ export async function lireRapport(
       .select({
         sessionId: participation.sessionId,
         sessionOrigineId: sessionExamen.sessionOrigineId,
+        sessionTermineLe: sessionExamen.termineLe,
         type: sessionExamen.type,
         demarreLe: sessionExamen.demarreLe,
         contenu: sessionExamen.contenu,
@@ -126,6 +129,15 @@ export async function lireRapport(
     }
     const bruts = (await evenementsBruts(db(), [participationId])).get(participationId) ?? [];
     const consolidation = consolider(bruts, termineeLe);
+    // Événements purgés à l'échéance de leur conservation (lot 10, décision D1) : la chronologie ne
+    // peut plus les montrer ; le détail de l'indice, stocké dans la participation, reste.
+    const conservation = await lireInformationDonnees();
+    const echeanceEvenements =
+      conservation && lu.sessionTermineLe
+        ? lu.sessionTermineLe.getTime() + conservation.conservationEvenementsJours * 24 * 60 * 60 * 1000
+        : null;
+    const evenementsSupprimes =
+      bruts.length === 0 && echeanceEvenements !== null && echeanceEvenements <= maintenant().getTime();
     const rangDe = new Map(ordre.map((e, index) => [contenu.questions[e.q]?.cle, index]));
     const closes = await db()
       .select({
@@ -219,6 +231,7 @@ export async function lireRapport(
           dureeS: e.dureeMs === null ? null : secondes(e.dureeMs),
           sorte: e.sorte,
         })),
+        evenementsSupprimes,
         evolution: evolution.slice(-EVOLUTION_MAX),
       },
     };

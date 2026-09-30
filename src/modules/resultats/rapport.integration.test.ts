@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { journal } from "@/db/schema";
+import { evenement, journal } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { cloturerSiFinie, enregistrerEvenements, validerQuestion } from "@/modules/examen";
 import { demarrerSession } from "@/modules/sessions";
@@ -10,6 +10,7 @@ import { examenEnCours, examenTermine, identifiants, passageEnBase } from "@/tes
 import { creerParticipationTest, creerSessionTest, INSTANT_CODE_TEST } from "@/test/sessions";
 import { lireRapport } from "./rapport";
 
+const JOUR = 24 * 60 * 60 * 1000;
 const horloge = horlogeFixe(INSTANT_CODE_TEST);
 
 beforeEach(() => {
@@ -132,6 +133,27 @@ describe("lireRapport (D9)", () => {
       titre: "Algorithmique — Contrôle 2",
       participationId: lea.participation.id,
     });
+  });
+
+  it("signale les événements supprimés à l'échéance de leur conservation (lot 10)", async () => {
+    const x = await examenTermine(horloge, { pendant: passer }); // renseignerRgpd : événements 30 jours
+    const hugo = exiger(x.telephones[2], "Hugo").participation.id;
+    const termineLe = new Date(x.demarreLe.getTime() + 60_000);
+
+    const juste = await vueDe(x.acteur, hugo);
+    expect(juste.evenementsSupprimes).toBe(false);
+    const ligneSortie = juste.indice?.lignes.find((l) => l.signal === "sortie");
+    expect(ligneSortie?.nombre).toBe(2);
+
+    horloge.fixer(new Date(termineLe.getTime() + 31 * JOUR));
+    const avantPurge = await vueDe(x.acteur, hugo);
+    expect(avantPurge.evenementsSupprimes).toBe(false);
+
+    await db().delete(evenement).where(eq(evenement.participationId, hugo));
+    const apresPurge = await vueDe(x.acteur, hugo);
+    expect(apresPurge.evenementsSupprimes).toBe(true);
+    const ligneSortieApres = apresPurge.indice?.lignes.find((l) => l.signal === "sortie");
+    expect(ligneSortieApres?.nombre).toBe(2);
   });
 
   it("attend la fin du passage, et refuse le rapport d'un autre compte", async () => {

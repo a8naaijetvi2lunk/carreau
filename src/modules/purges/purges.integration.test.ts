@@ -175,6 +175,50 @@ describe("executerPurges (décisions D1, D2 et D4 du plan du lot 10)", () => {
     ).toHaveLength(1);
   });
 
+  it("attend le démarrage d'un rattrapage en cours et garde le groupe qu'il rouvre", async () => {
+    await renseignerRgpd();
+    const c = await contexte();
+    const origine = await sessionDeTest(c, 400 * JOUR, { statut: "terminee" });
+    const rattrapage = await sessionDeTest(c, 370 * JOUR, {
+      statut: "attente",
+      type: "rattrapage",
+      sessionOrigineId: origine.session.id,
+    });
+    let signalerVerrou!: () => void;
+    const verrouPose = new Promise<void>((ok) => {
+      signalerVerrou = ok;
+    });
+    let liberer!: () => void;
+    const liberation = new Promise<void>((ok) => {
+      liberer = ok;
+    });
+    // Un démarrage qui tient le verrou du rattrapage, comme demarrerSession.
+    const demarrage = db().transaction(async (tx) => {
+      await tx
+        .select({ id: sessionExamen.id })
+        .from(sessionExamen)
+        .where(eq(sessionExamen.id, rattrapage.session.id))
+        .for("update");
+      signalerVerrou();
+      await liberation;
+      await tx
+        .update(sessionExamen)
+        .set({ statut: "en_cours", demarreLe: maintenant() })
+        .where(eq(sessionExamen.id, rattrapage.session.id));
+    });
+    await verrouPose;
+    const purge = executerPurges();
+    // Laisse la purge atteindre le verrou, puis valide le démarrage.
+    await new Promise((ok) => setTimeout(ok, 300));
+    liberer();
+    await demarrage;
+    const bilan = await purge;
+    expect(bilan.sessions).toBe(0);
+    expect(bilan.erreurs).toEqual([]);
+    expect(await sessionExiste(rattrapage.session.id)).toBe(true);
+    expect(await sessionExiste(origine.session.id)).toBe(true);
+  });
+
   it("purge connexions, liens de réinitialisation, invitations closes, limiteur et journal ancien", async () => {
     const u = await creerUtilisateur();
     const jeton = () => sha256Hex(randomUUID());
