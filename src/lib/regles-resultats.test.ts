@@ -8,10 +8,12 @@ import {
   LIBELLES_STATUT_RESULTAT,
   lettre,
   mediane,
+  MENTION_RAPPORT,
   moyenne,
   nomFichierExport,
   resultatQuestion,
   SEUIL_INDICE_ELEVE,
+  TEXTES_CHRONOLOGIE,
 } from "./regles-resultats";
 import type { LigneResultat } from "./vue-resultats";
 
@@ -142,5 +144,17 @@ describe("exports (D8)", () => {
       null,
       null,
     ]);
+  });
+});
+
+describe("textes du rapport (D9, D10)", () => {
+  it("rappelle que l'indice n'est pas une preuve, et fixe les textes de la chronologie", () => {
+    expect(MENTION_RAPPORT).toBe(
+      "L’indice est une estimation calculée à partir des événements enregistrés. Ce n’est pas une preuve : à croiser avec ce que tu as observé en salle.",
+    );
+    expect(TEXTES_CHRONOLOGIE.debut).toBe("Début de l’examen");
+    expect(TEXTES_CHRONOLOGIE.fin(18, 20)).toBe("Fin · 18 réponses sur 20");
+    expect(TEXTES_CHRONOLOGIE.fin(1, 2)).toBe("Fin · 1 réponse sur 2");
+    expect(TEXTES_CHRONOLOGIE.reponseRapide(7)).toBe("Réponse validée 7 s après le retour");
   });
 });

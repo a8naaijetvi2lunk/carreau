@@ -44,6 +44,30 @@ export function formaterHeureSecondes(date: Date): string {
   return FORMAT_HEURE_SECONDES.format(date);
 }
 
+const FORMAT_JOUR = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Europe/Paris",
+});
+
+/** « lundi 28 septembre 2026 » : en-tête des résultats et du rapport. */
+export function formaterJour(date: Date): string {
+  return FORMAT_JOUR.format(date);
+}
+
+const FORMAT_JOUR_COURT = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Europe/Paris",
+});
+
+/** « 28 sept. » : axe du graphique d'évolution. */
+export function formaterJourCourt(date: Date): string {
+  return FORMAT_JOUR_COURT.format(date);
+}
+
 const FORMAT_PARTIES = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Paris",
   hourCycle: "h23",

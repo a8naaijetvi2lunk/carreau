@@ -5,3 +5,4 @@ export {
   MESSAGE_RESULTATS_INDISPONIBLES,
   type FichierExport,
 } from "./exports";
+export { lireRapport } from "./rapport";

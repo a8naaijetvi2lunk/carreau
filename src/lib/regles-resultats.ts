@@ -4,6 +4,7 @@
  */
 import { saisieHeureDeParis } from "./dates";
 import { nomComplet } from "./regles-session";
+import { pluriel } from "./textes";
 import type { LigneResultat, StatutResultat } from "./vue-resultats";
 
 /** Indice élevé : carte « Indice de suspicion ≥ 60 » et couleur orange foncé (D14 du lot 6). */
@@ -117,3 +118,25 @@ export function resultatQuestion(
   const exacte = choisies.size === correctes.length && correctes.every((index) => choisies.has(index));
   return exacte ? "Juste" : "Faux";
 }
+
+/** Sous le rapport (maquette « Rapport étudiant ») : jamais un indice sans ce rappel. */
+export const MENTION_RAPPORT =
+  "L’indice est une estimation calculée à partir des événements enregistrés. Ce n’est pas une preuve : à croiser avec ce que tu as observé en salle.";
+
+/** Textes de la chronologie du rapport (D10), montrés à l'enseignant seulement. */
+export const TEXTES_CHRONOLOGIE = {
+  debut: "Début de l’examen",
+  fin: (repondues: number, total: number) =>
+    `Fin · ${pluriel(repondues, "réponse", "réponses")} sur ${total}`,
+  sortie: "Sortie de l’application",
+  retour: "Retour dans l’examen",
+  focus: "Perte de focus",
+  coupure: "Coupure réseau (non comptée)",
+  pressePapiers: "Copier-coller",
+  ecranPartage: "Écran partagé (heuristique)",
+  secondAppareil: "Tentative depuis un second appareil",
+  rechargement: "Rechargement de la page",
+  reponse: "Réponse validée",
+  reponseRapide: (secondes: number) => `Réponse validée ${secondes} s après le retour`,
+  echeance: "Temps écoulé : dernière sélection enregistrée",
+} as const;

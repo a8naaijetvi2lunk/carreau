@@ -5,6 +5,8 @@ import {
   formaterDateHeure,
   formaterHeure,
   formaterHeureSecondes,
+  formaterJour,
+  formaterJourCourt,
   saisieHeureDeParis,
 } from "./dates";
 
@@ -30,6 +32,14 @@ describe("formaterHeure", () => {
 describe("formaterHeureSecondes", () => {
   it("affiche l'heure de Paris à la seconde", () => {
     expect(formaterHeureSecondes(new Date("2026-09-29T08:42:13.400Z"))).toBe("10:42:13");
+  });
+});
+
+describe("formaterJour et formaterJourCourt", () => {
+  it("donne le jour de Paris en toutes lettres et en abrégé", () => {
+    const date = new Date("2026-09-28T22:30:00.000Z");
+    expect(formaterJour(date)).toBe("mardi 29 septembre 2026");
+    expect(formaterJourCourt(date)).toBe("29 sept.");
   });
 });
 
