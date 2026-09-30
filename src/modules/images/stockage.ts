@@ -11,7 +11,7 @@ import { env } from "@/lib/env";
 const FORMAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** Dossier absolu des images (créé si absent) : `IMAGES_DIR` peut être relatif en développement. */
-async function dossierImages(): Promise<string> {
+export async function dossierImages(): Promise<string> {
   const dossier = path.resolve(env().IMAGES_DIR);
   await mkdir(dossier, { recursive: true });
   return dossier;
