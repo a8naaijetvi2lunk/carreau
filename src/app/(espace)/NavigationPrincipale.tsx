@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 export type LienNavigation = {
   href: string;
   libelle: string;
-  icone: "accueil" | "qcm" | "classes" | "sessions" | "resultats" | "enseignants" | "parametres";
+  icone: "accueil" | "qcm" | "classes" | "sessions" | "resultats" | "mcp" | "enseignants" | "parametres";
   /** Actif seulement sur son adresse exacte (l'accueil /enseignant ne doit pas l'être sur /enseignant/classes). */
   exact?: boolean;
 };
@@ -69,6 +69,14 @@ const ICONES: Record<LienNavigation["icone"], ReactNode> = {
       <path d="M6.5 17V11" />
       <path d="M12 17V6" />
       <path d="M17.5 17v-8" />
+    </Icone>
+  ),
+  mcp: (
+    <Icone>
+      <path d="M9 2.5v5" />
+      <path d="M15 2.5v5" />
+      <path d="M6 7.5h12v3.5a6 6 0 0 1-12 0z" />
+      <path d="M12 17v4.5" />
     </Icone>
   ),
   enseignants: (
