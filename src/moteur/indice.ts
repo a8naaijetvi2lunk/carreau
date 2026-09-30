@@ -1,7 +1,7 @@
 /**
- * Indice de suspicion (spec §8.3 et §8.4 ; décisions D4 à D6 du plan du lot 6), fonctions pures.
- * Les durées viennent des heures de réception du serveur ; le téléphone ne donne que la nature de ce
- * qu'il observe. L'indice est recalculable à tout moment à partir des événements bruts.
+ * Indice de suspicion (spec §8.3 et §8.4 ; décisions D4 à D6 et D4-bis du plan du lot 6), fonctions
+ * pures. Les durées viennent des heures de réception du serveur ; le téléphone ne donne que la nature
+ * de ce qu'il observe. L'indice est recalculable à tout moment à partir des événements bruts.
  */
 import {
   FENETRE_EXPLICATION_MS,
@@ -60,22 +60,52 @@ function intervalle(ouverture: EvenementBrut, fin: Date): Intervalle | null {
   return { debut: ouverture.recuLe, fin, dureeMs, questionIndex: ouverture.questionIndex };
 }
 
-/** Paires ouverture → fermeture ; une ouverture déjà en cours est ignorée, une ouverture seule se ferme à `fin`. */
+/** Début d'un silence : le dernier contact avant l'absence (D4-bis). */
+function debutSilence(e: EvenementBrut): number {
+  return e.recuLe.getTime() - (e.dureeMs ?? 0);
+}
+
+/**
+ * Retour constaté pendant un intervalle ouvert (D4-bis) : son événement de fermeture ; un événement du
+ * téléphone d'un autre chargement (une page fraîchement chargée est visible, a le focus et est en
+ * ligne) ; pour une sortie de page ou une coupure, la fin d'un silence commencé après l'ouverture (le
+ * téléphone a recontacté le serveur).
+ */
+function retour(ouvert: EvenementBrut, e: EvenementBrut, fermeture: string, parSilence: boolean): boolean {
+  if (e.type === fermeture) return true;
+  const autreChargement =
+    !TYPES_SERVEUR.has(e.type) &&
+    e.chargement !== null &&
+    ouvert.chargement !== null &&
+    e.chargement !== ouvert.chargement;
+  if (autreChargement) return true;
+  return (
+    parSilence && e.type === "silence" && e.dureeMs !== null && debutSilence(e) >= ouvert.recuLe.getTime()
+  );
+}
+
+/**
+ * Paires ouverture → fermeture (D4-bis) : un intervalle ouvert se referme au premier retour constaté
+ * (règle 1) ; l'événement qui ferme peut lui-même ouvrir l'intervalle suivant s'il est du type
+ * d'ouverture. Une ouverture déjà en cours est ignorée ; ce qui reste ouvert se ferme à `fin`.
+ */
 function paires(
   tries: readonly EvenementBrut[],
   ouverture: string,
   fermeture: string,
   fin: Date,
+  parSilence: boolean,
 ): Intervalle[] {
   const resultat: Intervalle[] = [];
   let ouvert: EvenementBrut | null = null;
   for (const e of tries) {
-    if (e.type === ouverture && ouvert === null) {
-      ouvert = e;
-    } else if (e.type === fermeture && ouvert !== null) {
+    if (ouvert !== null && retour(ouvert, e, fermeture, parSilence)) {
       const i = intervalle(ouvert, e.recuLe);
       if (i) resultat.push(i);
       ouvert = null;
+    }
+    if (e.type === ouverture && ouvert === null) {
+      ouvert = e;
     }
   }
   if (ouvert !== null) {
@@ -89,32 +119,74 @@ function ponctuels(tries: readonly EvenementBrut[], garder: (type: string) => bo
   return tries.filter((e) => garder(e.type)).map((e) => ({ le: e.recuLe, questionIndex: e.questionIndex }));
 }
 
-/** Consolidation des événements bruts d'un passage (D4) ; `fin` ferme ce qui reste ouvert. */
+/** Index du premier événement trié dont `recuLe ≥ depuis` (dichotomie, règle 5 de D4-bis). */
+function premierIndex(tries: readonly EvenementBrut[], depuis: number): number {
+  let lo = 0;
+  let hi = tries.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((tries[mid] as EvenementBrut).recuLe.getTime() < depuis) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Événements triés reçus dans `[depuis, jusque]` (bornes incluses), trouvés par dichotomie (règle 5). */
+function fenetre(tries: readonly EvenementBrut[], depuis: number, jusque: number): EvenementBrut[] {
+  const resultat: EvenementBrut[] = [];
+  for (
+    let i = premierIndex(tries, depuis);
+    i < tries.length && (tries[i] as EvenementBrut).recuLe.getTime() <= jusque;
+    i++
+  ) {
+    resultat.push(tries[i] as EvenementBrut);
+  }
+  return resultat;
+}
+
+/** `e` a ouvert l'un de ces intervalles retenus (même heure de début). */
+function ouvre(e: EvenementBrut, intervalles: readonly Intervalle[]): boolean {
+  return intervalles.some((i) => i.debut.getTime() === e.recuLe.getTime());
+}
+
+/** Consolidation des événements bruts d'un passage (D4 et D4-bis) ; `fin` ferme ce qui reste ouvert. */
 export function consolider(evenements: readonly EvenementBrut[], fin: Date): Consolidation {
   const tries = [...evenements].sort(
     (a, b) => a.recuLe.getTime() - b.recuLe.getTime() || (a.sequence ?? 0) - (b.sequence ?? 0),
   );
-  const pages = paires(tries, "masquee", "visible", fin);
+  const pages = paires(tries, "masquee", "visible", fin, true);
+  const coupuresRetenues = paires(tries, "hors_ligne", "en_ligne", fin, true);
   const sorties = [...pages];
-  const coupures = paires(tries, "hors_ligne", "en_ligne", fin);
+  const coupures = [...coupuresRetenues];
   for (const e of tries) {
     if (e.type !== "silence" || e.dureeMs === null) continue;
     const silence: Intervalle = {
-      debut: new Date(e.recuLe.getTime() - e.dureeMs),
+      debut: new Date(debutSilence(e)),
       fin: e.recuLe,
       dureeMs: e.dureeMs,
       questionIndex: e.questionIndex,
     };
-    if (pages.some((p) => chevauche(p, silence))) continue;
-    const limite = silence.fin.getTime() + FENETRE_EXPLICATION_MS;
-    const explications = tries.filter(
-      (x) => x.recuLe.getTime() >= silence.debut.getTime() && x.recuLe.getTime() <= limite,
+    if (pages.some((p) => chevauche(p, silence)) || coupuresRetenues.some((c) => chevauche(c, silence))) {
+      continue;
+    }
+    const explications = fenetre(
+      tries,
+      silence.debut.getTime(),
+      silence.fin.getTime() + FENETRE_EXPLICATION_MS,
     );
-    if (explications.some((x) => x.type === "masquee")) sorties.push(silence);
-    else if (explications.some((x) => x.type === "hors_ligne")) coupures.push(silence);
+    // Règle 3 (D4-bis) : reçue à la fin du silence ou après et ouvrant un intervalle retenu, une
+    // masquée (resp. un hors-ligne) appartient à une nouvelle absence, elle n'explique plus ce silence.
+    const nouvelleAbsence = (x: EvenementBrut, intervalles: readonly Intervalle[]) =>
+      x.recuLe.getTime() >= silence.fin.getTime() && ouvre(x, intervalles);
+    const masqueeValide = explications.some((x) => x.type === "masquee" && !nouvelleAbsence(x, pages));
+    const horsLigneValide = explications.some(
+      (x) => x.type === "hors_ligne" && !nouvelleAbsence(x, coupuresRetenues),
+    );
+    if (masqueeValide) sorties.push(silence);
+    else if (horsLigneValide) coupures.push(silence);
     else sorties.push(silence);
   }
-  const focus = paires(tries, "focus_perdu", "focus_revenu", fin).filter(
+  const focus = paires(tries, "focus_perdu", "focus_revenu", fin, false).filter(
     (f) => !sorties.some((s) => chevauche(s, f)),
   );
   const chargements = new Set<string>();
@@ -139,7 +211,7 @@ function pointsSortie(sortie: Intervalle, p: Ponderation): number {
   return Math.min(p.sortieMax, Math.max(p.sortieMin, Math.round(sortie.dureeMs / 1000)));
 }
 
-/** Indice et détail (D5) ; `validations` : heures des réponses validées par l'étudiant. */
+/** Indice et détail (D5 et D4-bis) ; `validations` : heures des réponses validées par l'étudiant. */
 export function calculerIndice(
   c: Consolidation,
   validations: readonly Date[],
@@ -149,8 +221,9 @@ export function calculerIndice(
   const rapides = c.sorties.filter(
     (s) =>
       s.dureeMs >= p.reponseRapideSortieMinMs &&
+      // Règle 4 (D4-bis) : la validation compte dès l'instant du retour (`[fin, fin + délai]`).
       validations.some(
-        (v) => v.getTime() > s.fin.getTime() && v.getTime() <= s.fin.getTime() + p.reponseRapideDelaiMs,
+        (v) => v.getTime() >= s.fin.getTime() && v.getTime() <= s.fin.getTime() + p.reponseRapideDelaiMs,
       ),
   );
   const lignes: Record<Signal, LigneIndice> = {

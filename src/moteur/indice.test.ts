@@ -191,7 +191,10 @@ describe("indice v1 (décision D5)", () => {
 
   it("ajoute 12 points pour une réponse validée moins de 10 s après une sortie d'au moins 5 s", () => {
     const sortie = [e("masquee", 2), e("visible", 10)];
-    expect(indice(sortie, [a(10)]).valeur).toBe(8);
+    // D4-bis, règle 4 : la validation compte dès l'instant du retour (avant : strictement après), donc
+    // une validation à l'instant même de la sortie compte désormais la réponse rapide (8 + 12 = 20,
+    // au lieu de 8 avant le correctif).
+    expect(indice(sortie, [a(10)]).valeur).toBe(20);
     expect(indice(sortie, [a(15)]).detail).toEqual([
       { signal: "sortie", nombre: 1, points: 8 },
       { signal: "reponse_rapide", nombre: 1, points: 12 },
@@ -267,5 +270,131 @@ describe("faits notables", () => {
   it("inclut les rechargements", () => {
     const c = consolider([e("debut", 0), e("debut", 50, { chargement: "c2" })], FIN);
     expect(faitsNotables(c)).toEqual([{ type: "rechargement", le: a(50), dureeMs: null, questionIndex: 2 }]);
+  });
+});
+
+describe("correctif D4-bis (retour constaté, silences déjà comptés, réponse rapide)", () => {
+  const FIN_1200 = new Date(T + 1_200_000);
+
+  it("un rechargement referme une sortie restée ouverte", () => {
+    const c = consolider(
+      [
+        e("debut", 0, { sequence: 1 }),
+        e("masquee", 100, { sequence: 2 }),
+        e("debut", 105, { chargement: "c2", sequence: 1 }),
+      ],
+      FIN_1200,
+    );
+    expect(c.sorties).toEqual([{ debut: a(100), fin: a(105), dureeMs: 5_000, questionIndex: 2 }]);
+    const resultat = calculerIndice(c, []);
+    expect(resultat.valeur).toBe(5);
+    expect(resultat.detail).toEqual([
+      { signal: "sortie", nombre: 1, points: 5 },
+      { signal: "rechargement", nombre: 1, points: 0 },
+    ]);
+  });
+
+  it("un rechargement referme une perte de focus restée ouverte", () => {
+    const c = consolider(
+      [
+        e("debut", 0, { sequence: 1 }),
+        e("focus_perdu", 10, { sequence: 2 }),
+        e("debut", 13, { chargement: "c2", sequence: 1 }),
+      ],
+      FIN_1200,
+    );
+    expect(c.focus).toEqual([{ debut: a(10), fin: a(13), dureeMs: 3_000, questionIndex: 2 }]);
+    expect(calculerIndice(c, []).valeur).toBe(6);
+  });
+
+  it("un silence referme une sortie restée ouverte, sans absorber les silences suivants", () => {
+    const c = consolider(
+      [
+        e("masquee", 5, { sequence: 1 }),
+        e("silence", 100, { dureeMs: 40_000 }),
+        e("silence", 200, { dureeMs: 40_000 }),
+        e("silence", 300, { dureeMs: 40_000 }),
+      ],
+      FIN,
+    );
+    expect(c.sorties.map((s) => s.dureeMs)).toEqual([95_000, 40_000, 40_000]);
+    const resultat = calculerIndice(c, []);
+    expect(resultat.valeur).toBe(100);
+    expect(resultat.detail).toEqual([{ signal: "sortie", nombre: 3, points: 125 }]);
+  });
+
+  it("une coupure restée ouverte n'absorbe pas les silences suivants", () => {
+    const c = consolider(
+      [
+        e("hors_ligne", 5, { sequence: 1 }),
+        e("silence", 100, { dureeMs: 40_000 }),
+        e("silence", 200, { dureeMs: 40_000 }),
+      ],
+      FIN,
+    );
+    expect(c.coupures).toEqual([{ debut: a(5), fin: a(100), dureeMs: 95_000, questionIndex: 2 }]);
+    expect(c.sorties.map((s) => s.dureeMs)).toEqual([40_000]);
+    expect(calculerIndice(c, []).valeur).toBe(40);
+  });
+
+  it("pas de double coupure quand un silence commence à l'ouverture de la coupure", () => {
+    const c = consolider(
+      [
+        e("hors_ligne", 0, { sequence: 1 }),
+        e("silence", 30, { dureeMs: 30_000 }),
+        e("en_ligne", 30, { sequence: 2 }),
+      ],
+      FIN,
+    );
+    expect(c.coupures).toEqual([{ debut: a(0), fin: a(30), dureeMs: 30_000, questionIndex: 2 }]);
+    expect(calculerIndice(c, []).valeur).toBe(0);
+  });
+
+  it("une coupure n'est pas reclassée par une sortie ultérieure", () => {
+    const c = consolider(
+      [
+        e("silence", 30, { dureeMs: 30_000 }),
+        e("hors_ligne", 30, { sequence: 1 }),
+        e("en_ligne", 30, { sequence: 2 }),
+        e("masquee", 35, { sequence: 3 }),
+        e("visible", 45, { sequence: 4 }),
+      ],
+      FIN,
+    );
+    expect(c.coupures).toHaveLength(1);
+    expect(c.sorties.map((s) => s.dureeMs)).toEqual([10_000]);
+    expect(calculerIndice(c, []).valeur).toBe(10);
+  });
+
+  it("compte la réponse rapide quand le retour est la validation elle-même", () => {
+    const c = consolider(
+      [
+        e("silence", 40, { dureeMs: 40_000 }),
+        e("masquee", 40, { sequence: 1 }),
+        e("visible", 40, { sequence: 2 }),
+      ],
+      FIN,
+    );
+    expect(calculerIndice(c, [a(40)]).valeur).toBe(52);
+  });
+
+  it("les cinq scénarios de D6 restent inchangés, événements fournis dans l'ordre inverse", () => {
+    expect(indice([e("visible", 10), e("masquee", 2)]).valeur).toBe(8);
+    expect(
+      indice([
+        e("visible", 40, { sequence: 2 }),
+        e("masquee", 40, { sequence: 1 }),
+        e("silence", 40, { dureeMs: 40_000 }),
+      ]).valeur,
+    ).toBe(40);
+    expect(
+      indice([
+        e("en_ligne", 30, { sequence: 2 }),
+        e("hors_ligne", 30, { sequence: 1 }),
+        e("silence", 30, { dureeMs: 30_000 }),
+      ]).valeur,
+    ).toBe(0);
+    expect(indice([e("silence", 60, { dureeMs: 60_000 })]).valeur).toBe(45);
+    expect(indice([e("focus_revenu", 4), e("focus_perdu", 1)]).valeur).toBe(6);
   });
 });
