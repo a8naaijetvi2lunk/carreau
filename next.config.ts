@@ -115,6 +115,15 @@ const nextConfig: NextConfig = {
             : []),
         ],
       },
+      {
+        // Service worker (décision D4 du plan du lot 9) : jamais mis en cache, CSP propre au script.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
     ];
   },
 };

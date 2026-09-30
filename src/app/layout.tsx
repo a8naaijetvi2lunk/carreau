@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
+import { EnregistrementServiceWorker } from "./EnregistrementServiceWorker";
 
 // Polices téléchargées au build et servies par l'application : aucune requête
 // vers Google à l'exécution (CSP font-src 'self').
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
   title: { default: "Carreau", template: "%s · Carreau" },
   description: "Des QCM sur téléphone, en classe, pour des examens équitables.",
   robots: { index: false, follow: false },
+  appleWebApp: { capable: true, title: "Carreau", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -33,7 +35,10 @@ export default async function RacineLayout({ children }: Readonly<{ children: Re
 
   return (
     <html lang="fr" className={`${policeTitre.variable} ${policeTexte.variable} ${policeCode.variable}`}>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        {children}
+        <EnregistrementServiceWorker />
+      </body>
     </html>
   );
 }

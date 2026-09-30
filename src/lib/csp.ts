@@ -11,7 +11,9 @@ export type OptionsCsp = {
 /**
  * CSP à nonce (guide officiel Next 16). `style-src-attr 'unsafe-inline'` : les attributs
  * `style="…"` rendus côté serveur ne peuvent pas porter de nonce ; les balises <style>
- * et <script> restent sous nonce.
+ * et <script> restent sous nonce. `worker-src 'self' blob:` : le service worker `/sw.js`
+ * et le worker de lecture de `qr-scanner`, créé depuis un `blob:` (lot 9) ; sans cette
+ * directive, les workers relèveraient de `script-src`, où `'strict-dynamic'` ignore `'self'`.
  */
 export function construireCsp({ nonce, developpement, https }: OptionsCsp): string {
   return [
@@ -22,6 +24,7 @@ export function construireCsp({ nonce, developpement, https }: OptionsCsp): stri
     "img-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
+    "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

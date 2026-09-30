@@ -22,10 +22,11 @@ export function proxy(requete: NextRequest) {
   return reponse;
 }
 
+// sw.js : ses en-têtes (dont sa CSP) viennent de next.config.ts ; une seconde CSP s'y ajouterait.
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|robots.txt).*)",
+      source: "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sw.js).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

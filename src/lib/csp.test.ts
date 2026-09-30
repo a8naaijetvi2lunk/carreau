@@ -26,6 +26,10 @@ describe("construireCsp", () => {
     expect(construireCsp(base)).toContain("upgrade-insecure-requests");
     expect(construireCsp({ ...base, https: false })).not.toContain("upgrade-insecure-requests");
   });
+
+  it("autorise le service worker et le worker du scanner de QR code (décisions D1 et D4 du plan du lot 9)", () => {
+    expect(construireCsp(base)).toContain("worker-src 'self' blob:");
+  });
 });
 
 describe("requeteEnHttps", () => {
