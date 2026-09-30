@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigserial,
   boolean,
   check,
@@ -9,6 +10,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -20,6 +22,7 @@ import {
   STATUTS_DEMANDE,
   STATUTS_PARTICIPATION,
   STATUTS_SESSION,
+  TYPES_SESSION,
 } from "../../lib/regles-session";
 import type { ContenuSession, OrdrePassage } from "../../lib/instantane";
 import { ORIGINES_REPONSE } from "../../lib/regles-examen";
@@ -29,6 +32,7 @@ import { utilisateur } from "./comptes";
 import { qcm } from "./qcm";
 
 export const enumStatutSession = pgEnum("statut_session", STATUTS_SESSION);
+export const enumTypeSession = pgEnum("type_session", TYPES_SESSION);
 export const enumStatutParticipation = pgEnum("statut_participation", STATUTS_PARTICIPATION);
 export const enumMotifDemande = pgEnum("motif_demande", MOTIFS_DEMANDE);
 export const enumStatutDemande = pgEnum("statut_demande", STATUTS_DEMANDE);
@@ -36,8 +40,8 @@ export const enumOrigineReponse = pgEnum("origine_reponse", ORIGINES_REPONSE);
 
 /**
  * Sessions d'examen (spec §4.3) : un QCM prêt × une classe, du même compte (décision D1 du plan du
- * lot 4). L'instantané et la fin prévue sont écrits au démarrage (lot 5) ; le rattrapage arrive au
- * lot 7.
+ * lot 4). L'instantané et la fin prévue sont écrits au démarrage (lot 5). Un rattrapage (lot 7) désigne
+ * sa session d'origine ; son instantané est copié de celle-ci dès sa création.
  */
 export const sessionExamen = pgTable(
   "session_examen",
@@ -53,6 +57,9 @@ export const sessionExamen = pgTable(
       .notNull()
       .references(() => utilisateur.id, { onDelete: "restrict" }),
     statut: enumStatutSession().notNull().default("attente"),
+    type: enumTypeSession().notNull().default("classe"),
+    // Rattrapage : session d'origine, jamais supprimée tant qu'un rattrapage la cite (D1 du plan du lot 7).
+    sessionOrigineId: uuid().references((): AnyPgColumn => sessionExamen.id, { onDelete: "restrict" }),
     // Secret du code tournant (spec §6.1) : 32 octets en base64url, jamais envoyé au navigateur.
     codeSecret: text().notNull(),
     creneauPrevuLe: timestamp({ withTimezone: true }),
@@ -68,6 +75,31 @@ export const sessionExamen = pgTable(
   (t) => [
     index("session_examen_enseignant_idx").on(t.enseignantId),
     index("session_examen_statut_idx").on(t.statut),
+    index("session_examen_origine_idx").on(t.sessionOrigineId),
+    check(
+      "session_examen_origine_rattrapage",
+      sql`(${t.type} = 'rattrapage') = (${t.sessionOrigineId} is not null)`,
+    ),
+  ],
+);
+
+/**
+ * Étudiants autorisés à un rattrapage (spec §4.3, décision D1 du plan du lot 7). Retirer un étudiant
+ * de sa classe retire ses autorisations ; supprimer la session aussi.
+ */
+export const sessionAutorisation = pgTable(
+  "session_autorisation",
+  {
+    sessionId: uuid()
+      .notNull()
+      .references(() => sessionExamen.id, { onDelete: "cascade" }),
+    etudiantId: uuid()
+      .notNull()
+      .references(() => etudiant.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.etudiantId] }),
+    index("session_autorisation_etudiant_idx").on(t.etudiantId),
   ],
 );
 

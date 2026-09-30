@@ -61,7 +61,8 @@ const nextConfig: NextConfig = {
   // Leur présence réelle est vérifiée au démarrage (src/instrumentation.ts).
   // read-excel-file exécute son analyse XML par des fonctions sérialisées (worker-f) :
   // bundlées et renommées par Turbopack, elles casseraient à l'exécution.
-  serverExternalPackages: ["pg", "@node-rs/argon2", "read-excel-file"],
+  // write-excel-file (exports des résultats, lot 7) suit le même chemin que read-excel-file.
+  serverExternalPackages: ["pg", "@node-rs/argon2", "read-excel-file", "write-excel-file"],
   outputFileTracingIncludes: {
     // scripts/migrer.mjs tourne dans le conteneur avant server.js : il a besoin
     // du migrator Drizzle, que le traçage de Next ne copie pas de lui-même.
@@ -78,6 +79,7 @@ const nextConfig: NextConfig = {
       "node_modules/@node-rs/argon2/**",
       "node_modules/@node-rs/argon2-*/**",
       "node_modules/read-excel-file/**",
+      "node_modules/write-excel-file/**",
       "node_modules/worker-f/**",
       "node_modules/unzipper-esm/**",
       "node_modules/saxen/**",

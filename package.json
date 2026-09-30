@@ -42,6 +42,7 @@
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
     "shiki": "^4.4.3",
+    "write-excel-file": "^4.1.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -63,7 +64,6 @@
     "prettier": "^3.9.9",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^5.0.2",
-    "write-excel-file": "^4.1.1"
+    "vitest": "^5.0.2"
   }
 }

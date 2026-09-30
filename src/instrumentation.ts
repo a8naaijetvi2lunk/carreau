@@ -9,6 +9,7 @@ const PAQUETS_CRITIQUES = [
   "pg",
   "@node-rs/argon2",
   "read-excel-file/node",
+  "write-excel-file/node",
   "sharp",
   "shiki/core",
   "shiki/engine/javascript",

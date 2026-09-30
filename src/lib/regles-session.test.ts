@@ -8,6 +8,7 @@ import {
   nomComplet,
   nomCourt,
   STATUTS_SESSION,
+  TYPES_SESSION,
 } from "./regles-session";
 
 describe("dureeAvecTiersTempsS", () => {
@@ -43,5 +44,12 @@ describe("libellés et bornes", () => {
   it("démarre 5 s après le clic et fait expirer une demande au bout de 10 min", () => {
     expect(LIMITES_SESSION.delaiDemarrageMs).toBe(5_000);
     expect(LIMITES_SESSION.dureeDemandeMs).toBe(600_000);
+  });
+});
+
+describe("rattrapages", () => {
+  it("distingue les sessions de classe et de rattrapage (spec §4.3)", () => {
+    expect(TYPES_SESSION).toEqual(["classe", "rattrapage"]);
+    expect(LIMITES_SESSION.rattrapageMax).toBe(500);
   });
 });

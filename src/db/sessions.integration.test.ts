@@ -9,6 +9,7 @@ import {
   participation,
   qcm,
   reponse,
+  sessionAutorisation,
   sessionExamen,
   utilisateur,
 } from "@/db/schema";
@@ -299,5 +300,57 @@ describe("tables des sessions", () => {
     const { s, lea } = await sessionEtEtudiants();
     const p = await nouvelleParticipation(s.id, lea.id);
     expect(p).toMatchObject({ indice: null, indiceVersion: null, indiceDetail: null });
+  });
+
+  it("n'accepte une session d'origine que pour un rattrapage", async () => {
+    const { s } = await sessionEtEtudiants();
+    const rattrapage = {
+      qcmId: s.qcmId,
+      classeId: s.classeId,
+      enseignantId: s.enseignantId,
+      codeSecret: "secret",
+      noteVisible: true,
+      correctionVisible: false,
+      creeLe: INSTANT,
+    };
+    expect(s.type).toBe("classe");
+    expect(s.sessionOrigineId).toBeNull();
+    expect(
+      await codeSql(() =>
+        db()
+          .insert(sessionExamen)
+          .values({ ...rattrapage, type: "rattrapage" }),
+      ),
+    ).toBe("23514");
+    expect(
+      await codeSql(() =>
+        db()
+          .insert(sessionExamen)
+          .values({ ...rattrapage, sessionOrigineId: s.id }),
+      ),
+    ).toBe("23514");
+    expect(
+      await codeSql(() =>
+        db()
+          .insert(sessionExamen)
+          .values({ ...rattrapage, type: "rattrapage", sessionOrigineId: s.id }),
+      ),
+    ).toBeUndefined();
+    expect(await codeSql(() => db().delete(sessionExamen).where(eq(sessionExamen.id, s.id)))).toBe("23503");
+  });
+
+  it("autorise un étudiant une seule fois par rattrapage, et l'oublie quand il quitte sa classe", async () => {
+    const { s, lea, hugo } = await sessionEtEtudiants();
+    await db().insert(sessionAutorisation).values({ sessionId: s.id, etudiantId: lea.id });
+    expect(
+      await codeSql(() => db().insert(sessionAutorisation).values({ sessionId: s.id, etudiantId: lea.id })),
+    ).toBe("23505");
+    await db().insert(sessionAutorisation).values({ sessionId: s.id, etudiantId: hugo.id });
+    await db().delete(etudiant).where(eq(etudiant.id, lea.id));
+    const restantes = await db()
+      .select({ etudiantId: sessionAutorisation.etudiantId })
+      .from(sessionAutorisation)
+      .where(eq(sessionAutorisation.sessionId, s.id));
+    expect(restantes).toEqual([{ etudiantId: hugo.id }]);
   });
 });

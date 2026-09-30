@@ -111,8 +111,8 @@ src/
     admin/               enseignants, paramètres
     projection/          écran projeté d'une session, plein écran (amendement A2 du plan du lot 4)
     api/
-      etudiant/          rejoindre, recherche, reclamer, information, etat, selection, reponse, evenements
-      enseignant/        sessions/[id]/suivi, sessions/[id]/projection
+      etudiant/          rejoindre, recherche, reclamer, information, etat, selection, reponse, evenements, correction
+      enseignant/        sessions/[id]/suivi, sessions/[id]/projection, resultats/[id]/csv, resultats/[id]/xlsx (amendement A2 du plan du lot 7)
       images/[id]/       service contrôlé des images
       mcp/               serveur MCP
       cron/purges/       purges RGPD
@@ -332,7 +332,7 @@ Côté étudiant, aucun indice n'est affiché. Au retour d'une sortie, un bandea
 - **QCM** : éditeur conforme aux maquettes. Images : téléversement, contrôle du type réel (PNG, JPEG, WebP, GIF non animé), ré-encodage WebP de 1 600 px au plus, métadonnées supprimées, 5 Mo maximum à l'entrée. Aperçu étudiant.
 - **Sessions** : création (QCM prêt, classe, créneau facultatif, visibilité de la note et de la correction reprises du QCM et modifiables), liste des sessions, écran projeté, tableau de bord, rattrapage depuis un absent des résultats.
 - **Résultats** : tableau (participations de la session et de ses rattrapages, ces dernières marquées « Rattrapage »), exports CSV (UTF-8 avec BOM, séparateur `;` pour Excel en français) et XLSX (une feuille de synthèse, une feuille par question), rapport étudiant.
-- **Correction côté étudiant** : si `correction_visible`, l'étudiant la consulte sur son téléphone après la fin de la session, avec le même appareil.
+- **Correction côté étudiant** : si `correction_visible`, l'étudiant la consulte sur son téléphone avec le même appareil, une fois terminées sa session, la session d'origine et tous les rattrapages de celle-ci (amendement A1 du plan du lot 7 : un étudiant du rattrapage ne doit pas obtenir les réponses d'un camarade).
 
 ### 9.2 Administration
 

@@ -7,6 +7,10 @@
 export const STATUTS_SESSION = ["attente", "en_cours", "terminee", "annulee"] as const;
 export type StatutSession = (typeof STATUTS_SESSION)[number];
 
+/** Session de classe, ou rattrapage d'une session terminée (spec §4.3, décision D1 du plan du lot 7). */
+export const TYPES_SESSION = ["classe", "rattrapage"] as const;
+export type TypeSession = (typeof TYPES_SESSION)[number];
+
 export const STATUTS_PARTICIPATION = ["attente", "en_cours", "terminee"] as const;
 export type StatutParticipation = (typeof STATUTS_PARTICIPATION)[number];
 
@@ -46,6 +50,8 @@ export const LIMITES_SESSION = {
   /** Créneau prévu : au plus 24 h dans le passé, au plus 365 jours à l'avance. */
   creneauPasseMaxMs: 24 * 3_600_000,
   creneauFuturMaxMs: 365 * 24 * 3_600_000,
+  /** Étudiants choisis pour un rattrapage (une classe compte 500 étudiants au plus, lot 2). */
+  rattrapageMax: 500,
 } as const;
 
 /** Tiers-temps (spec §6.5) : durée × 4/3, arrondie à la seconde supérieure. */
