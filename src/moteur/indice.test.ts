@@ -378,6 +378,43 @@ describe("correctif D4-bis (retour constaté, silences déjà comptés, réponse
     expect(calculerIndice(c, [a(40)]).valeur).toBe(52);
   });
 
+  it("deux coupures dans un même lot ne reclassent pas la première en sortie (règle 3)", () => {
+    const c = consolider(
+      [
+        e("silence", 30, { dureeMs: 30_000 }),
+        e("hors_ligne", 30, { sequence: 1 }),
+        e("en_ligne", 30, { sequence: 2 }),
+        e("hors_ligne", 30, { sequence: 3 }),
+        e("en_ligne", 60, { sequence: 4 }),
+      ],
+      FIN,
+    );
+    expect(c.sorties).toEqual([]);
+    expect(c.coupures).toEqual([
+      { debut: a(0), fin: a(30), dureeMs: 30_000, questionIndex: 2 },
+      { debut: a(30), fin: a(60), dureeMs: 30_000, questionIndex: 2 },
+    ]);
+    expect(calculerIndice(c, []).valeur).toBe(0);
+  });
+
+  it("deux sorties dans un même lot (règle 3)", () => {
+    const c = consolider(
+      [
+        e("silence", 30, { dureeMs: 30_000 }),
+        e("masquee", 30, { sequence: 1 }),
+        e("visible", 30, { sequence: 2 }),
+        e("masquee", 30, { sequence: 3 }),
+        e("visible", 42, { sequence: 4 }),
+      ],
+      FIN,
+    );
+    expect(c.sorties).toEqual([
+      { debut: a(0), fin: a(30), dureeMs: 30_000, questionIndex: 2 },
+      { debut: a(30), fin: a(42), dureeMs: 12_000, questionIndex: 2 },
+    ]);
+    expect(calculerIndice(c, []).valeur).toBe(42);
+  });
+
   it("les cinq scénarios de D6 restent inchangés, événements fournis dans l'ordre inverse", () => {
     expect(indice([e("visible", 10), e("masquee", 2)]).valeur).toBe(8);
     expect(

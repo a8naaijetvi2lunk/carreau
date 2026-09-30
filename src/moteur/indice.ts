@@ -84,10 +84,15 @@ function retour(ouvert: EvenementBrut, e: EvenementBrut, fermeture: string, parS
   );
 }
 
+/** Intervalles retenus par `paires`, et les événements d'ouverture qui les ont produits. */
+type Paires = { intervalles: Intervalle[]; ouvertures: Set<EvenementBrut> };
+
 /**
  * Paires ouverture → fermeture (D4-bis) : un intervalle ouvert se referme au premier retour constaté
  * (règle 1) ; l'événement qui ferme peut lui-même ouvrir l'intervalle suivant s'il est du type
- * d'ouverture. Une ouverture déjà en cours est ignorée ; ce qui reste ouvert se ferme à `fin`.
+ * d'ouverture. Une ouverture déjà en cours est ignorée ; ce qui reste ouvert se ferme à `fin`. Renvoie
+ * aussi l'ensemble des événements d'ouverture qui ont produit un intervalle retenu (identité d'objet :
+ * les mêmes objets que dans `tries`), pour la règle 3.
  */
 function paires(
   tries: readonly EvenementBrut[],
@@ -95,13 +100,17 @@ function paires(
   fermeture: string,
   fin: Date,
   parSilence: boolean,
-): Intervalle[] {
-  const resultat: Intervalle[] = [];
+): Paires {
+  const intervalles: Intervalle[] = [];
+  const ouvertures = new Set<EvenementBrut>();
   let ouvert: EvenementBrut | null = null;
   for (const e of tries) {
     if (ouvert !== null && retour(ouvert, e, fermeture, parSilence)) {
       const i = intervalle(ouvert, e.recuLe);
-      if (i) resultat.push(i);
+      if (i) {
+        intervalles.push(i);
+        ouvertures.add(ouvert);
+      }
       ouvert = null;
     }
     if (e.type === ouverture && ouvert === null) {
@@ -110,9 +119,12 @@ function paires(
   }
   if (ouvert !== null) {
     const i = intervalle(ouvert, fin);
-    if (i) resultat.push(i);
+    if (i) {
+      intervalles.push(i);
+      ouvertures.add(ouvert);
+    }
   }
-  return resultat;
+  return { intervalles, ouvertures };
 }
 
 function ponctuels(tries: readonly EvenementBrut[], garder: (type: string) => boolean): Ponctuel[] {
@@ -144,18 +156,25 @@ function fenetre(tries: readonly EvenementBrut[], depuis: number, jusque: number
   return resultat;
 }
 
-/** `e` a ouvert l'un de ces intervalles retenus (même heure de début). */
-function ouvre(e: EvenementBrut, intervalles: readonly Intervalle[]): boolean {
-  return intervalles.some((i) => i.debut.getTime() === e.recuLe.getTime());
-}
-
 /** Consolidation des événements bruts d'un passage (D4 et D4-bis) ; `fin` ferme ce qui reste ouvert. */
 export function consolider(evenements: readonly EvenementBrut[], fin: Date): Consolidation {
   const tries = [...evenements].sort(
     (a, b) => a.recuLe.getTime() - b.recuLe.getTime() || (a.sequence ?? 0) - (b.sequence ?? 0),
   );
-  const pages = paires(tries, "masquee", "visible", fin, true);
-  const coupuresRetenues = paires(tries, "hors_ligne", "en_ligne", fin, true);
+  const { intervalles: pages, ouvertures: ouverturesSorties } = paires(
+    tries,
+    "masquee",
+    "visible",
+    fin,
+    true,
+  );
+  const { intervalles: coupuresRetenues, ouvertures: ouverturesCoupures } = paires(
+    tries,
+    "hors_ligne",
+    "en_ligne",
+    fin,
+    true,
+  );
   const sorties = [...pages];
   const coupures = [...coupuresRetenues];
   for (const e of tries) {
@@ -174,19 +193,23 @@ export function consolider(evenements: readonly EvenementBrut[], fin: Date): Con
       silence.debut.getTime(),
       silence.fin.getTime() + FENETRE_EXPLICATION_MS,
     );
-    // Règle 3 (D4-bis) : reçue à la fin du silence ou après et ouvrant un intervalle retenu, une
-    // masquée (resp. un hors-ligne) appartient à une nouvelle absence, elle n'explique plus ce silence.
-    const nouvelleAbsence = (x: EvenementBrut, intervalles: readonly Intervalle[]) =>
-      x.recuLe.getTime() >= silence.fin.getTime() && ouvre(x, intervalles);
-    const masqueeValide = explications.some((x) => x.type === "masquee" && !nouvelleAbsence(x, pages));
+    // Règle 3 (D4-bis) : cet événement précis (identité d'objet, pas une comparaison d'heures : des
+    // événements d'un même lot partagent la même heure de réception), reçu à la fin du silence ou après
+    // et qui a ouvert un intervalle retenu, appartient à une nouvelle absence — il n'explique plus ce
+    // silence.
+    const nouvelleAbsence = (x: EvenementBrut, ouvertures: ReadonlySet<EvenementBrut>) =>
+      x.recuLe.getTime() >= silence.fin.getTime() && ouvertures.has(x);
+    const masqueeValide = explications.some(
+      (x) => x.type === "masquee" && !nouvelleAbsence(x, ouverturesSorties),
+    );
     const horsLigneValide = explications.some(
-      (x) => x.type === "hors_ligne" && !nouvelleAbsence(x, coupuresRetenues),
+      (x) => x.type === "hors_ligne" && !nouvelleAbsence(x, ouverturesCoupures),
     );
     if (masqueeValide) sorties.push(silence);
     else if (horsLigneValide) coupures.push(silence);
     else sorties.push(silence);
   }
-  const focus = paires(tries, "focus_perdu", "focus_revenu", fin, false).filter(
+  const focus = paires(tries, "focus_perdu", "focus_revenu", fin, false).intervalles.filter(
     (f) => !sorties.some((s) => chevauche(s, f)),
   );
   const chargements = new Set<string>();
