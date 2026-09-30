@@ -350,7 +350,11 @@ test("captures du README", async ({ page, browser }) => {
   await expect(alertesDirect).toContainText("Copier-coller", { timeout: 15_000 });
   await capturerHautDePage(page, "tableau-de-bord");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.evaluate(() => window.scrollTo(0, 0));
+  // Sur téléphone, le menu occupe le haut de la page : la capture part du bandeau « Temps restant ».
+  await page.getByRole("timer", { name: "Temps restant" }).evaluate((minuteur) => {
+    const bandeau = minuteur.closest("div") ?? minuteur;
+    window.scrollTo(0, bandeau.getBoundingClientRect().top + window.scrollY - 16);
+  });
   await sansDefilementHorizontal(page);
   await page.screenshot({ path: capture("tableau-de-bord-telephone") });
   await page.setViewportSize({ width: 1440, height: 900 });
