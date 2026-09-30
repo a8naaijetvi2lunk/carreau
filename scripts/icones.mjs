@@ -54,8 +54,14 @@ async function couleurDeFond() {
   return { r: data[0], g: data[1], b: data[2] };
 }
 
+/** Déclinaison carrée, en RGBA : Turbopack refuse un ICO dont les PNG n'ont pas de canal alpha. */
 async function png(taille) {
-  return sharp(SOURCE).extract(ZONE_UTILE).resize(taille, taille).png({ compressionLevel: 9 }).toBuffer();
+  return sharp(SOURCE)
+    .extract(ZONE_UTILE)
+    .resize(taille, taille)
+    .ensureAlpha()
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 /** Icône adaptative d'Android : l'icône réduite à 80 %, centrée sur son fond (zone sûre). */
