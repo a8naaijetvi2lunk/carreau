@@ -154,6 +154,7 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Serveur** (`src/modules/mcp/serveur.ts`, route `POST /api/mcp`) : `verifierJetonMcp` avant `withMcpAuth` (401 sans lien OAuth), limiteur `mcp:jeton:<id>` (60 requêtes par minute, chaque requête HTTP compte), corps borné à 512 Kio (413), `createMcpHandler` sans état (`maxSubscriptions: 0`), réponses `no-store, no-transform`.
 - **Outils** (`src/modules/mcp/outils.ts`) : `classes_lister`, `qcm_lister`, `qcm_lire`, `qcm_creer`, `question_ajouter`, `question_modifier`, `question_supprimer`, `questions_lier`, `questions_delier`. Portée vérifiée avant les arguments ; schéma strict publié au SDK, validation faite par Carreau (`src/lib/schema-mcp.ts`) ; journal `mcp.<outil>` au nom du jeton, sans arguments ; aucune image.
 - **Identité transmise au SDK** (`src/lib/identite-mcp.ts`) : `token` = identifiant du jeton, jamais le jeton ; l'acteur est relu et revalidé à chaque appel d'outil.
+- **Révocation** (amendement A1) : désactivation, réinitialisation du mot de passe et de la double authentification (service et script) révoquent les jetons MCP du compte (`src/modules/comptes/jetons-mcp.ts`).
 - **À retenir pour le lot 10** : `proxy_buffering off` sur `/api/mcp` dans Nginx Proxy Manager (spec §2) : les réponses du serveur MCP sont des flux.
 
 ## Ports locaux

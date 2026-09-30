@@ -15,6 +15,7 @@ import {
   reinitialiserDoubleAuth,
 } from "@/modules/comptes";
 import { acteurDe, creerUtilisateur, MOT_DE_PASSE_TEST, ouvrirSessionComplete } from "@/test/comptes";
+import { creerJetonMcpTest } from "@/test/mcp";
 
 const DEBUT = Date.parse("2026-09-29T08:00:00.000Z");
 
@@ -244,5 +245,16 @@ describe("au moins un super-admin actif", () => {
     await expect(desactiverCompte(b, { utilisateurId: cible.id })).rejects.toMatchObject({
       code: "ACCES_REFUSE",
     });
+  });
+});
+
+describe("jetons MCP à la réinitialisation de la double authentification (amendement A1 du plan du lot 8)", () => {
+  it("révoque les jetons MCP actifs du compte", async () => {
+    const admin = await acteur("admin");
+    const cible = await compte("enseignant");
+    const j = await creerJetonMcpTest(cible.id);
+    await reinitialiserDoubleAuth(admin, { utilisateurId: cible.id });
+    const [ligne] = await db().select().from(jetonMcp).where(eq(jetonMcp.id, j.id));
+    expect(ligne?.revoqueLe?.getTime()).toBe(DEBUT);
   });
 });

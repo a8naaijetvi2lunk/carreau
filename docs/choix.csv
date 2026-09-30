@@ -126,3 +126,4 @@ date,catégorie,choix,pourquoi
 2026-09-30,sécurité,"Limiteur MCP compté par requête HTTP, après l'authentification","Un anonyme ne consomme rien ; le serveur est protégé quel que soit le contenu de la requête"
 2026-09-30,interface,"question_modifier refuse une question illustrée","Les images restent l'affaire de l'éditeur ; les conserver en réécrivant les réponses serait fragile"
 2026-09-30,technique,"Route /api/mcp en POST seulement","Serveur sans état : GET (flux) et DELETE (fin de session) n'ont pas d'usage ; Next répond 405"
+2026-09-30,sécurité,"Toute réinitialisation révoque les jetons MCP (amendement A1)","Un jeton créé par quelqu'un qui aurait pris la main sur le compte ne doit pas survivre à la reprise du compte"

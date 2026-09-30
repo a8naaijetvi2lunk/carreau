@@ -109,7 +109,7 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 - Un super-administrateur et des administrateurs invitent, relancent et désactivent les comptes enseignants.
 - **Invitations** : lien personnel à usage unique, valable 7 jours par défaut. « Relancer » révoque l’ancien lien et en émet un nouveau, que l’email soit parti ou non.
 - **Désactivation** : ferme aussitôt les sessions ouvertes et les jetons MCP de l’enseignant ; ses données sont conservées et redeviennent accessibles à la réactivation.
-- **Double authentification perdue** : un admin la réinitialise pour un enseignant depuis l’administration (nouvel enrôlement à la connexion suivante) ; le super-admin passe par `npm run admin:reinitialiser-totp -- <email>` sur le serveur.
+- **Double authentification perdue** : un admin la réinitialise pour un enseignant depuis l’administration (nouvel enrôlement à la connexion suivante) ; le super-admin passe par `npm run admin:reinitialiser-totp -- <email>` sur le serveur. Ses sessions et ses jetons MCP sont révoqués.
 - Le super-administrateur règle en plus les rôles, l’envoi des emails, la validité des invitations et la durée de conservation des données.
 
 ## Anti-triche : ce que Carreau détecte, et ce qu’il ne peut pas détecter
@@ -256,7 +256,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
 - **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire, à l’étudiant dont c’est la question courante pendant l’examen, puis à l’étudiant de l’examen quand la correction est publiée ; jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.
-- **Comptes protégés** : mots de passe argon2id, double authentification TOTP obligatoire, sessions de 12 h (30 min d’inactivité) révoquées à la désactivation et à la réinitialisation du mot de passe, limitation des tentatives.
+- **Comptes protégés** : mots de passe argon2id, double authentification TOTP obligatoire, sessions de 12 h (30 min d’inactivité) et jetons MCP révoqués à la désactivation et à toute réinitialisation (mot de passe ou double authentification), limitation des tentatives.
 
 Merci de signaler toute vulnérabilité de façon privée, comme décrit dans [`SECURITY.md`](SECURITY.md).
 

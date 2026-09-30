@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db";
-import { jetonReinitialisation, journal, limiteur, utilisateur } from "@/db/schema";
+import { jetonMcp, jetonReinitialisation, journal, limiteur, utilisateur } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { cleConnexionCompte, connecter, REGLE_CONNEXION_COMPTE, validerJetonSession } from "@/modules/auth";
 import {
@@ -19,8 +19,10 @@ import {
   REGLE_EMAIL_DESTINATAIRE,
 } from "@/modules/emails";
 import { reserver } from "@/modules/limiteur";
+import { verifierJetonMcp } from "@/modules/mcp";
 import { creerUtilisateur, MOT_DE_PASSE_TEST, ouvrirSessionComplete } from "@/test/comptes";
 import { capturerEmails, configurerEnvoi, jetonDuLien } from "@/test/emails";
+import { creerJetonMcpTest } from "@/test/mcp";
 
 const DEBUT = Date.parse("2026-09-29T08:00:00.000Z");
 const NOUVEAU = "un tout nouveau mot de passe";
@@ -209,5 +211,15 @@ describe("reinitialiserMotDePasse", () => {
       code: "INTROUVABLE",
     });
     expect(await lireLienReinitialisation("court")).toBeNull();
+  });
+
+  it("révoque aussi les jetons MCP du compte (amendement A1 du plan du lot 8)", async () => {
+    const u = await creerUtilisateur();
+    const j = await creerJetonMcpTest(u.id);
+    const lien = jetonDuLien((await demander(u.email))[0], "reinitialisation");
+    await reinitialiserMotDePasse({ jeton: lien, motDePasse: NOUVEAU });
+    const [ligne] = await db().select().from(jetonMcp).where(eq(jetonMcp.id, j.id));
+    expect(ligne?.revoqueLe?.getTime()).toBe(DEBUT);
+    expect(await verifierJetonMcp(`Bearer ${j.jeton}`)).toBeNull();
   });
 });

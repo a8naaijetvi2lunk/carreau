@@ -200,8 +200,9 @@ Une session de **rattrapage** reprend l'instantané de sa session d'origine (et 
 - **Premier compte** : `npm run admin:creer -- <email>` crée le super-admin et affiche un lien d'activation à usage unique (Resend n'est pas encore configuré). Ordre d'installation : créer le super-admin, l'activer (mot de passe + TOTP), renseigner Resend et les paramètres RGPD, inviter.
 - **Invitation** : lien à usage unique, valable `validite_invitation_jours` (7 par défaut), jeton en base haché. « Relancer » révoque l'ancien lien et en émet un nouveau. L'activation fait choisir un mot de passe (12 caractères minimum) puis enrôle le TOTP.
 - **Connexion** : e-mail + mot de passe, puis code TOTP. La session n'est pleinement valide qu'après la double authentification (`double_auth_validee`). Durée : 12 h au maximum, 30 min d'inactivité (le polling du tableau de bord compte comme activité) ; option « Rester connecté » à 30 jours sur un appareil personnel.
-- **Réinitialisation du mot de passe** : lien d'une heure, usage unique ; révoque toutes les sessions de l'utilisateur. Le TOTP est conservé.
+- **Réinitialisation du mot de passe** : lien d'une heure, usage unique ; révoque toutes les sessions et tous les jetons MCP de l'utilisateur (amendement A1 du plan du lot 8). Le TOTP est conservé.
 - **Désactivation** : révoque immédiatement sessions et jetons MCP ; les données de l'enseignant sont conservées et redeviennent accessibles à la réactivation.
+- **Réinitialisation de la double authentification** (par un admin ou par `npm run admin:reinitialiser-totp`) : révoque les sessions et les jetons MCP du compte (amendement A1 du plan du lot 8).
 - **Droits** : l'admin gère les comptes enseignants (inviter, relancer, désactiver, réinitialiser le TOTP) mais ne voit pas leurs contenus. Le super-admin gère en plus les rôles et les paramètres. Un enseignant ne voit que ses classes, QCM, sessions et résultats.
 
 ## 6. Parcours étudiant et moteur d'examen

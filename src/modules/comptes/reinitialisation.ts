@@ -1,8 +1,9 @@
 /**
  * Mot de passe oublié (spec §5, décision D9 du plan du lot 1) : lien d'une heure, usage unique,
- * qui révoque toutes les sessions ; le TOTP est conservé. La demande répond toujours de la même
- * façon : ni l'existence du compte, ni la limite par destinataire, ni un échec d'envoi ne sont
- * révélés (la limite par IP, commune à toutes les adresses, reste signalée).
+ * qui révoque toutes les sessions et les jetons MCP (amendement A1 du plan du lot 8) ; le TOTP
+ * est conservé. La demande répond toujours de la même façon : ni l'existence du compte, ni la
+ * limite par destinataire, ni un échec d'envoi ne sont révélés (la limite par IP, commune à
+ * toutes les adresses, reste signalée).
  */
 import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
@@ -20,6 +21,7 @@ import { cleConnexionCompte, hacherMotDePasse, supprimerSessionsUtilisateur } fr
 import { envoyerEmail, modeleReinitialisation } from "@/modules/emails";
 import { journaliser } from "@/modules/journal";
 import { effacer, reserverJournalise, type RegleLimite } from "@/modules/limiteur";
+import { revoquerJetonsMcpDuCompte } from "./jetons-mcp";
 
 export const DUREE_REINITIALISATION_MS = 60 * 60 * 1000;
 
@@ -175,6 +177,7 @@ export async function reinitialiserMotDePasse(saisie: { jeton: string; motDePass
         and(eq(jetonReinitialisation.utilisateurId, compte.id), isNull(jetonReinitialisation.utiliseLe)),
       );
     await supprimerSessionsUtilisateur(compte.id, tx);
+    await revoquerJetonsMcpDuCompte(compte.id, tx);
     await journaliser(
       {
         acteur: { type: "utilisateur", id: compte.id },

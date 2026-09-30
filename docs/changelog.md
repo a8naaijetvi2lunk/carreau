@@ -18,6 +18,7 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Services QCM : brouillons seulement, origine `mcp` et question illustrée protégée pour un acteur MCP ; `ajouterQuestion` accepte un contenu, écrit dans la même transaction.
 - Classes : `nomsDesClasses`.
 - Journal des refus d'accès : identifiant du jeton MCP quand le refus vient d'un assistant.
+- Réinitialisation du mot de passe et de la double authentification (service et script `admin:reinitialiser-totp`) : jetons MCP révoqués (amendement A1).
 
 ## 2026-09-30 — Lot 7 : résultats
 

@@ -8,13 +8,14 @@ import "server-only";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
-import { invitation, jetonMcp, utilisateur } from "@/db/schema";
+import { invitation, utilisateur } from "@/db/schema";
 import { exigerRole, peutGererRole, type ActeurUtilisateur, type Role } from "@/lib/acteur";
 import { erreurDepuisZod, erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import { schemaIdentifiant, schemaRole } from "@/lib/saisies";
 import { supprimerSessionsUtilisateur } from "@/modules/auth";
 import { journaliser, journaliserLesRefus } from "@/modules/journal";
+import { revoquerJetonsMcpDuCompte } from "./jetons-mcp";
 
 export type ActionCompte = "desactiver" | "reactiver" | "reinitialiser_double_auth" | "changer_role";
 export type ActionInvitation = "relancer" | "annuler";
@@ -165,10 +166,7 @@ export async function desactiverCompte(
       if (!cible.actif) throw erreurs.etat("Ce compte est déjà désactivé.");
       await tx.update(utilisateur).set({ actif: false }).where(eq(utilisateur.id, cible.id));
       await supprimerSessionsUtilisateur(cible.id, tx);
-      await tx
-        .update(jetonMcp)
-        .set({ revoqueLe: maintenant() })
-        .where(and(eq(jetonMcp.enseignantId, cible.id), isNull(jetonMcp.revoqueLe)));
+      await revoquerJetonsMcpDuCompte(cible.id, tx);
       await journaliser(
         {
           acteur: { type: "utilisateur", id: acteur.id },
@@ -202,7 +200,7 @@ export async function reactiverCompte(
   });
 }
 
-/** TOTP réinitialisé : sessions révoquées, nouvel enrôlement à la prochaine connexion (spec §9.2). */
+/** TOTP réinitialisé : sessions et jetons MCP révoqués (A1 du plan du lot 8), nouvel enrôlement à la prochaine connexion (spec §9.2). */
 export async function reinitialiserDoubleAuth(
   acteur: ActeurUtilisateur,
   saisie: { utilisateurId: string },
@@ -218,6 +216,7 @@ export async function reinitialiserDoubleAuth(
         .set({ totpSecretChiffre: null, totpDernierPas: null })
         .where(eq(utilisateur.id, cible.id));
       await supprimerSessionsUtilisateur(cible.id, tx);
+      await revoquerJetonsMcpDuCompte(cible.id, tx);
       await journaliser(
         {
           acteur: { type: "utilisateur", id: acteur.id },

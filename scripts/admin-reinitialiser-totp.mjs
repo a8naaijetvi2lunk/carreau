@@ -3,8 +3,9 @@
 //
 //   npm run admin:reinitialiser-totp -- prenom.nom@exemple.fr
 //
-// Le secret est effacé, les sessions fermées et les blocages du limiteur levés : le compte
-// configure une nouvelle application à sa prochaine connexion. Le mot de passe ne change pas.
+// Le secret est effacé, les sessions fermées, les jetons MCP révoqués (amendement A1 du plan du
+// lot 8) et les blocages du limiteur levés : le compte configure une nouvelle application à sa
+// prochaine connexion. Le mot de passe ne change pas.
 import { pathToFileURL } from "node:url";
 import pg from "pg";
 import { cleConnexionCompte, cleDoubleAuth, ErreurScript, normaliserEmail } from "./admin-commun.mjs";
@@ -12,7 +13,7 @@ import { cleConnexionCompte, cleDoubleAuth, ErreurScript, normaliserEmail } from
 /**
  * @param {pg.Pool} pool
  * @param {{ email: string; maintenant?: Date }} options
- * @returns {Promise<{ sessionsRevoquees: number }>}
+ * @returns {Promise<{ sessionsRevoquees: number; jetonsMcpRevoques: number }>}
  */
 export async function reinitialiserTotp(pool, { email, maintenant = new Date() }) {
   const adresse = normaliserEmail(email);
@@ -28,6 +29,10 @@ export async function reinitialiserTotp(pool, { email, maintenant = new Date() }
     const sessions = await client.query("DELETE FROM session_connexion WHERE utilisateur_id = $1", [
       utilisateurId,
     ]);
+    const jetons = await client.query(
+      "UPDATE jeton_mcp SET revoque_le = $2 WHERE enseignant_id = $1 AND revoque_le IS NULL",
+      [utilisateurId, maintenant],
+    );
     await client.query("DELETE FROM limiteur WHERE cle = ANY($1)", [
       [cleConnexionCompte(adresse), cleDoubleAuth(utilisateurId)],
     ]);
@@ -37,7 +42,7 @@ export async function reinitialiserTotp(pool, { email, maintenant = new Date() }
       [`utilisateur:${utilisateurId}`, JSON.stringify({ origine: "script" }), maintenant],
     );
     await client.query("COMMIT");
-    return { sessionsRevoquees: sessions.rowCount ?? 0 };
+    return { sessionsRevoquees: sessions.rowCount ?? 0, jetonsMcpRevoques: jetons.rowCount ?? 0 };
   } catch (erreur) {
     await client.query("ROLLBACK");
     throw erreur;
@@ -61,10 +66,10 @@ async function main() {
   }
   const pool = new pg.Pool({ connectionString: databaseUrl });
   try {
-    const { sessionsRevoquees } = await reinitialiserTotp(pool, { email });
+    const { sessionsRevoquees, jetonsMcpRevoques } = await reinitialiserTotp(pool, { email });
     console.log(
-      `Double authentification réinitialisée (${sessionsRevoquees} session(s) fermée(s)). ` +
-        "Elle sera configurée à la prochaine connexion.",
+      `Double authentification réinitialisée (${sessionsRevoquees} session(s) fermée(s), ` +
+        `${jetonsMcpRevoques} jeton(s) MCP révoqué(s)). Elle sera configurée à la prochaine connexion.`,
     );
   } catch (erreur) {
     console.error(

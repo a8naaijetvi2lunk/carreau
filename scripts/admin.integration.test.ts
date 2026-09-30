@@ -2,11 +2,12 @@ import { eq } from "drizzle-orm";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { journal, limiteur, sessionConnexion, utilisateur } from "@/db/schema";
+import { jetonMcp, journal, limiteur, sessionConnexion, utilisateur } from "@/db/schema";
 import { cleConnexionCompte, cleDoubleAuth, REGLE_CONNEXION_COMPTE, REGLE_DOUBLE_AUTH } from "@/modules/auth";
 import { lireInvitation } from "@/modules/comptes";
 import { reserver } from "@/modules/limiteur";
 import { creerUtilisateur, ouvrirSessionComplete } from "@/test/comptes";
+import { creerJetonMcpTest } from "@/test/mcp";
 import { creerInvitationSuperAdmin } from "./admin-creer.mjs";
 import { reinitialiserTotp } from "./admin-reinitialiser-totp.mjs";
 
@@ -80,8 +81,14 @@ describe("admin:reinitialiser-totp", () => {
     await ouvrirSessionComplete(u.id);
     await reserver(cleConnexionCompte(u.email), REGLE_CONNEXION_COMPTE);
     await reserver(cleDoubleAuth(u.id), REGLE_DOUBLE_AUTH);
+    const jeton = await creerJetonMcpTest(u.id);
 
-    expect(await reinitialiserTotp(pool, { email: "Perdu@Exemple.fr" })).toEqual({ sessionsRevoquees: 1 });
+    expect(await reinitialiserTotp(pool, { email: "Perdu@Exemple.fr" })).toEqual({
+      sessionsRevoquees: 1,
+      jetonsMcpRevoques: 1,
+    });
+    const [jetonApres] = await db().select().from(jetonMcp).where(eq(jetonMcp.id, jeton.id));
+    expect(jetonApres?.revoqueLe).not.toBeNull();
 
     const [apres] = await db().select().from(utilisateur).where(eq(utilisateur.id, u.id));
     expect(apres).toMatchObject({ totpSecretChiffre: null, totpDernierPas: null, actif: true });
