@@ -91,8 +91,8 @@ test.describe("examen", () => {
     await expect(hugo.page.getByText("0 / 20", { exact: true })).toBeVisible();
 
     // L'enseignante n'a rien fait : chaque participant est « Terminé », la session « Terminée ».
-    const salle = page.getByRole("region", { name: /^Dans la salle/ });
-    await expect(salle.getByText("Terminé", { exact: true })).toHaveCount(3, { timeout: 15_000 });
+    const suiviEtudiants = page.getByRole("region", { name: "Suivi des étudiants" });
+    await expect(suiviEtudiants.getByText("Terminé", { exact: true })).toHaveCount(3, { timeout: 15_000 });
     await expect(page.getByText("Terminée", { exact: true }).first()).toBeVisible();
 
     expect(violations).toEqual([]);

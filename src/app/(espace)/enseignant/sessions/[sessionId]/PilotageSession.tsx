@@ -17,6 +17,7 @@ import { TONS_STATUT_SESSION } from "../libelles";
 import { ListeDemandes } from "./ListeDemandes";
 import { ListesSalle } from "./ListesSalle";
 import { PanneauCode } from "./PanneauCode";
+import { TableauDeBord } from "./TableauDeBord";
 
 /** Période du suivi de la page de pilotage (spec §7). */
 const PERIODE_SUIVI_MS = 3_000;
@@ -36,8 +37,8 @@ function Depart({ demarreLe, decalageMs }: { demarreLe: string; decalageMs: numb
 
 /**
  * Pilotage d'une session (décision D18) : statut, écran projeté, démarrage et annulation confirmés dans
- * la page, code, demandes d'appareil, salle d'attente. Le suivi est interrogé toutes les 3 s, et
- * suspendu quand l'onglet est masqué.
+ * la page, code, demandes d'appareil, salle d'attente ; pendant et après l'examen, le tableau de bord
+ * (D14 du plan du lot 6). Le suivi est interrogé toutes les 3 s, et suspendu quand l'onglet est masqué.
  */
 export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string; suiviInitial: VueSuivi }) {
   const router = useRouter();
@@ -76,12 +77,14 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
   /**
    * Action de l'enseignant ; le suivi est relancé, et l'en-tête rafraîchi si elle a réussi. `portee`
    * distingue les actions de salle d'attente (démarrer, annuler, retirer) des décisions sur une
-   * demande, pour qu'une erreur de salle ne reste pas affichée une fois l'examen commencé.
+   * demande et des actions sur l'examen (prolonger, terminer), pour qu'une erreur de salle ne reste
+   * pas affichée une fois l'examen commencé ; une erreur « examen » s'affiche comme celle d'une
+   * demande. Renvoie vrai si l'action a réussi.
    */
   async function agir(
     action: () => Promise<ResultatAction<null>>,
-    portee: "salle" | "demande",
-  ): Promise<void> {
+    portee: "salle" | "demande" | "examen",
+  ): Promise<boolean> {
     setErreur(null);
     setErreurSalle(null);
     setEnCours(true);
@@ -96,6 +99,7 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
         setErreur(resultat.erreur.message);
       }
       interrogation.current?.relancer();
+      return resultat.ok;
     } finally {
       setEnCours(false);
     }
@@ -177,23 +181,34 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
       {suivi.statut === "en_cours" && suivi.demarreLe ? (
         <Depart demarreLe={suivi.demarreLe} decalageMs={decalageMs} />
       ) : null}
-      <div className="grid gap-5 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
-        {suivi.code ? <PanneauCode code={suivi.code} reprise={suivi.statut === "en_cours"} /> : null}
-        <div className="flex min-w-0 flex-col gap-5">
-          <ListeDemandes
-            demandes={suivi.demandes}
-            enCours={enCours}
-            onDecider={(action) => void agir(action, "demande")}
-          />
-          <ListesSalle
-            suivi={suivi}
-            enCours={enCours}
-            onRetirer={(participationId) =>
-              void agir(() => retirerParticipantAction(participationId), "salle")
-            }
-          />
+      {suivi.statut === "en_cours" || suivi.statut === "terminee" ? (
+        <TableauDeBord
+          sessionId={sessionId}
+          suivi={suivi}
+          decalageMs={decalageMs}
+          enCours={enCours}
+          onAgir={(action) => agir(action, "examen")}
+          onDecider={(action) => void agir(action, "demande")}
+        />
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
+          {suivi.code ? <PanneauCode code={suivi.code} reprise={false} /> : null}
+          <div className="flex min-w-0 flex-col gap-5">
+            <ListeDemandes
+              demandes={suivi.demandes}
+              enCours={enCours}
+              onDecider={(action) => void agir(action, "demande")}
+            />
+            <ListesSalle
+              suivi={suivi}
+              enCours={enCours}
+              onRetirer={(participationId) =>
+                void agir(() => retirerParticipantAction(participationId), "salle")
+              }
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

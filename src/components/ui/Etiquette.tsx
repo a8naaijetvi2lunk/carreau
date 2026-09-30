@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 
-type Ton = "sombre" | "bleu" | "neutre";
+type Ton = "sombre" | "bleu" | "neutre" | "alerte";
 
 const TONS: Record<Ton, string> = {
   sombre: "bg-encre text-carte",
   bleu: "bg-bleu-pale text-bleu-fonce",
   neutre: "bg-ligne-douce text-encre-2",
+  alerte: "bg-orange-pale text-orange-fonce",
 };
 
 export function Etiquette({ ton = "neutre", children }: { ton?: Ton; children: ReactNode }) {
