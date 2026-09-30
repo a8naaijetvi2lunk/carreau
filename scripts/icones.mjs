@@ -13,6 +13,9 @@ import sharp from "sharp";
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = path.join(RACINE, "docs/identite/carreau-icone-source.png");
 
+/** Zone utile de la source : 8 px rognés sur chaque bord (le bord de l'image générée est altéré). */
+const ZONE_UTILE = { left: 8, top: 8, width: 1008, height: 1008 };
+
 /**
  * Conteneur ICO d'images PNG (admis par Windows depuis Vista et par tous les navigateurs) : en-tête de
  * 6 octets, une entrée de 16 octets par image, puis les PNG bout à bout. `sharp` n'écrit pas d'ICO.
@@ -52,12 +55,13 @@ async function couleurDeFond() {
 }
 
 async function png(taille) {
-  return sharp(SOURCE).resize(taille, taille).png({ compressionLevel: 9 }).toBuffer();
+  return sharp(SOURCE).extract(ZONE_UTILE).resize(taille, taille).png({ compressionLevel: 9 }).toBuffer();
 }
 
 /** Icône adaptative d'Android : l'icône réduite à 80 %, centrée sur son fond (zone sûre). */
 async function adaptative(fond) {
   return sharp(SOURCE)
+    .extract(ZONE_UTILE)
     .resize(410, 410)
     .extend({ top: 51, bottom: 51, left: 51, right: 51, background: fond })
     .png({ compressionLevel: 9 })
@@ -66,12 +70,12 @@ async function adaptative(fond) {
 
 /** Marque de l'interface : le motif recadré, avec une marge de 12 %, en 96 × 96 (affiché à 24 px). */
 async function marque(fond) {
-  const interieur = await sharp(SOURCE).extract({ left: 8, top: 8, width: 1008, height: 1008 }).toBuffer();
+  const interieur = await sharp(SOURCE).extract(ZONE_UTILE).toBuffer();
   const motif = await sharp(interieur).trim({ background: fond, threshold: 40 }).toBuffer();
   const { width = 96, height = 96 } = await sharp(motif).metadata();
   const marge = Math.round(Math.max(width, height) * 0.12);
-  // Étape intermédiaire matérialisée : chaîner extend() et resize({ fit: "contain" }) dans un même
-  // pipeline sharp (0.35.5) produit une image de 256 × 256 au lieu de 96 × 96 (constaté, non documenté).
+  // Deux étapes : dans un même pipeline, sharp applique toujours resize avant extend ; la marge doit
+  // précéder la réduction.
   const etendu = await sharp(motif)
     .extend({ top: marge, bottom: marge, left: marge, right: marge, background: fond })
     .toBuffer();
