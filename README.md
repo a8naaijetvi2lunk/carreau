@@ -49,6 +49,14 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 
 *La salle d’attente sur le téléphone d’une étudiante : l’examen démarre pour tout le monde au même instant.*
 
+<img src="docs/captures/examen-question.png" alt="Question avec du code pendant l’examen sur téléphone : chrono, réponse cochée et bouton Valider et continuer" width="320">
+
+*Pendant l’examen : une question à la fois, le code coloré côté serveur, un chrono tenu par le serveur. Chaque touche est enregistrée.*
+
+<img src="docs/captures/examen-fin.png" alt="Fin de l’examen sur téléphone : réponses enregistrées, durée et note sur 20" width="320">
+
+*La fin de l’examen : réponses enregistrées, durée, et la note si l’enseignant la rend visible.*
+
 ![Page de pilotage d’une session avec une demande d’appareil à autoriser et la liste des étudiants dans la salle](docs/captures/pilotage.png)
 *Le pilotage de la session : un nom réclamé depuis un second téléphone attend la décision de l’enseignant.*
 
@@ -60,7 +68,7 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 2. Il tape les trois premières lettres de son nom ou de son prénom et se choisit dans la liste de sa classe. Son téléphone est alors associé à son nom pour toute la durée de l’examen ; si ce nom est déjà pris sur un autre téléphone, l’enseignant autorise ou refuse le nouveau.
 3. Un écran d’information lui explique ce qui est noté pendant l’examen, pourquoi, et combien de temps c’est conservé.
 4. Il patiente en salle d’attente : l’examen démarre pour tout le monde en même temps.
-5. Il répond question par question, sans retour en arrière, avec un chrono si l’enseignant en a prévu un.
+5. Il répond question par question, sans retour en arrière : chaque touche est enregistrée, « Valider et continuer » passe à la suivante. Si le temps de la question (ou de l’examen) s’écoule, sa dernière sélection est validée. Un téléphone qui s’éteint ne bloque rien : à son retour, le temps a continué de courir. À la fin, il voit combien de questions il a répondues et sa note, si l’enseignant la rend visible.
 
 Aucun compte ni installation n’est nécessaire. L’application peut être installée sur l’écran d’accueil (PWA) pour ceux qui le souhaitent.
 
@@ -70,7 +78,7 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 - **Éditeur de QCM** : choix unique, choix multiples, vrai/faux, images dans les questions et les réponses, blocs de code colorés (Python, JavaScript, Java, C, SQL…), barème par question (points négatifs compris), chrono au choix (aucun, global ou par question). Tout s’enregistre au fil de la saisie ; l’éditeur montre ce qui manque, et un QCM ne passe en « prêt » que complet. Un aperçu montre chaque question comme sur le téléphone d’un étudiant.
 - **Questions liées** : deux questions qui doivent se suivre restent consécutives, dans leur ordre, où qu’elles tombent dans le mélange. Les boutons Monter et Descendre déplacent le bloc entier.
 - **Classes** : import de la liste depuis un fichier CSV ou Excel (`.xlsx`), ou collée depuis un tableur, avec un aperçu qui explique chaque ligne rejetée avant d’enregistrer ; ajout, modification et retrait un par un ; tiers-temps par étudiant ; deux étudiants aux mêmes nom et prénom sont refusés dans une classe (l’enseignant les distingue par une initiale).
-- **Sessions** : un QCM prêt, une classe, un créneau facultatif. Le QR code projeté change toutes les 30 secondes pour qu’un lien partagé à l’extérieur de la salle ne serve à rien. L’enseignant voit la salle se remplir, autorise ou refuse un second téléphone, et démarre l’examen pour tous au même instant.
+- **Sessions** : un QCM prêt, une classe, un créneau facultatif. Le QR code projeté change toutes les 30 secondes pour qu’un lien partagé à l’extérieur de la salle ne serve à rien. L’enseignant voit la salle se remplir, autorise ou refuse un second téléphone, et démarre l’examen pour tous au même instant. Pendant l’examen, il voit où en est chacun ; la session se termine seule quand tout le monde a fini ou que le temps est écoulé.
 - **Suivi en direct** : étudiants connectés et absents, progression, alertes et indice de suspicion, sur ordinateur comme sur téléphone.
 - **Résultats** : exports CSV et Excel, rapport détaillé par étudiant, note et correction visibles ou non par les étudiants.
 - **Rattrapage** : un étudiant arrivé après le démarrage ne peut plus rejoindre la session ; l’enseignant lui ouvre une session de rattrapage.
@@ -141,7 +149,7 @@ flowchart LR
 src/
   app/          pages et routes d’API (App Router)
   modules/      un dossier par domaine métier, exposé par son index.ts ; les droits sont vérifiés dans les services
-  moteur/       logique pure, sans accès à la base : code de session tournant (lot 4) ; mélange, notation, échéances et indice arrivent avec les lots 5 et 6
+  moteur/       logique pure, sans accès à la base : code de session tournant (lot 4), mélange, échéances et notation (lot 5) ; l’indice arrive avec le lot 6
   lib/          contrats partagés : erreurs, enveloppes, environnement, horloge, chiffrement, CSP
   db/           schéma Drizzle
   components/   composants d’interface partagés
@@ -191,7 +199,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | 2 | Classes et étudiants : import CSV / Excel ou collage, tiers-temps | ✅ Livré |
 | 3 | Éditeur de QCM : types de questions, images, code, barème, questions liées, chrono | ✅ Livré |
 | 4 | Sessions : QR code renouvelé, écran projeté, salle d’attente, démarrage commun, demandes d’appareil | ✅ Livré |
-| 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | À venir |
+| 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | ✅ Livré |
 | 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | À venir |
 | 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | À venir |
 | 8 | Connexion MCP : jetons par enseignant, création de brouillons | À venir |
@@ -209,8 +217,9 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Erreurs sans fuite** : aucune pile d’appels ni requête SQL n’est renvoyée, et les journaux ne contiennent pas de données personnelles.
 - **Droits vérifiés côté serveur** : dans chaque service, jamais seulement dans l’interface ; la ressource d’un autre enseignant répond « introuvable ».
 - **Entrée des étudiants** : code de session tiré d’un HMAC et renouvelé toutes les 30 secondes (32⁶ combinaisons, projeté seulement en salle d’attente), ticket d’entrée signé valable 10 minutes, jeton d’appareil de 256 bits dont seule l’empreinte est stockée, cookies `HttpOnly` et `SameSite=Lax`, limitation par adresse IP, par ticket et par appareil ; un nom déjà pris sur un autre téléphone passe par l’enseignant.
+- **Passage de l’examen** : le téléphone ne reçoit que la question courante, sans l’indicateur de bonne réponse ; ses réponses y sont identifiées par leur position affichée, jamais par leur place dans le QCM. Ordre, chrono (tolérance réseau de 3 s), points et note sont calculés par le serveur, dans une transaction verrouillée ; une validation rejouée ne change rien ; un QCM modifié après le départ ne change pas l’examen en cours (instantané figé au démarrage).
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
-- **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire, jamais de SVG.
+- **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire et, pendant l’examen, à l’étudiant dont c’est la question courante, jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.
 - **Comptes protégés** : mots de passe argon2id, double authentification TOTP obligatoire, sessions de 12 h (30 min d’inactivité) révoquées à la désactivation et à la réinitialisation du mot de passe, limitation des tentatives.
 

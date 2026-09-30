@@ -109,10 +109,22 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Demandes d'appareil** : une seule en attente par participation, 10 min au plus ; « Autoriser » donne la participation au nouveau téléphone et garde l'empreinte de l'ancien (`ancien_jeton_hash`) pour lui dire qu'il a été remplacé. Chaque demande écrit un événement `second_appareil` (indice du lot 6).
 - **Temps réel** : `src/lib/interrogation.ts` (un appel à la fois, période par résultat, délai croissant après un échec, suspension de l'onglet enseignant masqué). Téléphone toutes les 2 à 5 s selon l'étape (`periodeEntreeMs`), pilotage 3 s, écran projeté 2 s. Le compte à rebours (`useRebours`) est calé sur `serveurMaintenant`.
 - **Modules** : `sessions` (`commun`, `code`, `ticket`, `cookies`, `cles`, `sessions`, `suivi`, `entree`, `pilotage`) ; `parametres.lireInformationDonnees` pour l'écran d'information ; `classes.retirerEtudiant` refuse un étudiant qui a participé.
-- **À retenir pour le lot 5** : `demarrerSession` ne prend encore ni instantané ni ordre ; le lot 5 les ajoute dans la même transaction, avec les colonnes reportées (`contenu`, `fin_prevue_le`, `ordre`, échéances, points, note) et la table `reponse`. Après le compte à rebours, le téléphone affiche « L’examen a commencé » : l'écran des questions le remplace. La reprise sur le même appareil est déjà directe (même jeton).
+- **Lot 5** : voir « Passage de l’examen (lot 5) » ci-dessous.
 - **À retenir pour le lot 6** : le suivi (`construireSuivi`, route `suivi`) s'enrichit de la progression, des indices et des alertes ; `evenement` existe déjà (type `second_appareil`) ; `participation.dernier_contact_le` est mis à jour à chaque état.
 - **À retenir pour le lot 7** : `type`, `session_origine_id` et `session_autorisation` (rattrapage) restent à créer ; la visibilité de la note et de la correction se règle de nouveau avec les résultats.
 - **À retenir pour le lot 10** : purger les participations et leurs événements selon la conservation, et les sessions annulées.
+
+## Passage de l’examen (lot 5)
+
+- **Instantané** : au démarrage, `qcm.instantaneDuQcm` fige le QCM dans `session_examen.contenu` (bonnes réponses, barème, durées effectives, code déjà coloré), validé par `schemaContenuSession` ; la fin prévue est écrite avec. Les résultats (lot 7) liront l'instantané, jamais le QCM.
+- **Passage de chacun** : ordre (`participation.ordre` : `{ q, p }`, blocs de questions liées mélangés, réponses mélangées, `randomInt`), tiers-temps figé au départ (amendement A1), première question servie au départ, échéances.
+- **Règle unique d'expiration (A3)** : une échéance devient effective 3 s après sa valeur, partout ; la question suivante est servie à l'instant d'expiration ; une question échue est validée avec son brouillon (`echeance`), les questions jamais servies à la fin restent sans réponse (`fin`).
+- **Moteur** : `melange`, `echeances` (`appliquer`, `apresValidation`, `terminer`), `notation` (tout ou rien, centièmes entiers, total borné à 0, note sur 20).
+- **Module `examen`** (appelé par `sessions`, ne l'importe jamais) : `depart`, `passage` (verrous session puis participation, rattrapage, note, clôture de session journalisée par le système), `reponses` (brouillon, validation idempotente), `vue` (question courante extraite en SQL, positions affichées, écran de fin), images de la question courante.
+- **Téléphone** : étapes « question » et « fin » sur `/rejoindre` (A2) ; brouillon à chaque touche, en file ; interrogation toutes les 5 s ou juste après l'expiration ; `<main data-commence-a>` pour mesurer le départ commun.
+- **Enseignant** : le suivi rattrape les échéances et tente la clôture à chaque interrogation ; avancement de chacun ; résumé lu dans l'instantané après le départ.
+- **À retenir pour le lot 6** : `evenement` et `dernier_contact_le` existent ; « Terminer pour tous » s'appuiera sur `moteur/echeances.terminer` et sur la clôture de `passage.ts` ; sans chrono, seule la fin de tous les passages clôt une session.
+- **À retenir pour le lot 7** : correction et rapport lisent `contenu`, `ordre` et `reponse.selection` (index d'origine) ; les images de la correction publiée devront s'ajouter à la règle de lecture des images (D12).
 
 ## Ports locaux
 

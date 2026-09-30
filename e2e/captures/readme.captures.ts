@@ -2,7 +2,8 @@
  * Captures du README (tâche 17, demande d'Yves pendant le lot 3) : `npm run build` puis
  * `npm run captures`. Compte enseignant fictif, classe importée, QCM de quatre questions,
  * aperçu sur téléphone, puis une session : six téléphones dans la salle d'attente et un
- * septième qui demande un nom déjà pris. Données fictives (`@exemple.fr`). Ne tourne jamais
+ * septième qui demande un nom déjà pris ; puis l'examen : une question avec du code et l'écran
+ * de fin sur le téléphone de Léa. Données fictives (`@exemple.fr`). Ne tourne jamais
  * avec `npm run test:e2e` (voir playwright.captures.config.ts).
  */
 import { devices, expect, test, type Page } from "@playwright/test";
@@ -314,6 +315,29 @@ test("captures du README", async ({ page, browser }) => {
   if (!lea) throw new Error("téléphone de Léa absent");
   await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText("Bonjour Léa");
   await lea.page.screenshot({ path: capture("salle-attente") });
+
+  // 7. Examen : départ commun, puis Léa répond à chaque question par sa première réponse. La question
+  // avec du code est capturée (l'ordre des questions est mélangé pour chaque étudiant), puis l'écran de fin.
+  await page.bringToFront();
+  await page.getByRole("button", { name: "Démarrer l’examen" }).click();
+  await page.getByRole("button", { name: "Démarrer maintenant" }).click();
+  let questionCapturee = false;
+  for (let rang = 1; rang <= 4; rang += 1) {
+    const question = lea.page.locator(`[data-etat="question"][data-rang="${rang}"]`);
+    await expect(question).toBeVisible({ timeout: 20_000 });
+    const premiere = question.getByRole("group", { name: "Réponses" }).getByRole("button").first();
+    await premiere.click();
+    await expect(premiere).toHaveAttribute("aria-pressed", "true");
+    if (!questionCapturee && (await question.getByRole("group", { name: /^Code / }).count()) > 0) {
+      await lea.page.evaluate(() => window.scrollTo(0, 0));
+      await lea.page.screenshot({ path: capture("examen-question") });
+      questionCapturee = true;
+    }
+    await question.getByRole("button", { name: "Valider et continuer" }).click();
+  }
+  expect(questionCapturee).toBe(true);
+  await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText("Examen terminé");
+  await lea.page.screenshot({ path: capture("examen-fin") });
 
   await Promise.all([...telephones, doublon].map((t) => t.contexte.close()));
 });

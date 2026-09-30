@@ -2,6 +2,21 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-30 — Lot 5 : passage de l'examen
+
+### Ajouté
+- Spec amendé (A1 à A4, tranchés en autonomie) : tiers-temps figé au départ, examen sur /rejoindre, règle unique d'expiration (tolérance de 3 s), limite de rejoindre à 600 par minute.
+- Migration `0005_examen` : instantané et fin prévue de la session, passage de chaque participation (ordre, échéances, tiers-temps, points, note), table `reponse`.
+- Moteur : `melange` (blocs de questions liées, Fisher-Yates), `echeances` (tolérance, rattrapage enchaîné, fin), `notation` (tout ou rien, note sur 20).
+- Module `examen` : départ, rattrapage et clôture, brouillon et validation, vue de la question courante, images de la question courante.
+- Routes `POST /api/etudiant/selection` et `POST /api/etudiant/reponse` ; `GET /api/images/[imageId]` ouverte au téléphone pour sa question courante.
+- Téléphone : question, chrono, validation, écran de fin ; enseignant : avancement de chacun, clôture automatique.
+- Tests : moteur (≥ 95 %), intégration (concurrence, tolérance, idempotence), bout en bout (examen complet noté sans intervention), deux captures.
+
+### Modifié
+- `demarrerSession` fige l'instantané et prépare le passage de chacun.
+- La mesure du départ commun passe sur `<main data-commence-a>` ; la première question suit aussitôt.
+
 ## 2026-09-29 — Lot 4 : sessions et entrée des étudiants
 
 ### Ajouté
