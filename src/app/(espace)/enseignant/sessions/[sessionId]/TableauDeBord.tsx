@@ -242,6 +242,7 @@ export function TableauDeBord({
               ))}
             </div>
           </div>
+          <p className="border-t border-ligne-douce px-5 py-2.5 text-sm text-muet">{MENTION_INDICE}</p>
           <div
             aria-hidden="true"
             className="hidden border-t border-ligne-douce px-5 py-2 text-[13px] font-bold text-muet md:grid md:grid-cols-[minmax(0,1.5fr)_8rem_6rem_8rem_minmax(0,1.5fr)] md:gap-x-3"
@@ -270,11 +271,9 @@ export function TableauDeBord({
               </Bouton>
             </div>
           ) : null}
-          <p className="border-t border-ligne-douce px-5 py-3 text-sm text-muet">{MENTION_INDICE}</p>
         </section>
 
         <div className="flex min-w-0 flex-col gap-5">
-          {suivi.code ? <PanneauCode code={suivi.code} reprise /> : null}
           <section
             aria-labelledby="alertes-direct"
             className="flex flex-col gap-3 rounded-2xl border border-ligne bg-carte p-5"
@@ -304,6 +303,7 @@ export function TableauDeBord({
               </ul>
             )}
           </section>
+          {suivi.code ? <PanneauCode code={suivi.code} reprise /> : null}
         </div>
       </div>
     </div>
