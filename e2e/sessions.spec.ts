@@ -65,20 +65,24 @@ test.describe("sessions", () => {
     await page.bringToFront();
     await page.getByRole("button", { name: "Démarrer l’examen" }).click();
     await page.getByRole("button", { name: "Démarrer maintenant" }).click();
+    // Chaque téléphone garde sur <main> l'heure locale de son passage à zéro, puis affiche la première question.
     await Promise.all(
       telephones.map((t) =>
-        expect(t.page.locator('[data-etat="commence"]')).toBeVisible({ timeout: 20_000 }),
+        expect(t.page.locator("main[data-commence-a]")).toBeAttached({ timeout: 20_000 }),
       ),
     );
     const instants = await Promise.all(
-      telephones.map(async (t) =>
-        Number(await t.page.locator('[data-etat="commence"]').getAttribute("data-commence-a")),
-      ),
+      telephones.map(async (t) => Number(await t.page.locator("main").getAttribute("data-commence-a"))),
     );
     expect(instants.every((instant) => Number.isFinite(instant) && instant > 0)).toBe(true);
     const ecart = Math.max(...instants) - Math.min(...instants);
     testInfo.annotations.push({ type: "écart de départ (ms)", description: String(ecart) });
     expect(ecart).toBeLessThan(2_000);
+    await Promise.all(
+      telephones.map((t) =>
+        expect(t.page.locator('[data-etat="question"][data-rang="1"]')).toBeVisible({ timeout: 20_000 }),
+      ),
+    );
     await projection.bringToFront();
     await expect(projection.getByRole("heading", { name: "L’examen a commencé" })).toBeVisible({
       timeout: 10_000,
@@ -99,9 +103,7 @@ test.describe("sessions", () => {
     const demandes = page.getByRole("region", { name: "Demandes d’appareil" });
     await expect(demandes).toContainText("Reprise sur un autre téléphone");
     await demandes.getByRole("button", { name: "Autoriser la demande de DUPONT Léa" }).click();
-    await expect(nouveau.page.getByRole("heading", { level: 1 })).toHaveText("L’examen a commencé", {
-      timeout: 15_000,
-    });
+    await expect(nouveau.page.locator('[data-etat="question"]')).toBeVisible({ timeout: 15_000 });
     await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText(
       "Ce téléphone n’est plus associé à ton nom",
       {

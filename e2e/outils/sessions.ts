@@ -176,3 +176,71 @@ export async function effacerParametres(): Promise<void> {
     await client.end();
   }
 }
+
+export const QCM_EXPRESS = "Examen express";
+
+/**
+ * QCM « Examen express » (lot 5) : choix unique (« Paris »), choix multiples (« Deux » et « Quatre »),
+ * vrai/faux (« Faux »), barème par défaut (+1, 0, 0), chrono par question de 10 s, marqué prêt.
+ */
+export async function preparerQcmExpress(page: Page): Promise<void> {
+  await naviguer(page, "QCM");
+  await champ(page, "Titre du QCM").fill(QCM_EXPRESS);
+  await page.getByRole("button", { name: "Créer le QCM" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Question 1" })).toBeVisible();
+  await champ(page, "Énoncé").fill("Capitale de la France ?");
+  await champ(page, "Réponse 1").fill("Paris");
+  await champ(page, "Réponse 2").fill("Lyon");
+  await champ(page, "Bonne réponse : réponse 1").check();
+  await attendreEnregistrement(page);
+
+  await page.getByRole("button", { name: "+ Ajouter une question" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Question 2" })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Type de question" })
+    .getByRole("button", { name: "Choix multiples" })
+    .click();
+  await champ(page, "Énoncé").fill("Nombres pairs ?");
+  await champ(page, "Réponse 1").fill("Deux");
+  await champ(page, "Réponse 2").fill("Trois");
+  await page.getByRole("button", { name: "+ Ajouter une réponse" }).click();
+  await champ(page, "Réponse 3").fill("Quatre");
+  await champ(page, "Bonne réponse : réponse 1").check();
+  await champ(page, "Bonne réponse : réponse 3").check();
+  await attendreEnregistrement(page);
+
+  await page.getByRole("button", { name: "+ Ajouter une question" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Question 3" })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Type de question" })
+    .getByRole("button", { name: "Vrai / Faux" })
+    .click();
+  await champ(page, "Énoncé").fill("Le ciel est vert.");
+  await champ(page, "Bonne réponse : réponse 2").check();
+  await attendreEnregistrement(page);
+
+  const sections = page.getByRole("navigation", { name: "Sections du QCM" });
+  await sections.getByRole("link", { name: "Paramètres" }).click();
+  await page.getByLabel("Chrono par question", { exact: true }).check();
+  await champ(page, "Durée par question (secondes)").fill("10");
+  await page.getByRole("button", { name: "Enregistrer les paramètres" }).click();
+  await expect(page.getByText("Paramètres enregistrés.")).toBeVisible();
+  await sections.getByRole("link", { name: /^Questions/ }).click();
+  await page.getByRole("button", { name: "Marquer comme prêt" }).click();
+  await expect(page.getByText("Prêt", { exact: true })).toBeVisible();
+}
+
+/** Crée une session sur le QCM `titre` et la classe TD2 ; renvoie son identifiant (page de pilotage ouverte). */
+export async function creerSessionPour(page: Page, titre: string): Promise<string> {
+  await naviguer(page, "Sessions");
+  const liste = page.getByLabel("QCM", { exact: true });
+  const valeur = await liste.locator("option", { hasText: `${titre} · ` }).getAttribute("value");
+  if (!valeur) throw new Error(`QCM « ${titre} » absent de la liste des sessions.`);
+  await liste.selectOption(valeur);
+  await page.getByRole("button", { name: "Créer la session" }).click();
+  await expect(page).toHaveURL(/\/enseignant\/sessions\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`${titre} · TD2`);
+  const sessionId = /\/enseignant\/sessions\/([0-9a-f-]{36})$/.exec(page.url())?.[1];
+  if (!sessionId) throw new Error(`Identifiant de session absent de l'URL : ${page.url()}`);
+  return sessionId;
+}
