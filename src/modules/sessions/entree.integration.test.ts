@@ -584,4 +584,18 @@ describe("passage de l'examen par le téléphone", () => {
       .where(like(limiteur.cle, "etudiant:selection:%"));
     expect(apres).toHaveLength(avant);
   });
+
+  it("note un silence quand l'état n'est plus demandé pendant plus de 15 s", async () => {
+    const x = await examenEnCours(horloge, { etudiants: [{ nom: "Dupont", prenom: "Léa" }] });
+    const lea = x.telephones[0];
+    if (!lea) throw new Error("téléphone absent");
+    await lireEtatEntree(telephoneDe(lea.jeton));
+    horloge.fixer(x.demarreLe.getTime() + 20_000);
+    await lireEtatEntree(telephoneDe(lea.jeton));
+    const silences = await db()
+      .select()
+      .from(evenement)
+      .where(and(eq(evenement.participationId, lea.participation.id), eq(evenement.type, "silence")));
+    expect(silences.map((s) => s.dureeMs)).toEqual([20_000]);
+  });
 });

@@ -70,7 +70,7 @@ async function vueFin(passage: Passage, instant: Date): Promise<VuePassage> {
 
 export async function vuePassage(participationId: string): Promise<VuePassage | null> {
   const instant = maintenant();
-  const passage = await passageAJour(participationId, instant);
+  const passage = await passageAJour(participationId, instant, true);
   if (!passage) return null;
   if (passage.statut === "terminee") return vueFin(passage, instant);
   const demarre =

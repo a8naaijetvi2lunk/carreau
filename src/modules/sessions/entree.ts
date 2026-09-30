@@ -117,7 +117,16 @@ type ParticipationLue = {
  */
 async function etatDeLaParticipation(p: ParticipationLue): Promise<EtatEntree> {
   const instant = maintenant();
-  await db().update(participation).set({ dernierContactLe: instant }).where(eq(participation.id, p.id));
+  // Pendant l'examen, la vue note le contact dans la transaction du passage (silence : D3 du plan du lot 6).
+  const pendantExamen =
+    p.statutSession === "en_cours" &&
+    p.statutParticipation === "en_cours" &&
+    p.informationLueLe !== null &&
+    p.demarreLe !== null &&
+    instant.getTime() >= p.demarreLe.getTime();
+  if (!pendantExamen) {
+    await db().update(participation).set({ dernierContactLe: instant }).where(eq(participation.id, p.id));
+  }
   const base = {
     serveurMaintenant: instant.toISOString(),
     session: await sessionAffichee(db(), p.sessionId),

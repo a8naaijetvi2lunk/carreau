@@ -20,6 +20,7 @@ import {
   cloturerSiFinie,
   ecrireReponse,
   enregistrerRattrapage,
+  noterContact,
   questionAuRang,
   rattraper,
   verrouillerPassage,
@@ -67,7 +68,7 @@ export async function enregistrerBrouillon(participationId: string, saisie: Sais
   await db().transaction(async (tx) => {
     const lu = await verrouillerPassage(tx, participationId);
     if (!lu) throw erreurs.etat(MESSAGES_EXAMEN.pasCourante);
-    const passage = await rattraper(tx, lu, instant);
+    const passage = await noterContact(tx, await rattraper(tx, lu, instant), instant);
     const ordre = exigerOuvert(passage, instant);
     const index = passage.etat.indexCourant;
     if (donnees.rang !== index + 1) {
@@ -99,7 +100,7 @@ export async function validerQuestion(participationId: string, saisie: SaisieRep
   const sessionTerminee = await db().transaction(async (tx): Promise<string | null> => {
     const lu = await verrouillerPassage(tx, participationId);
     if (!lu) throw erreurs.etat(MESSAGES_EXAMEN.pasCourante);
-    const passage = await rattraper(tx, lu, instant);
+    const passage = await noterContact(tx, await rattraper(tx, lu, instant), instant);
     if (passage.statut === "terminee") return passage.session.id;
     const ordre = exigerOuvert(passage, instant);
     const index = passage.etat.indexCourant;

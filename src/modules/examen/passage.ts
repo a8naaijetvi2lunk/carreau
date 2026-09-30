@@ -6,15 +6,17 @@
 import "server-only";
 import { and, count, eq, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
 import { db, type Transaction } from "@/db";
-import { participation, reponse, sessionExamen } from "@/db/schema";
+import { evenement, participation, reponse, sessionExamen } from "@/db/schema";
 import { maintenant } from "@/lib/horloge";
 import type { ContenuSession, OrdrePassage, QuestionInstantanee } from "@/lib/instantane";
 import { DELAI_CLOTURE_MS, TOLERANCE_ECHEANCE_MS, type OrigineReponse } from "@/lib/regles-examen";
+import { SEUIL_SILENCE_MS } from "@/lib/regles-surveillance";
 import type { StatutParticipation, StatutSession } from "@/lib/regles-session";
 import { appliquer, echue, terminer, type EtatPassage, type Rattrapage } from "@/moteur/echeances";
 import { noter, pointsQuestion } from "@/moteur/notation";
 import { journaliser } from "@/modules/journal";
 import { chronoDe, lireContenu } from "./commun";
+import { indiceFinal } from "./indice";
 
 export type SessionDuPassage = {
   id: string;
@@ -31,6 +33,7 @@ export type Passage = {
   ordre: OrdrePassage | null;
   etat: EtatPassage;
   noteSur20: number | null;
+  dernierContactLe: Date;
 };
 
 const COLONNES_PASSAGE = {
@@ -44,6 +47,7 @@ const COLONNES_PASSAGE = {
   echeanceGlobaleLe: participation.echeanceGlobaleLe,
   termineeLe: participation.termineeLe,
   noteSur20: participation.noteSur20,
+  dernierContactLe: participation.dernierContactLe,
 };
 
 const COLONNES_SESSION = {
@@ -71,6 +75,7 @@ async function participationVerrouillee(
     tiersTemps: l.tiersTemps,
     ordre: l.ordre,
     noteSur20: l.noteSur20,
+    dernierContactLe: l.dernierContactLe,
     etat: {
       indexCourant: l.indexCourant,
       questionServieLe: l.questionServieLe,
@@ -95,6 +100,40 @@ export async function verrouillerPassage(tx: Transaction, participationId: strin
     .for("share");
   if (!session) return null;
   return participationVerrouillee(tx, participationId, session);
+}
+
+/** Écart depuis le dernier contact (ou le départ, s'il est plus récent) ; null avant le départ. */
+function ecartDepuisContact(passage: Passage, instant: Date): number | null {
+  const demarreLe = passage.session.demarreLe;
+  if (demarreLe === null || instant.getTime() < demarreLe.getTime()) return null;
+  return instant.getTime() - Math.max(passage.dernierContactLe.getTime(), demarreLe.getTime());
+}
+
+async function insererSilence(
+  tx: Transaction,
+  passage: Passage,
+  instant: Date,
+  ecart: number,
+): Promise<void> {
+  await tx.insert(evenement).values({
+    participationId: passage.id,
+    type: "silence",
+    recuLe: instant,
+    dureeMs: ecart,
+    questionIndex: passage.etat.indexCourant,
+  });
+}
+
+/**
+ * Contact du téléphone à `instant` (spec §8.2 et §8.3, décision D3 du plan du lot 6) : pendant
+ * l'examen, un écart de plus de 15 s depuis le contact précédent (ou le départ) est enregistré comme
+ * silence, mesuré par le serveur. Le dernier contact est ensuite mis à jour.
+ */
+export async function noterContact(tx: Transaction, passage: Passage, instant: Date): Promise<Passage> {
+  const ecart = passage.statut === "en_cours" ? ecartDepuisContact(passage, instant) : null;
+  if (ecart !== null && ecart > SEUIL_SILENCE_MS) await insererSilence(tx, passage, instant, ecart);
+  await tx.update(participation).set({ dernierContactLe: instant }).where(eq(participation.id, passage.id));
+  return { ...passage, dernierContactLe: instant };
 }
 
 /** Question au rang `index` (0…) de l'étudiant, et l'ordre affiché de ses réponses. */
@@ -164,6 +203,11 @@ export async function enregistrerRattrapage(
     await tx.update(participation).set(colonnes).where(eq(participation.id, passage.id));
     return { ...passage, etat };
   }
+  // Téléphone muet jusqu'à la fin (D3) : le silence est enregistré avant l'indice final.
+  const ecartFinal = ecartDepuisContact(passage, etat.termineeLe);
+  if (ecartFinal !== null && ecartFinal > SEUIL_SILENCE_MS) {
+    await insererSilence(tx, passage, etat.termineeLe, ecartFinal);
+  }
   const validees = await tx
     .select({ points: reponse.points })
     .from(reponse)
@@ -172,9 +216,18 @@ export async function enregistrerRattrapage(
     validees.map((v) => v.points ?? 0),
     contenu.questions.reduce((somme, q) => somme + q.pointsBonne, 0),
   );
+  const indice = await indiceFinal(tx, passage.id, etat.termineeLe);
   await tx
     .update(participation)
-    .set({ ...colonnes, statut: "terminee", points: total, noteSur20: note })
+    .set({
+      ...colonnes,
+      statut: "terminee",
+      points: total,
+      noteSur20: note,
+      indice: indice.valeur,
+      indiceVersion: indice.version,
+      indiceDetail: indice.detail,
+    })
     .where(eq(participation.id, passage.id));
   return { ...passage, statut: "terminee", etat, noteSur20: note };
 }
@@ -198,14 +251,20 @@ export async function rattraper(tx: Transaction, passage: Passage, instant: Date
   );
 }
 
-/** Passage verrouillé puis rattrapé, dans sa propre transaction ; null si la participation n'existe plus. */
+/**
+ * Passage verrouillé puis rattrapé, dans sa propre transaction ; null si la participation n'existe
+ * plus. `contact` : la requête vient du téléphone, le contact est noté (D3 du plan du lot 6).
+ */
 export async function passageAJour(
   participationId: string,
   instant: Date = maintenant(),
+  contact = false,
 ): Promise<Passage | null> {
   return db().transaction(async (tx) => {
-    const passage = await verrouillerPassage(tx, participationId);
-    return passage ? rattraper(tx, passage, instant) : null;
+    const lu = await verrouillerPassage(tx, participationId);
+    if (!lu) return null;
+    const passage = await rattraper(tx, lu, instant);
+    return contact ? noterContact(tx, passage, instant) : passage;
   });
 }
 
