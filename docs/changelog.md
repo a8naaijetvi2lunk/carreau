@@ -19,6 +19,7 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - Démarrage d'un rattrapage : plus de contrôle « QCM prêt », le contenu est repris de l'instantané de l'origine s'il existe.
 - Écran de fin du téléphone relu toutes les 15 s, pour que le bouton « Voir la correction » apparaisse à la publication.
 - `BarreIndice` partagée entre le tableau de bord et les pages de résultats.
+- indice : une demande d'appareil autorisée et l'absence qui l'entoure ne comptent plus (A3).
 
 ## 2026-09-30 — Lot 6 : surveillance et suivi en direct
 

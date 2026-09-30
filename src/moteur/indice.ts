@@ -38,12 +38,16 @@ export type Consolidation = {
   ecranPartage: Ponctuel[];
   secondAppareil: Ponctuel[];
   rechargements: Ponctuel[];
+  /** Demandes d'appareil autorisées par l'enseignant, à l'heure de la demande : 0 point (A3 du lot 7). */
+  reprisesAutorisees: Ponctuel[];
+  /** Absences qui contiennent une demande autorisée : retirées des sorties, 0 point (A3 du lot 7). */
+  changementsAppareil: Intervalle[];
 };
 
 export type Indice = { valeur: number; version: number; detail: LigneIndice[] };
 
 const TYPES_PRESSE_PAPIERS = new Set(["copie", "coupe", "colle"]);
-const TYPES_SERVEUR = new Set(["silence", "second_appareil"]);
+const TYPES_SERVEUR = new Set(["silence", "second_appareil", "appareil_autorise"]);
 
 function chevauche(a: Intervalle, b: Intervalle): boolean {
   return a.debut.getTime() < b.fin.getTime() && b.debut.getTime() < a.fin.getTime();
@@ -156,6 +160,26 @@ function fenetre(tries: readonly EvenementBrut[], depuis: number, jusque: number
   return resultat;
 }
 
+/**
+ * Demandes d'appareil (A3 du lot 7) : chaque `appareil_autorise` autorise la dernière demande non
+ * appariée qui le précède (une seule demande en attente par participation, lot 4).
+ */
+function demandes(tries: readonly EvenementBrut[]): {
+  refusees: EvenementBrut[];
+  autorisees: EvenementBrut[];
+} {
+  const enAttente: EvenementBrut[] = [];
+  const autorisees: EvenementBrut[] = [];
+  for (const e of tries) {
+    if (e.type === "second_appareil") enAttente.push(e);
+    else if (e.type === "appareil_autorise") {
+      const demande = enAttente.pop();
+      if (demande) autorisees.push(demande);
+    }
+  }
+  return { refusees: enAttente, autorisees };
+}
+
 /** Consolidation des événements bruts d'un passage (D4 et D4-bis) ; `fin` ferme ce qui reste ouvert. */
 export function consolider(evenements: readonly EvenementBrut[], fin: Date): Consolidation {
   const tries = [...evenements].sort(
@@ -209,8 +233,14 @@ export function consolider(evenements: readonly EvenementBrut[], fin: Date): Con
     else if (horsLigneValide) coupures.push(silence);
     else sorties.push(silence);
   }
+  // A3 du lot 7 : une absence qui contient une demande autorisée est un changement de téléphone.
+  const { refusees, autorisees } = demandes(tries);
+  const contientDemande = (s: Intervalle) =>
+    autorisees.some((d) => s.debut.getTime() <= d.recuLe.getTime() && d.recuLe.getTime() <= s.fin.getTime());
+  const changementsAppareil = sorties.filter(contientDemande);
+  const sortiesComptees = sorties.filter((s) => !contientDemande(s));
   const focus = paires(tries, "focus_perdu", "focus_revenu", fin, false).intervalles.filter(
-    (f) => !sorties.some((s) => chevauche(s, f)),
+    (f) => ![...sortiesComptees, ...changementsAppareil].some((s) => chevauche(s, f)),
   );
   const chargements = new Set<string>();
   const rechargements: Ponctuel[] = [];
@@ -220,13 +250,15 @@ export function consolider(evenements: readonly EvenementBrut[], fin: Date): Con
     chargements.add(e.chargement);
   }
   return {
-    sorties: sorties.sort(parFin),
+    sorties: sortiesComptees.sort(parFin),
     coupures: coupures.sort(parFin),
     focus,
     pressePapiers: ponctuels(tries, (type) => TYPES_PRESSE_PAPIERS.has(type)),
     ecranPartage: ponctuels(tries, (type) => type === "ecran_partage"),
-    secondAppareil: ponctuels(tries, (type) => type === "second_appareil"),
+    secondAppareil: refusees.map((x) => ({ le: x.recuLe, questionIndex: x.questionIndex })),
     rechargements,
+    reprisesAutorisees: autorisees.map((x) => ({ le: x.recuLe, questionIndex: x.questionIndex })),
+    changementsAppareil: changementsAppareil.sort(parFin),
   };
 }
 
@@ -278,6 +310,7 @@ export function calculerIndice(
     },
     coupure: { signal: "coupure", nombre: c.coupures.length, points: 0 },
     rechargement: { signal: "rechargement", nombre: c.rechargements.length, points: 0 },
+    appareil_autorise: { signal: "appareil_autorise", nombre: c.reprisesAutorisees.length, points: 0 },
   };
   const detail = SIGNAUX.map((signal) => lignes[signal]).filter((ligne) => ligne.nombre > 0);
   const total = detail.reduce((somme, ligne) => somme + ligne.points, 0);
@@ -322,6 +355,12 @@ export function faitsNotables(c: Consolidation, p: Ponderation = PONDERATION_V1)
     })),
     ...c.rechargements.map((x): Fait => ({
       type: "rechargement",
+      le: x.le,
+      dureeMs: null,
+      questionIndex: x.questionIndex,
+    })),
+    ...c.reprisesAutorisees.map((x): Fait => ({
+      type: "appareil_autorise",
       le: x.le,
       dureeMs: null,
       questionIndex: x.questionIndex,

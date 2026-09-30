@@ -83,6 +83,7 @@ export const SIGNAUX = [
   "ecran_partage",
   "coupure",
   "rechargement",
+  "appareil_autorise",
 ] as const;
 export type Signal = (typeof SIGNAUX)[number];
 
@@ -95,6 +96,7 @@ export const LIBELLES_SIGNAL: Record<Signal, string> = {
   ecran_partage: "Écran partagé (heuristique)",
   coupure: "Coupure réseau (non comptée)",
   rechargement: "Rechargement de la page (non compté)",
+  appareil_autorise: "Changement de téléphone autorisé (non compté)",
 };
 
 export type LigneIndice = { signal: Signal; nombre: number; points: number };
@@ -103,7 +105,14 @@ export const MENTION_INDICE =
   "L’indice de suspicion est une estimation calculée à partir des événements enregistrés. Ce n’est pas une preuve. Les coupures réseau ne sont pas comptées.";
 
 export type TypeFait =
-  "sortie" | "focus" | "presse_papiers" | "ecran_partage" | "coupure" | "second_appareil" | "rechargement";
+  | "sortie"
+  | "focus"
+  | "presse_papiers"
+  | "ecran_partage"
+  | "coupure"
+  | "second_appareil"
+  | "rechargement"
+  | "appareil_autorise";
 
 /** Fait notable d'un passage, tiré de la consolidation (D10). */
 export type Fait = { type: TypeFait; le: Date; dureeMs: number | null; questionIndex: number | null };
@@ -129,6 +138,8 @@ export function libelleFait(fait: Fait): string {
       return `Réseau perdu · ${heure}`;
     case "second_appareil":
       return `2e appareil · ${heure}`;
+    case "appareil_autorise":
+      return `Téléphone changé · ${heure}`;
     case "rechargement":
       return `Rechargement · ${heure}`;
   }

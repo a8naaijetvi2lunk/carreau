@@ -117,7 +117,7 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 | Perte de focus (notification ouverte) et redimensionnement marqué (écran partagé, heuristique) | Une capture d’écran sur iPhone |
 | Copier-coller | Une réponse soufflée par un voisin |
 | Temps passé sur chaque question | |
-| Un même nom utilisé sur deux appareils | |
+| Un même nom utilisé sur deux appareils (compté sauf si l’enseignant autorise le changement) | |
 | Silence du téléphone de plus de 15 s, mesuré par le serveur | |
 
 Principes retenus :

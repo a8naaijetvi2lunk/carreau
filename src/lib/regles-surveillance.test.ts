@@ -53,6 +53,9 @@ describe("règles de la surveillance", () => {
     );
     expect(libelleFait(fait({ type: "rechargement", questionIndex: null }))).toBe("Rechargement · 10:42:13");
     expect(libelleFait(fait({ questionIndex: null }))).toBe("Sortie 38 s · 10:42:13");
+    expect(libelleFait(fait({ type: "appareil_autorise", questionIndex: null }))).toBe(
+      "Téléphone changé · 10:42:13",
+    );
   });
 
   it("donne les alertes en direct, sans alerte pour les faits mineurs", () => {
@@ -75,5 +78,11 @@ describe("règles de la surveillance", () => {
     expect(alerteFait(fait({ type: "focus" }), "X")).toBeNull();
     expect(alerteFait(fait({ type: "second_appareil" }), "X")).toBeNull();
     expect(alerteFait(fait({ type: "rechargement" }), "X")).toBeNull();
+    expect(alerteFait(fait({ type: "appareil_autorise" }), "X")).toBeNull();
+  });
+
+  it("nomme le changement de téléphone autorisé, sans point", () => {
+    expect(SIGNAUX.at(-1)).toBe("appareil_autorise");
+    expect(LIBELLES_SIGNAL.appareil_autorise).toBe("Changement de téléphone autorisé (non compté)");
   });
 });

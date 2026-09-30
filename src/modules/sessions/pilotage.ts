@@ -6,7 +6,7 @@ import "server-only";
 import { count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
-import { demandeAppareil, participation, qcm, sessionExamen } from "@/db/schema";
+import { demandeAppareil, evenement, participation, qcm, sessionExamen } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
@@ -207,6 +207,13 @@ export async function autoriserDemande(
           ancienJetonHash: d.appareilJetonHash,
         })
         .where(eq(demandeAppareil.id, d.id));
+      // Signal serveur de la reprise autorisée : la demande et l'absence qui l'entoure ne comptent pas (A3 du lot 7).
+      await tx.insert(evenement).values({
+        participationId: d.participationId,
+        type: "appareil_autorise",
+        recuLe: maintenant(),
+        details: {},
+      });
       await journaliser(
         {
           acteur: { type: "utilisateur", id: acteur.id },

@@ -135,6 +135,8 @@ export const TEXTES_CHRONOLOGIE = {
   pressePapiers: "Copier-coller",
   ecranPartage: "Écran partagé (heuristique)",
   secondAppareil: "Tentative depuis un second appareil",
+  repriseAutorisee: "Changement de téléphone autorisé",
+  changementAppareil: "Sans téléphone pendant le changement autorisé (non compté)",
   rechargement: "Rechargement de la page",
   reponse: "Réponse validée",
   reponseRapide: (secondes: number) => `Réponse validée ${secondes} s après le retour`,

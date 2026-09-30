@@ -11,7 +11,7 @@ function a(secondes: number): Date {
 
 /** Événement reçu à T + `secondes` ; ceux du téléphone portent le chargement « c1 » par défaut. */
 function e(type: string, secondes: number, extra: Partial<EvenementBrut> = {}): EvenementBrut {
-  const serveur = type === "silence" || type === "second_appareil";
+  const serveur = type === "silence" || type === "second_appareil" || type === "appareil_autorise";
   return {
     type,
     recuLe: a(secondes),
@@ -433,5 +433,68 @@ describe("correctif D4-bis (retour constaté, silences déjà comptés, réponse
     ).toBe(0);
     expect(indice([e("silence", 60, { dureeMs: 60_000 })]).valeur).toBe(45);
     expect(indice([e("focus_revenu", 4), e("focus_perdu", 1)]).valeur).toBe(6);
+  });
+});
+
+describe("reprise autorisée (amendement A3 du lot 7)", () => {
+  it("une demande autorisée ne compte pas ; une demande refusée compte 20", () => {
+    const autorisee = indice([e("second_appareil", 30), e("appareil_autorise", 40)]);
+    expect(autorisee).toEqual({
+      valeur: 0,
+      version: 1,
+      detail: [{ signal: "appareil_autorise", nombre: 1, points: 0 }],
+    });
+    const refusee = indice([e("second_appareil", 30)]);
+    expect(refusee.detail).toEqual([{ signal: "second_appareil", nombre: 1, points: 20 }]);
+  });
+
+  it("l'autorisation apparie la dernière demande qui la précède", () => {
+    const c = consolider(
+      [e("second_appareil", 10), e("second_appareil", 50), e("appareil_autorise", 60)],
+      FIN,
+    );
+    expect(c.secondAppareil).toEqual([{ le: a(10), questionIndex: 2 }]);
+    expect(c.reprisesAutorisees).toEqual([{ le: a(50), questionIndex: 2 }]);
+  });
+
+  it("le silence du changement de téléphone n'est pas une sortie", () => {
+    // Téléphone éteint à T+20 ; demande depuis un autre téléphone à T+60, autorisée à T+80 ;
+    // premier contact du nouveau téléphone à T+95 : silence de 75 s.
+    const c = consolider(
+      [
+        e("second_appareil", 60),
+        e("appareil_autorise", 80),
+        e("silence", 95, { dureeMs: 75_000 }),
+        e("debut", 95, { chargement: "c2" }),
+      ],
+      FIN,
+    );
+    expect(c.sorties).toEqual([]);
+    expect(c.changementsAppareil).toEqual([{ debut: a(20), fin: a(95), dureeMs: 75_000, questionIndex: 2 }]);
+    expect(calculerIndice(c, [a(100)]).valeur).toBe(0);
+  });
+
+  it("une page masquée pendant le changement autorisé n'est pas comptée non plus", () => {
+    const c = consolider(
+      [
+        e("masquee", 20),
+        e("second_appareil", 60),
+        e("appareil_autorise", 80),
+        e("debut", 95, { chargement: "c2" }),
+      ],
+      FIN,
+    );
+    expect(c.sorties).toEqual([]);
+    expect(c.changementsAppareil).toHaveLength(1);
+    expect(faitsNotables(c).map((f) => f.type)).toEqual(["appareil_autorise", "rechargement"]);
+  });
+
+  it("une sortie qui ne contient pas la demande reste une sortie", () => {
+    const c = consolider(
+      [e("masquee", 5), e("visible", 15), e("second_appareil", 60), e("appareil_autorise", 80)],
+      FIN,
+    );
+    expect(c.sorties).toEqual([{ debut: a(5), fin: a(15), dureeMs: 10_000, questionIndex: 2 }]);
+    expect(c.changementsAppareil).toEqual([]);
   });
 });

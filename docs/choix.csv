@@ -120,3 +120,4 @@ date,catégorie,choix,pourquoi
 2026-09-30,sécurité,"CSV : texte neutralisé par une apostrophe, jamais les nombres ; XLSX : texte typé String","Un nom importé peut commencer une formule de tableur (D17 du lot 2) ; une apostrophe devant un nombre en ferait du texte"
 2026-09-30,technique,"write-excel-file en dépendance d'exécution, hors bundle et vérifié au démarrage","Même chemin que read-excel-file : un paquet absent du build autonome casserait au premier export"
 2026-09-30,interface,"Questions numérotées dans l'ordre du QCM dans le rapport et les exports","Le rang de l'étudiant sert au suivi en direct ; après l'examen, l'enseignant raisonne sur son QCM"
+2026-09-30,sécurité,"Reprise autorisée neutralisée dans l'indice (amendement A3)","L'enseignant a autorisé le changement en connaissance de cause ; 20 points et une sortie jusqu'à 45 faisaient monter l'indice d'un étudiant dont le téléphone s'était éteint"

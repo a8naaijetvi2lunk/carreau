@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import {
   demandeAppareil,
+  evenement,
   journal,
   parametres,
   participation,
@@ -231,6 +232,17 @@ describe("demandes d'appareil", () => {
     expect(await entree("sessions.autoriser_appareil", `demande:${d.id}`)).toMatchObject({
       details: { participationId: p.id },
     });
+  });
+
+  it("note l'autorisation comme un événement serveur de la participation (A3 du lot 7)", async () => {
+    const { acteur, p, d } = await demandeEnAttente();
+    await autoriserDemande(acteur, { demandeId: d.id });
+    const lignes = await db()
+      .select({ type: evenement.type, chargement: evenement.chargement })
+      .from(evenement)
+      .where(eq(evenement.participationId, p.id));
+    expect(lignes).toContainEqual({ type: "second_appareil", chargement: null });
+    expect(lignes).toContainEqual({ type: "appareil_autorise", chargement: null });
   });
 
   it("refuser : la participation garde son téléphone, le demandeur voit le refus", async () => {

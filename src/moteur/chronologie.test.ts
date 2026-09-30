@@ -16,6 +16,8 @@ const VIDE: Consolidation = {
   ecranPartage: [],
   secondAppareil: [],
   rechargements: [],
+  reprisesAutorisees: [],
+  changementsAppareil: [],
 };
 
 function passage(consolidation: Partial<Consolidation>, reponses: ReponseDatee[] = [], repondues = 18) {
@@ -72,12 +74,16 @@ describe("chronologie (D10)", () => {
       ecranPartage: [{ le: a(20), questionIndex: 1 }],
       secondAppareil: [{ le: a(30), questionIndex: null }],
       rechargements: [{ le: a(45), questionIndex: 2 }],
+      reprisesAutorisees: [{ le: a(50), questionIndex: 2 }],
+      changementsAppareil: [{ debut: a(46), fin: a(60), dureeMs: 14_000, questionIndex: 2 }],
     });
     expect(entrees.slice(1, -1).map((e) => [e.texte, e.sorte, e.dureeMs])).toEqual([
       ["Coupure réseau (non comptée)", "mineur", 30_000],
       ["Écran partagé (heuristique)", "notable", null],
       ["Tentative depuis un second appareil", "notable", null],
       ["Rechargement de la page", "mineur", null],
+      ["Sans téléphone pendant le changement autorisé (non compté)", "mineur", 14_000],
+      ["Changement de téléphone autorisé", "mineur", null],
     ]);
   });
 

@@ -94,6 +94,17 @@ export function chronologie(passage: PassageRaconte, p: Ponderation = PONDERATIO
   for (const x of c.ecranPartage) ponctuel(x.le, x.questionIndex, TEXTES_CHRONOLOGIE.ecranPartage, "notable");
   for (const x of c.secondAppareil)
     ponctuel(x.le, x.questionIndex, TEXTES_CHRONOLOGIE.secondAppareil, "notable");
+  for (const x of c.reprisesAutorisees)
+    ponctuel(x.le, x.questionIndex, TEXTES_CHRONOLOGIE.repriseAutorisee, "mineur");
+  for (const x of c.changementsAppareil) {
+    ajouter({
+      le: x.debut,
+      index: x.questionIndex,
+      texte: TEXTES_CHRONOLOGIE.changementAppareil,
+      dureeMs: x.dureeMs,
+      sorte: "mineur",
+    });
+  }
   for (const x of c.rechargements) ponctuel(x.le, x.questionIndex, TEXTES_CHRONOLOGIE.rechargement, "mineur");
   for (const r of passage.reponses) {
     if (r.origine === "fin") continue;

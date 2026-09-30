@@ -39,6 +39,7 @@ function durees(c: Consolidation): Partial<Record<Signal, { nombre: number; dure
     sortie: somme(c.sorties),
     focus: somme(c.focus.filter((f) => f.dureeMs >= PONDERATION_V1.focusMinMs)),
     coupure: somme(c.coupures),
+    appareil_autorise: { nombre: c.reprisesAutorisees.length, dureeMs: somme(c.changementsAppareil).dureeMs },
   };
 }
 

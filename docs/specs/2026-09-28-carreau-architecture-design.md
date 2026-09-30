@@ -313,7 +313,7 @@ Fonction pure `moteur/indice.calculer(evenements, reponses, ponderation) → { v
 | Perte de focus d'au moins 2 s sans sortie | 6 |
 | Copier, couper ou coller | 10 |
 | Réponse validée moins de 10 s après le retour d'une sortie d'au moins 5 s | 12 |
-| Tentative depuis un second appareil | 20 |
+| Tentative depuis un second appareil (refusée ou expirée) ; une demande autorisée et l'absence qui l'entoure ne comptent pas (amendement A3 du plan du lot 7) | 20 |
 | Écran partagé (heuristique) | 5 |
 | Coupure réseau déclarée, page visible | 0 |
 | Rechargement de la page | 0 (contexte affiché dans la chronologie) |
