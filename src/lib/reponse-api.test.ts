@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { erreurs } from "./erreurs";
-import { lireCorpsBinaire, lireCorpsJson, reponseErreur, reponseImage, reponseOk } from "./reponse-api";
+import {
+  lireCorpsBinaire,
+  lireCorpsJson,
+  reponseErreur,
+  reponseFichier,
+  reponseImage,
+  reponseOk,
+} from "./reponse-api";
 
 function requeteJson(corps: string, type = "application/json"): Request {
   return new Request("http://localhost/api/essai", {
@@ -175,5 +182,26 @@ describe("reponseImage", () => {
       "content-disposition": "inline",
     });
     expect(Array.from(new Uint8Array(await reponse.arrayBuffer()))).toEqual([1, 2]);
+  });
+});
+
+describe("reponseFichier", () => {
+  it("sert un téléchargement privé, jamais interprété", async () => {
+    const reponse = reponseFichier(new Uint8Array([1, 2, 3]), {
+      nom: "resultats-algo-2026-09-29.csv",
+      type: "text/csv; charset=utf-8",
+    });
+    expect(reponse.status).toBe(200);
+    expect(reponse.headers.get("content-type")).toBe("text/csv; charset=utf-8");
+    expect(reponse.headers.get("content-disposition")).toBe(
+      "attachment; filename=\"resultats-algo-2026-09-29.csv\"; filename*=UTF-8''resultats-algo-2026-09-29.csv",
+    );
+    expect(reponse.headers.get("cache-control")).toBe("private, no-store");
+    expect(reponse.headers.get("x-content-type-options")).toBe("nosniff");
+    expect([...new Uint8Array(await reponse.arrayBuffer())]).toEqual([1, 2, 3]);
+  });
+
+  it("refuse un nom de fichier hors de [a-z0-9.-]", () => {
+    expect(() => reponseFichier(new Uint8Array(), { nom: 'a"b.csv', type: "text/csv" })).toThrow();
   });
 });

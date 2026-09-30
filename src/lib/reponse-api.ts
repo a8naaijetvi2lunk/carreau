@@ -140,3 +140,23 @@ const ENTETES_IMAGE = {
 export function reponseImage(contenu: Uint8Array): Response {
   return new Response(Buffer.from(contenu), { status: 200, headers: ENTETES_IMAGE });
 }
+
+const NOM_DE_FICHIER = /^[a-z0-9][a-z0-9.-]*$/;
+
+/**
+ * Fichier téléchargé (exports des résultats, décision D8 du plan du lot 7) : pièce jointe, jamais mise
+ * en cache partagé ni interprétée. Le nom, construit par le serveur, est vérifié : il entre tel quel
+ * dans l'en-tête.
+ */
+export function reponseFichier(contenu: Uint8Array, fichier: { nom: string; type: string }): Response {
+  if (!NOM_DE_FICHIER.test(fichier.nom)) throw new Error("Nom de fichier invalide.");
+  return new Response(Buffer.from(contenu), {
+    status: 200,
+    headers: {
+      "Content-Type": fichier.type,
+      "Content-Disposition": `attachment; filename="${fichier.nom}"; filename*=UTF-8''${fichier.nom}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}

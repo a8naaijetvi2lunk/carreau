@@ -2,6 +2,7 @@
  * Règles des résultats (spec §9.1 ; décisions D5 et D8 du plan du lot 7) : statistiques, tri du
  * tableau et des exports, libellés. Pures : partagées par le module resultats et les pages.
  */
+import { saisieHeureDeParis } from "./dates";
 import { nomComplet } from "./regles-session";
 import type { LigneResultat, StatutResultat } from "./vue-resultats";
 
@@ -47,4 +48,72 @@ export function comparerLignes(a: LigneResultat, b: LigneResultat): number {
   return (
     RANG_STATUT[a.statut] - RANG_STATUT[b.statut] || (b.note ?? -1) - (a.note ?? -1) || comparerNoms(a, b)
   );
+}
+
+/** Colonnes du CSV et de la feuille « Synthèse » (D8). */
+export const EN_TETES_SYNTHESE = [
+  "Nom",
+  "Prénom",
+  "Tiers-temps",
+  "Passage",
+  "Statut",
+  "Note sur 20",
+  "Points",
+  "Bonnes réponses",
+  "Durée (s)",
+  "Indice de suspicion",
+] as const;
+
+/** Colonnes du tableau d'une feuille de question (D8). */
+export const EN_TETES_QUESTION = ["Nom", "Prénom", "Réponse", "Résultat", "Points"] as const;
+
+/** Une ligne des résultats, dans l'ordre de `EN_TETES_SYNTHESE` ; null pour une cellule vide. */
+export function celluleSynthese(l: LigneResultat): (string | number | null)[] {
+  const passage = l.passage === "rattrapage" ? "Rattrapage" : l.passage === "session" ? "Session" : null;
+  return [
+    l.nom,
+    l.prenom,
+    l.tiersTemps ? "Oui" : "Non",
+    passage,
+    LIBELLES_STATUT_RESULTAT[l.statut],
+    l.note,
+    l.points,
+    l.bonnes,
+    l.dureeS,
+    l.indice,
+  ];
+}
+
+const TITRE_FICHIER_MAX = 60;
+const MARQUES = /\p{M}/gu;
+
+/** « resultats-algorithmique-controle-2-2026-09-29.csv » : titre sans accents, date du départ à Paris (D8). */
+export function nomFichierExport(titre: string, le: Date, extension: "csv" | "xlsx"): string {
+  const mots = titre
+    .normalize("NFD")
+    .replace(MARQUES, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, TITRE_FICHIER_MAX)
+    .replace(/-+$/, "");
+  const date = saisieHeureDeParis(le).slice(0, 10);
+  return mots === "" ? `resultats-${date}.${extension}` : `resultats-${mots}-${date}.${extension}`;
+}
+
+/** Lettre d'une réponse dans l'ordre du QCM : 0 → « A ». */
+export function lettre(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
+/** Résultat d'une sélection (index d'origine) : tout ou rien (spec §6.6). */
+export function resultatQuestion(
+  selection: readonly number[],
+  question: { propositions: readonly { correcte: boolean }[] },
+): "Juste" | "Faux" | "Sans réponse" {
+  if (selection.length === 0) return "Sans réponse";
+  const correctes = question.propositions.flatMap((p, index) => (p.correcte ? [index] : []));
+  const choisies = new Set(selection);
+  const exacte = choisies.size === correctes.length && correctes.every((index) => choisies.has(index));
+  return exacte ? "Juste" : "Faux";
 }
