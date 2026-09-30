@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { erreursParChamp, lireCase, lireChamp, lireChampJson, lireFichier, lireNombre } from "./formulaire";
+import {
+  erreursParChamp,
+  lireCase,
+  lireChamp,
+  lireChampJson,
+  lireFichier,
+  lireListe,
+  lireNombre,
+} from "./formulaire";
 
 describe("lecture d'un formulaire", () => {
   it("lireChamp renvoie le texte, ou une chaîne vide pour un champ absent ou un fichier", () => {
@@ -63,6 +71,17 @@ describe("fichiers et JSON d'un formulaire", () => {
     expect(lireChampJson(formulaire, "casse")).toBeUndefined();
     expect(lireChampJson(formulaire, "fichier")).toBeUndefined();
     expect(lireChampJson(formulaire, "absent")).toBeUndefined();
+  });
+});
+
+describe("lireListe", () => {
+  it("renvoie toutes les valeurs texte d'un champ répété, sans les fichiers", () => {
+    const formulaire = new FormData();
+    formulaire.append("etudiantId", "a");
+    formulaire.append("etudiantId", "b");
+    formulaire.append("etudiantId", new File(["x"], "x.txt"));
+    expect(lireListe(formulaire, "etudiantId")).toEqual(["a", "b"]);
+    expect(lireListe(formulaire, "absent")).toEqual([]);
   });
 });
 

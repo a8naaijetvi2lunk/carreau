@@ -8,13 +8,13 @@ import { formaterHeureSecondes } from "@/lib/dates";
 import { MENTION_INDICE } from "@/lib/regles-surveillance";
 import { formaterChrono } from "@/lib/textes";
 import type { VueSuivi } from "@/lib/vue-session";
+import { BarreIndice } from "../../BarreIndice";
 import { prolongerSessionAction, terminerSessionAction } from "../actions";
 import {
   FILTRES_SUIVI,
   filtrerLignes,
   LIBELLES_STATUT_SUIVI,
   lignesTableau,
-  tonIndice,
   type FiltreSuivi,
   type LigneTableau,
   type StatutLigne,
@@ -34,12 +34,6 @@ const TONS_STATUT: Record<StatutLigne, "sombre" | "bleu" | "neutre" | "alerte"> 
   deconnecte: "alerte",
   terminee: "neutre",
   absent: "neutre",
-};
-
-const COULEURS_INDICE = {
-  fort: { texte: "text-orange-fonce", barre: "bg-orange-fonce" },
-  moyen: { texte: "text-encre", barre: "bg-ambre" },
-  faible: { texte: "text-muet", barre: "bg-ligne-forte" },
 };
 
 /** Temps restant jusqu'à `finLe`, à l'heure du serveur ; lu dans une minuterie (`useRebours`). */
@@ -62,21 +56,6 @@ function TempsRestant({ suivi, decalageMs }: { suivi: VueSuivi; decalageMs: numb
   );
 }
 
-function Indice({ indice }: { indice: number | null }) {
-  if (indice === null) return <span className="text-sm text-muet">—</span>;
-  const couleurs = COULEURS_INDICE[tonIndice(indice)];
-  return (
-    <span className="flex items-center gap-2" aria-label={`Indice ${indice} sur 100`}>
-      <span aria-hidden="true" className={`w-8 text-right font-code font-bold ${couleurs.texte}`}>
-        {indice}
-      </span>
-      <span aria-hidden="true" className="h-1.5 w-16 overflow-hidden rounded-full bg-ligne-douce">
-        <span className={`block h-full rounded-full ${couleurs.barre}`} style={{ width: `${indice}%` }} />
-      </span>
-    </span>
-  );
-}
-
 function Ligne({ ligne }: { ligne: LigneTableau }) {
   return (
     <li
@@ -91,7 +70,7 @@ function Ligne({ ligne }: { ligne: LigneTableau }) {
         <Etiquette ton={TONS_STATUT[ligne.statut]}>{LIBELLES_STATUT_SUIVI[ligne.statut]}</Etiquette>
       </span>
       <span className="font-code text-sm text-encre-2">{ligne.progression ?? "—"}</span>
-      <Indice indice={ligne.indice} />
+      <BarreIndice indice={ligne.indice} />
       <span className="col-span-2 text-sm text-encre-2 md:col-span-1">{ligne.dernierFait ?? "—"}</span>
     </li>
   );

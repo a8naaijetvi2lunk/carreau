@@ -14,7 +14,11 @@ export default async function PageSession(props: PageProps<"/enseignant/sessions
   return (
     <>
       <EnTeteSession session={session} />
-      <PilotageSession sessionId={session.id} suiviInitial={session.suivi} />
+      <PilotageSession
+        sessionId={session.id}
+        suiviInitial={session.suivi}
+        resultatsId={session.sessionOrigineId ?? session.id}
+      />
     </>
   );
 }

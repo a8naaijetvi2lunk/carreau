@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useRebours } from "@/components/examen/useRebours";
-import { Alerte, Bouton, classesBouton, Etiquette } from "@/components/ui";
+import { Alerte, Bouton, classesBouton, Etiquette, LienBouton } from "@/components/ui";
 import type { ResultatAction } from "@/lib/action";
 import { appelerApi } from "@/lib/appel-api";
 import { formaterHeure } from "@/lib/dates";
@@ -40,7 +40,15 @@ function Depart({ demarreLe, decalageMs }: { demarreLe: string; decalageMs: numb
  * la page, code, demandes d'appareil, salle d'attente ; pendant et après l'examen, le tableau de bord
  * (D14 du plan du lot 6). Le suivi est interrogé toutes les 3 s, et suspendu quand l'onglet est masqué.
  */
-export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string; suiviInitial: VueSuivi }) {
+export function PilotageSession({
+  sessionId,
+  suiviInitial,
+  resultatsId,
+}: {
+  sessionId: string;
+  suiviInitial: VueSuivi;
+  resultatsId: string;
+}) {
   const router = useRouter();
   const [suivi, setSuivi] = useState(suiviInitial);
   const [decalageMs, setDecalageMs] = useState(0);
@@ -127,6 +135,9 @@ export function PilotageSession({ sessionId, suiviInitial }: { sessionId: string
               Annuler la session
             </Bouton>
           </>
+        ) : null}
+        {suivi.statut === "terminee" ? (
+          <LienBouton href={`/enseignant/resultats/${resultatsId}`}>Voir les résultats</LienBouton>
         ) : null}
       </div>
       {confirmation === "demarrer" && enAttente ? (

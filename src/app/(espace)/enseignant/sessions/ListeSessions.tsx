@@ -37,6 +37,11 @@ function Tableau({
                 <span className="flex min-w-0 flex-col">
                   <strong className="max-w-full truncate text-base">{s.titre}</strong>
                   <span className="text-sm text-muet">{s.classe}</span>
+                  {s.type === "rattrapage" ? (
+                    <span>
+                      <Etiquette>Rattrapage</Etiquette>
+                    </span>
+                  ) : null}
                 </span>
                 <span>
                   <Etiquette ton={TONS_STATUT_SESSION[s.statut]}>

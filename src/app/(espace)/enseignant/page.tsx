@@ -55,6 +55,7 @@ export default async function AccueilEnseignant() {
                   <Etiquette ton={TONS_STATUT_SESSION[s.statut]}>
                     {LIBELLES_STATUT_SESSION[s.statut]}
                   </Etiquette>
+                  {s.type === "rattrapage" ? <Etiquette>Rattrapage</Etiquette> : null}
                   <span className="text-sm text-muet">{libelleQuand(s)}</span>
                 </Link>
               </li>

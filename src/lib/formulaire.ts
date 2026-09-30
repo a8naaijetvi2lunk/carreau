@@ -11,6 +11,11 @@ export function lireCase(formulaire: FormData, nom: string): boolean {
   return formulaire.get(nom) !== null;
 }
 
+/** Valeurs texte d'un champ répété (cases à cocher de même nom) ; les fichiers sont ignorés. */
+export function lireListe(formulaire: FormData, nom: string): string[] {
+  return formulaire.getAll(nom).filter((valeur): valeur is string => typeof valeur === "string");
+}
+
 /**
  * Messages d'erreur par champ, à partir des `details` d'une erreur VALIDATION
  * (`[{ chemin: "email", message }]`, voir `erreurDepuisZod`). Premier message de chaque champ.
