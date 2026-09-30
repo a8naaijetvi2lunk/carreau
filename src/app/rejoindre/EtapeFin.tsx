@@ -13,7 +13,11 @@ import { CorrectionEtudiant } from "./CorrectionEtudiant";
 
 type EtatFin = Extract<EtatEntree, { etape: "fin" }>;
 
-/** Fin de l'examen (maquette « Fin de l’examen », D14 du plan du lot 5) ; « Voir la correction » quand elle est publiée (D11 et D13 du plan du lot 7). */
+/**
+ * Fin de l'examen (maquette « Fin de l’examen », D14 du plan du lot 5) ; « Voir la correction » quand elle est
+ * publiée (D11 et D13 du plan du lot 7) ; la correction chargée disparaît si elle n'est plus publiée (A1 du plan
+ * du lot 7).
+ */
 export function EtapeFin({ etat }: { etat: EtatFin }) {
   const [correction, setCorrection] = useState<VueCorrection | null>(null);
   const [chargement, setChargement] = useState(false);
@@ -77,7 +81,7 @@ export function EtapeFin({ etat }: { etat: EtatFin }) {
       )}
       {bouton}
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
-      {correction ? <CorrectionEtudiant correction={correction} /> : null}
+      {etat.correction && correction ? <CorrectionEtudiant correction={correction} /> : null}
       <p className="text-center text-[15px] text-muet">Tu peux fermer cette page.</p>
     </section>
   );

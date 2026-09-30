@@ -112,6 +112,8 @@ export function TableauResultats({ vue }: { vue: VueResultats }) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [choisis, setChoisis] = useState<string[]>([]);
+  // Réglage en vigueur : mis à jour dès que le serveur l'accepte, sans attendre le rafraîchissement de la page.
+  const [visibilite, setVisibilite] = useState({ note: vue.noteVisible, correction: vue.correctionVisible });
   const panneau = useRef<HTMLHeadingElement>(null);
   const [etatRattrapage, creer, creation] = useActionState(
     creerRattrapageAction.bind(null, vue.sessionId),
@@ -128,8 +130,10 @@ export function TableauResultats({ vue }: { vue: VueResultats }) {
     setEnCours(true);
     try {
       const resultat = await reglerVisibiliteAction(vue.sessionId, noteVisible, correctionVisible);
-      if (resultat.ok) router.refresh();
-      else setErreur(resultat.erreur.message);
+      if (resultat.ok) {
+        setVisibilite({ note: noteVisible, correction: correctionVisible });
+        router.refresh();
+      } else setErreur(resultat.erreur.message);
     } finally {
       setEnCours(false);
     }
@@ -160,7 +164,7 @@ export function TableauResultats({ vue }: { vue: VueResultats }) {
         </dl>
       </section>
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
-      {vue.correctionVisible && vue.rattrapageOuvert ? (
+      {visibilite.correction && vue.rattrapageOuvert ? (
         <Alerte>La correction sera montrée aux étudiants à la fin du rattrapage.</Alerte>
       ) : null}
       <section
@@ -173,15 +177,15 @@ export function TableauResultats({ vue }: { vue: VueResultats }) {
           </h2>
           <Interrupteur
             libelle="Note visible par les étudiants"
-            actif={vue.noteVisible}
+            actif={visibilite.note}
             desactive={enCours}
-            onBasculer={() => void regler(!vue.noteVisible, vue.correctionVisible)}
+            onBasculer={() => void regler(!visibilite.note, visibilite.correction)}
           />
           <Interrupteur
             libelle="Correction visible"
-            actif={vue.correctionVisible}
+            actif={visibilite.correction}
             desactive={enCours}
-            onBasculer={() => void regler(vue.noteVisible, !vue.correctionVisible)}
+            onBasculer={() => void regler(visibilite.note, !visibilite.correction)}
           />
         </div>
         <div
@@ -246,7 +250,7 @@ export function TableauResultats({ vue }: { vue: VueResultats }) {
             Choisis les absents : ils passeront le même examen, sur le même contenu, et leurs résultats
             rejoindront ce tableau.
           </p>
-          {vue.correctionVisible ? (
+          {visibilite.correction ? (
             <Alerte>La correction est déjà visible : des étudiants du rattrapage ont pu la voir.</Alerte>
           ) : null}
           {etatRattrapage && !etatRattrapage.ok && !erreursRattrapage.creneauPrevu ? (

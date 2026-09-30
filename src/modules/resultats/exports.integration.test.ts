@@ -1,6 +1,6 @@
 import { unzipSync } from "fflate";
 import readXlsxFile from "read-excel-file/node";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { etudiant, journal } from "@/db/schema";
@@ -55,7 +55,10 @@ describe("exporterResultatsCsv (D8)", () => {
     expect(lignes[5]).toBe("Martin;Inès;Non;;Absent;;;;;");
     expect(lignes[6]).toBe("");
     expect(lignes).toHaveLength(7);
-    const [trace] = await db().select().from(journal).where(eq(journal.action, "resultats.exporter"));
+    const [trace] = await db()
+      .select()
+      .from(journal)
+      .where(and(eq(journal.action, "resultats.exporter"), eq(journal.cible, `session:${x.session.id}`)));
     expect(trace).toMatchObject({ cible: `session:${x.session.id}`, details: { format: "csv" } });
   });
 
