@@ -21,8 +21,8 @@ export async function activerEtEnroler(
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Activer mon compte");
   const prenom = page.getByLabel("Prénom", { exact: true });
   const nom = page.getByLabel("Nom", { exact: true });
-  // Prénom et nom sont des champs contrôlés : une saisie faite avant l'hydratation est effacée au
-  // rendu suivant (celui que déclenche la saisie du nom). On ressaisit jusqu'à ce que les deux tiennent.
+  // Filet posé au lot 9 : tant que prénom et nom étaient contrôlés, une saisie faite avant l'hydratation
+  // était effacée au rendu suivant. Champs non contrôlés depuis le lot 10 (D9) ; le filet ne coûte rien.
   await expect(async () => {
     await prenom.fill(identite.prenom);
     await nom.fill(identite.nom);

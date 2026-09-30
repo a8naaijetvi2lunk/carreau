@@ -23,6 +23,17 @@ test.describe("comptes", () => {
 
     // 1. Le super-admin, créé par script, active son compte et enrôle son TOTP.
     await page.goto(creerLienSuperAdmin(`super-admin-${suffixe}@exemple.fr`));
+    // Une erreur de saisie garde le prénom et le nom ; les mots de passe repartent vides (D9 du lot 10).
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Activer mon compte");
+    await page.getByLabel("Prénom", { exact: true }).fill("Yves");
+    await page.getByLabel("Nom", { exact: true }).fill("Charvis");
+    await page.getByLabel("Mot de passe", { exact: true }).fill(MOT_DE_PASSE);
+    await page.getByLabel("Confirmation du mot de passe", { exact: true }).fill(`${MOT_DE_PASSE} bis`);
+    await page.getByRole("button", { name: "Activer mon compte" }).click();
+    await expect(page.getByText("Les deux mots de passe ne correspondent pas.")).toBeVisible();
+    await expect(page.getByLabel("Prénom", { exact: true })).toHaveValue("Yves");
+    await expect(page.getByLabel("Nom", { exact: true })).toHaveValue("Charvis");
+    await expect(page.getByLabel("Mot de passe", { exact: true })).toHaveValue("");
     await activerEtEnroler(page, { prenom: "Yves", nom: "Charvis" });
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bonjour Yves");
     await expect(alerte(page)).toContainText("Renseigne les durées de conservation");

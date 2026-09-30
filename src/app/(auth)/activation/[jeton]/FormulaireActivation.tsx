@@ -1,16 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { Bouton, Champ, ErreurFormulaire } from "@/components/ui";
-import type { ResultatAction } from "@/lib/action";
 import { erreursParChamp } from "@/lib/formulaire";
+import type { EtatActivation } from "./etat";
 
-type Action = (etat: ResultatAction<null> | null, formulaire: FormData) => Promise<ResultatAction<null>>;
+type Action = (etat: EtatActivation | null, formulaire: FormData) => Promise<EtatActivation>;
 
+/**
+ * Prénom et nom non contrôlés (décision D9 du plan du lot 10) : une saisie ou un remplissage
+ * automatique faits avant l'hydratation restent en place. Après une erreur, React remet le formulaire
+ * sur ses valeurs par défaut, qui sont celles que l'action renvoie ; les mots de passe repartent vides.
+ */
 export function FormulaireActivation({ action }: { action: Action }) {
   const [etat, envoyer, enCours] = useActionState(action, null);
-  const [nom, setNom] = useState("");
-  const [prenom, setPrenom] = useState("");
   const erreurs = etat && !etat.ok ? erreursParChamp(etat.erreur.details) : {};
   return (
     <form action={envoyer} className="flex flex-col gap-4" noValidate>
@@ -20,8 +23,7 @@ export function FormulaireActivation({ action }: { action: Action }) {
         name="prenom"
         libelle="Prénom"
         autoComplete="given-name"
-        value={prenom}
-        onChange={(evenement) => setPrenom(evenement.target.value)}
+        defaultValue={etat?.valeurs.prenom ?? ""}
         erreur={erreurs.prenom}
       />
       <Champ
@@ -29,8 +31,7 @@ export function FormulaireActivation({ action }: { action: Action }) {
         name="nom"
         libelle="Nom"
         autoComplete="family-name"
-        value={nom}
-        onChange={(evenement) => setNom(evenement.target.value)}
+        defaultValue={etat?.valeurs.nom ?? ""}
         erreur={erreurs.nom}
       />
       <Champ

@@ -102,11 +102,12 @@ async function traiter(requete: Request): Promise<Response> {
   }
 }
 
-/** Requête de la route `/api/mcp` : réponse jamais mise en cache, flux conservé. */
+/** Requête de la route `/api/mcp` : réponse jamais mise en cache ni mise en tampon par le proxy (nginx : X-Accel-Buffering, décision D9 du plan du lot 10), flux conservé. */
 export async function traiterRequeteMcp(requete: Request): Promise<Response> {
   const reponse = await traiter(requete);
   const entetes = new Headers(reponse.headers);
   entetes.set("Cache-Control", "no-store, no-transform");
+  entetes.set("X-Accel-Buffering", "no");
   return new Response(reponse.body, {
     status: reponse.status,
     statusText: reponse.statusText,

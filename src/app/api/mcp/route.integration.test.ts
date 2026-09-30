@@ -74,6 +74,16 @@ describe("route /api/mcp", () => {
     expect(Object.keys(route)).toEqual(["POST"]);
   });
 
+  it("demande au proxy de ne pas mettre les réponses en tampon (décision D9 du plan du lot 10)", async () => {
+    const refusee = await route.POST(requete(LISTE));
+    expect(refusee.status).toBe(401);
+    expect(refusee.headers.get("x-accel-buffering")).toBe("no");
+    const { jeton } = await nouveauJeton("lecture");
+    const servie = await route.POST(requete(LISTE, jeton));
+    expect(servie.status).toBe(200);
+    expect(servie.headers.get("x-accel-buffering")).toBe("no");
+  });
+
   it("répond 401 sans lien OAuth : sans jeton, jeton inconnu ou mal formé, révoqué, compte désactivé", async () => {
     const revoque = await nouveauJeton("ecriture", { revoque: true });
     const desactive = await nouveauJeton();

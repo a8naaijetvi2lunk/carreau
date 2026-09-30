@@ -54,6 +54,9 @@ const PAQUETS_SHIKI = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // En-têtes sous le tampon de 4 Ko de nginx (Nginx Proxy Manager, décision D9 du plan du lot 10) :
+  // au-delà de 1 500 caractères, React place ses préchargements dans le HTML, pas dans l'en-tête Link.
+  reactMaxHeadersLength: 1500,
   // Les images ne passent jamais par l'optimiseur de Next (/_next/image) : il ne transmettrait pas le
   // cookie de session et ouvrirait une surface inutile. Elles sont déjà ré-encodées par sharp (lot 3).
   images: { unoptimized: true },
