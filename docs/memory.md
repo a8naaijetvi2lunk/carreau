@@ -136,6 +136,16 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Téléphone** : bandeau neutre au retour d'une sortie d'au moins 2 s, pendant 30 s.
 - **À retenir pour le lot 7** : le rapport par étudiant lit `indice_detail` et la chronologie (`evenement`, faits de `faitsNotables`) ; l'indice se recalcule avec `consolider` et `calculerIndice` si la pondération change (version stockée).
 
+## Résultats (lot 7)
+
+- **Rattrapage** : `session_examen.type` (`classe`, `rattrapage`) et `session_origine_id` ; `session_autorisation` liste les étudiants autorisés. Un rattrapage se crée depuis les résultats d'une session terminée, pour des absents (`situationsExamen` : passé, rattrapage prévu, absent) ; il copie l'instantané et la visibilité de son origine. Seuls les autorisés le trouvent et le réclament ; son démarrage ne contrôle plus le QCM.
+- **Racine et famille** : la racine est la session d'origine ; sa famille, la racine et ses rattrapages. Les résultats, la visibilité (réglée sur toute la famille) et l'adresse des pages passent toujours par la racine.
+- **Module `resultats`** (sens d'import `resultats → sessions → examen`) : liste des examens terminés, tableau (une ligne par étudiant actuel de la classe), statistiques, visibilité, rapport, exports. Les passages échus des rattrapages en cours sont rattrapés à chaque lecture (spec §6.5).
+- **Exports** : CSV pour Excel en français (`src/lib/csv.ts` : BOM, « ; », CRLF, texte qui commencerait une formule préfixé d'une apostrophe, jamais un nombre) ; XLSX par `write-excel-file` (hors bundle comme `read-excel-file`), « Synthèse » puis une feuille par question, texte typé `String`.
+- **Rapport** : lignes stockées de l'indice (avec la durée totale recalculée), chronologie (`src/moteur/chronologie.ts`), évolution de la même fiche chez le même enseignant. Questions numérotées dans l'ordre du QCM (le tableau de bord garde le rang de l'étudiant).
+- **Correction** (amendement A1) : servie au téléphone de l'étudiant (`POST /api/etudiant/correction`) une fois la session terminée avec la correction visible et aucune session de la famille ouverte ; l'écran de fin est relu toutes les 15 s ; ses images passent par la route contrôlée.
+- **À retenir pour le lot 10** : purger les autorisations avec leurs sessions ; les résultats suivent la conservation des résultats.
+
 ## Ports locaux
 
 | Usage | Port |

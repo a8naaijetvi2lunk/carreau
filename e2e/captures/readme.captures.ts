@@ -3,7 +3,8 @@
  * `npm run captures`. Compte enseignant fictif, classe importée, QCM de quatre questions,
  * aperçu sur téléphone, puis une session : six téléphones dans la salle d'attente et un
  * septième qui demande un nom déjà pris ; puis l'examen : une question avec du code et l'écran
- * de fin sur le téléphone de Léa. Données fictives (`@exemple.fr`). Ne tourne jamais
+ * de fin sur le téléphone de Léa ; enfin les résultats, le rapport d'un étudiant et la correction
+ * sur le téléphone de Léa. Données fictives (`@exemple.fr`). Ne tourne jamais
  * avec `npm run test:e2e` (voir playwright.captures.config.ts).
  */
 import { devices, expect, test, type Page } from "@playwright/test";
@@ -54,7 +55,7 @@ async function capturerHautDePage(page: Page, nom: string, hauteur = 900) {
 }
 
 test("captures du README", async ({ page, browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   viderCaptures();
 
   // 1. Super-admin fictif : conservation des données renseignée (le bandeau RGPD ne doit apparaître
@@ -380,6 +381,31 @@ test("captures du README", async ({ page, browser }) => {
   await expect(lea.page.getByRole("heading", { level: 1 })).toHaveText("Examen terminé");
   await expect(lea.page.getByText("13,75 / 20", { exact: true })).toBeVisible();
   await lea.page.screenshot({ path: capture("examen-fin") });
+
+  // 8. Résultats : l'enseignante termine l'examen pour tous, publie la correction, ouvre les résultats
+  // puis le rapport de l'étudiant qui a copié ; Léa consulte sa correction sur son téléphone.
+  await page.bringToFront();
+  await page.getByRole("button", { name: "Terminer pour tous", exact: true }).click();
+  await page.getByRole("button", { name: "Oui, terminer pour tous", exact: true }).click();
+  await page.getByRole("link", { name: "Voir les résultats" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Algorithmique — Contrôle 2");
+  const interrupteur = page.getByRole("button", { name: "Correction visible" });
+  await interrupteur.click();
+  await expect(interrupteur).toHaveAttribute("aria-pressed", "true");
+  await capturerHautDePage(page, "resultats");
+  // Le téléphone qui a copié à la section 7 est le troisième : BERNARD Tom (ETUDIANTS[2]).
+  await page.locator('[data-etudiant="BERNARD Tom"]').getByRole("link", { name: "Voir le rapport" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("BERNARD Tom");
+  await capturerHautDePage(page, "rapport", 1040);
+  const voirCorrection = lea.page.getByRole("button", { name: "Voir la correction" });
+  await expect(voirCorrection).toBeVisible({ timeout: 25_000 });
+  await voirCorrection.click();
+  const correction = lea.page.getByRole("region", { name: "Correction" });
+  await expect(correction).toBeVisible();
+  await correction.evaluate((bloc) => {
+    window.scrollTo(0, bloc.getBoundingClientRect().top + window.scrollY - 16);
+  });
+  await lea.page.screenshot({ path: capture("correction-telephone") });
 
   await Promise.all([...telephones, doublon].map((t) => t.contexte.close()));
 });

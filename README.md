@@ -67,6 +67,16 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 
 *Le même tableau de bord sur le téléphone de l’enseignant.*
 
+![Résultats d’un examen : moyenne, médiane, présents, étudiants triés par note avec leur indice, exports CSV et Excel](docs/captures/resultats.png)
+*Les résultats : exports CSV et Excel, note et correction visibles d’un clic, rattrapage créé depuis un absent.*
+
+![Rapport d’un étudiant : note, détail de l’indice, chronologie de l’examen et évolution sur les examens précédents](docs/captures/rapport.png)
+*Le rapport d’un étudiant : chaque point de l’indice est expliqué, la chronologie retrace l’examen, l’évolution suit ses examens chez le même enseignant.*
+
+<img src="docs/captures/correction-telephone.png" alt="Correction sur le téléphone d’une étudiante : ses réponses et les bonnes réponses, question par question" width="320">
+
+*La correction sur le téléphone de l’étudiant, une fois l’examen et ses rattrapages terminés.*
+
 ## Fonctionnement
 
 ### Pour l’étudiant
@@ -75,7 +85,7 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 2. Il tape les trois premières lettres de son nom ou de son prénom et se choisit dans la liste de sa classe. Son téléphone est alors associé à son nom pour toute la durée de l’examen ; si ce nom est déjà pris sur un autre téléphone, l’enseignant autorise ou refuse le nouveau.
 3. Un écran d’information lui explique ce qui est noté pendant l’examen, pourquoi, et combien de temps c’est conservé.
 4. Il patiente en salle d’attente : l’examen démarre pour tout le monde en même temps.
-5. Il répond question par question, sans retour en arrière : chaque touche est enregistrée, « Valider et continuer » passe à la suivante. Si le temps de la question (ou de l’examen) s’écoule, sa dernière sélection est validée. Un téléphone qui s’éteint ne bloque rien : à son retour, le temps a continué de courir. À la fin, il voit combien de questions il a répondues et sa note, si l’enseignant la rend visible.
+5. Il répond question par question, sans retour en arrière : chaque touche est enregistrée, « Valider et continuer » passe à la suivante. Si le temps de la question (ou de l’examen) s’écoule, sa dernière sélection est validée. Un téléphone qui s’éteint ne bloque rien : à son retour, le temps a continué de courir. À la fin, il voit combien de questions il a répondues et sa note, si l’enseignant la rend visible ; si la correction est publiée, il la consulte sur le même téléphone, une fois l’examen et ses rattrapages terminés.
 
 Aucun compte ni installation n’est nécessaire. L’application peut être installée sur l’écran d’accueil (PWA) pour ceux qui le souhaitent.
 
@@ -87,8 +97,8 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 - **Classes** : import de la liste depuis un fichier CSV ou Excel (`.xlsx`), ou collée depuis un tableur, avec un aperçu qui explique chaque ligne rejetée avant d’enregistrer ; ajout, modification et retrait un par un ; tiers-temps par étudiant ; deux étudiants aux mêmes nom et prénom sont refusés dans une classe (l’enseignant les distingue par une initiale).
 - **Sessions** : un QCM prêt, une classe, un créneau facultatif. Le QR code projeté change toutes les 30 secondes pour qu’un lien partagé à l’extérieur de la salle ne serve à rien. L’enseignant voit la salle se remplir, autorise ou refuse un second téléphone, et démarre l’examen pour tous au même instant. Pendant l’examen, il peut prolonger le chrono global ou terminer l’examen pour tous ; sinon la session se termine seule quand tout le monde a fini ou que le temps est écoulé.
 - **Suivi en direct** : statut, progression, indice de suspicion et dernier événement de chaque étudiant, compteurs, alertes (sortie de l’application avec sa durée, copier-coller, écran partagé, connexion perdue), sur ordinateur comme sur téléphone.
-- **Résultats** : exports CSV et Excel, rapport détaillé par étudiant, note et correction visibles ou non par les étudiants.
-- **Rattrapage** : un étudiant arrivé après le démarrage ne peut plus rejoindre la session ; l’enseignant lui ouvre une session de rattrapage.
+- **Résultats** : tableau de chaque examen, rattrapages compris (moyenne, médiane, présents ; note, bonnes réponses, durée et indice de chacun), export CSV pour Excel et classeur Excel avec une feuille par question, rapport par étudiant (détail de l’indice, chronologie de l’examen, évolution d’un examen à l’autre), note et correction visibles ou non par les étudiants.
+- **Rattrapage** : un étudiant arrivé après le démarrage ne peut plus rejoindre la session ; depuis les résultats, l’enseignant ouvre un rattrapage pour les absents qu’il choisit, sur le même contenu. Seuls ces étudiants peuvent y entrer, et leurs résultats rejoignent ceux de la classe.
 - **Connexion MCP** : l’enseignant peut connecter son assistant IA pour préparer des QCM. Tout arrive en brouillon, à relire avant usage.
 
 ### Pour l’administration
@@ -115,6 +125,7 @@ Principes retenus :
 - **Un sujet différent pour chacun** : l’ordre des questions et celui des réponses sont mélangés pour chaque étudiant.
 - **Le serveur fait foi** : le chrono, l’ordre des questions, les bonnes réponses et le score ne dépendent jamais du téléphone. Les bonnes réponses ne quittent pas le serveur pendant l’examen.
 - **Un indice, pas un verdict** : les événements bruts sont enregistrés côté serveur, puis pondérés en un indice de 0 à 100 (pondération v1 publique, dans `src/lib/regles-surveillance.ts`). Le téléphone ne dit que la nature de ce qu’il observe : les durées sont mesurées par le serveur. Le détail du calcul est enregistré avec l’indice. Ce n’est pas une preuve.
+- **La correction attend tout le monde** : elle n’est montrée aux étudiants qu’une fois l’examen et tous ses rattrapages terminés.
 - **Pas de faux positifs réseau** : une coupure de connexion n’est jamais comptée comme une sortie.
 - **Un ton non accusateur** : côté étudiant, l’interface parle de « mode examen » et explique ce qui est noté, sans soupçonner personne.
 
@@ -143,7 +154,7 @@ flowchart LR
 | Interface | Tailwind CSS 4, PWA |
 | Données | PostgreSQL 17, Drizzle ORM |
 | Validation | Zod 4, systématique côté serveur |
-| Import de listes | `papaparse` (CSV et collage), `read-excel-file` (Excel), archives contrôlées par `fflate` |
+| Import et export | `papaparse` (CSV et collage), `read-excel-file` et `write-excel-file` (Excel), archives contrôlées par `fflate` |
 | Images et code | `sharp` (ré-encodage WebP, métadonnées retirées), `shiki` (coloration du code côté serveur, en texte) |
 | Emails | Resend |
 | Assistant IA | Serveur MCP (`mcp-handler`) |
@@ -157,7 +168,7 @@ flowchart LR
 src/
   app/          pages et routes d’API (App Router)
   modules/      un dossier par domaine métier, exposé par son index.ts ; les droits sont vérifiés dans les services
-  moteur/       logique pure, sans accès à la base : code de session tournant (lot 4), mélange, échéances et notation (lot 5), consolidation des événements et indice (lot 6)
+  moteur/       logique pure, sans accès à la base : code de session tournant (lot 4), mélange, échéances et notation (lot 5), consolidation des événements et indice (lot 6), chronologie du rapport (lot 7)
   lib/          contrats partagés : erreurs, enveloppes, environnement, horloge, chiffrement, CSP
   db/           schéma Drizzle
   components/   composants d’interface partagés
@@ -209,7 +220,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | 4 | Sessions : QR code renouvelé, écran projeté, salle d’attente, démarrage commun, demandes d’appareil | ✅ Livré |
 | 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | ✅ Livré |
 | 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | ✅ Livré |
-| 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | À venir |
+| 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | ✅ Livré |
 | 8 | Connexion MCP : jetons par enseignant, création de brouillons | À venir |
 | 9 | PWA et identité visuelle : installation, scanner intégré, icônes | À venir |
 | 10 | Mise en production : Coolify, purges automatiques, sauvegardes | À venir |
@@ -227,8 +238,9 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Entrée des étudiants** : code de session tiré d’un HMAC et renouvelé toutes les 30 secondes (32⁶ combinaisons, projeté seulement en salle d’attente), ticket d’entrée signé valable 10 minutes, jeton d’appareil de 256 bits dont seule l’empreinte est stockée, cookies `HttpOnly` et `SameSite=Lax`, limitation par adresse IP, par ticket et par appareil ; un nom déjà pris sur un autre téléphone passe par l’enseignant.
 - **Passage de l’examen** : le téléphone ne reçoit que la question courante, sans l’indicateur de bonne réponse ; ses réponses y sont identifiées par leur position affichée, jamais par leur place dans le QCM. Ordre, chrono (tolérance réseau de 3 s), points et note sont calculés par le serveur, dans une transaction verrouillée ; une validation rejouée ne change rien ; un QCM modifié après le départ ne change pas l’examen en cours (instantané figé au démarrage).
 - **Surveillance** : le téléphone n’envoie que la nature d’un événement et un numéro d’ordre, jamais d’heure ni de durée ; lots bornés (50 événements, 4 Ko), dédoublonnés, 1 000 événements au plus par passage, 120 lots par minute ; un silence de plus de 15 s est constaté par le serveur, même si le téléphone se tait.
+- **Résultats** : exports réservés à l’enseignant de la session, téléchargés en pièce jointe privée ; dans un CSV, une cellule de texte qui commencerait une formule de tableur est neutralisée, et le classeur Excel n’écrit le texte que comme du texte ; la correction n’est servie qu’au téléphone de l’étudiant, une fois l’examen et ses rattrapages terminés.
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
-- **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire et, pendant l’examen, à l’étudiant dont c’est la question courante, jamais de SVG.
+- **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire, à l’étudiant dont c’est la question courante pendant l’examen, puis à l’étudiant de l’examen quand la correction est publiée ; jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.
 - **Comptes protégés** : mots de passe argon2id, double authentification TOTP obligatoire, sessions de 12 h (30 min d’inactivité) révoquées à la désactivation et à la réinitialisation du mot de passe, limitation des tentatives.
 

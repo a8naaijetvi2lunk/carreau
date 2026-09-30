@@ -2,6 +2,24 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-30 — Lot 7 : résultats
+
+### Ajouté
+- Migration `0007_resultats` : `session_examen.type` (`classe`, `rattrapage`) et `session_origine_id`, table `session_autorisation`.
+- Rattrapage : `situationsExamen` (passé, prévu, absent), `creerRattrapage` depuis les résultats d'une session terminée, contenu et visibilité copiés de la session d'origine.
+- Module `resultats` : tableau des participations d'une session et de ses rattrapages, statistiques (moyenne, médiane, présents, indices ≥ 60), réglage de la visibilité de la note et de la correction, rapport par étudiant, exports CSV et XLSX.
+- Chronologie du rapport (`src/moteur/chronologie.ts`).
+- Correction sur le téléphone de l'étudiant (amendement A1) et sa route `POST /api/etudiant/correction` ; images de la correction publiée acceptées par la route des images.
+- Pages `/enseignant/resultats`, `/enseignant/resultats/[sessionId]` et `/enseignant/resultats/[sessionId]/[participationId]` ; lien « Résultats » dans la navigation.
+- Tests unitaires, d'intégration et de bout en bout du lot ; trois captures du README (`resultats.png`, `rapport.png`, `correction-telephone.png`).
+
+### Modifié
+- Spec amendé A1 (correction montrée après la fin de l'examen et de tous ses rattrapages) et A2 (adresses des pages et routes de résultats).
+- `write-excel-file` passé en dépendance d'exécution (`dependencies`).
+- Démarrage d'un rattrapage : plus de contrôle « QCM prêt », le contenu est repris de l'instantané de l'origine s'il existe.
+- Écran de fin du téléphone relu toutes les 15 s, pour que le bouton « Voir la correction » apparaisse à la publication.
+- `BarreIndice` partagée entre le tableau de bord et les pages de résultats.
+
 ## 2026-09-30 — Lot 6 : surveillance et suivi en direct
 
 ### Ajouté
