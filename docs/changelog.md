@@ -17,6 +17,12 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - `demarrerSession` fige l'instantané et prépare le passage de chacun.
 - La mesure du départ commun passe sur `<main data-commence-a>` ; la première question suit aussitôt.
 
+### Corrigé (vérifications et revue finale du lot)
+- Une sélection que le serveur n'a pas enregistrée (réseau coupé, limite atteinte) est renvoyée toutes les 2 s, et le téléphone le signale tant qu'elle ne l'est pas : à l'échéance, c'est la sélection enregistrée qui est validée.
+- L'heure du départ est posée même si la première question arrive avant le passage à zéro du compte à rebours.
+- Plus de messages contradictoires quand le temps s'écoule pendant un envoi en échec.
+- Capture de fin d'examen du README réaliste (réponses justes et fausses, durée de quelques secondes).
+
 ## 2026-09-29 — Lot 4 : sessions et entrée des étudiants
 
 ### Ajouté
