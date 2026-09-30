@@ -110,7 +110,7 @@ export function EtapeQuestion({
       ) : null}
       {secondes === 0 ? (
         <p role="status" className="text-[15px] font-bold">
-          Temps écoulé : ta dernière sélection est enregistrée.
+          Temps écoulé : c’est ta dernière sélection enregistrée qui est validée.
         </p>
       ) : null}
       <div className="flex flex-col gap-2">
