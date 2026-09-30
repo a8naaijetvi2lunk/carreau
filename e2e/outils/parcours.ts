@@ -19,8 +19,16 @@ export async function activerEtEnroler(
   identite: { prenom: string; nom: string },
 ): Promise<Uint8Array> {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Activer mon compte");
-  await page.getByLabel("Prénom", { exact: true }).fill(identite.prenom);
-  await page.getByLabel("Nom", { exact: true }).fill(identite.nom);
+  const prenom = page.getByLabel("Prénom", { exact: true });
+  const nom = page.getByLabel("Nom", { exact: true });
+  // Prénom et nom sont des champs contrôlés : une saisie faite avant l'hydratation est effacée au
+  // rendu suivant (celui que déclenche la saisie du nom). On ressaisit jusqu'à ce que les deux tiennent.
+  await expect(async () => {
+    await prenom.fill(identite.prenom);
+    await nom.fill(identite.nom);
+    await expect(prenom).toHaveValue(identite.prenom, { timeout: 250 });
+    await expect(nom).toHaveValue(identite.nom, { timeout: 250 });
+  }).toPass({ timeout: 10_000 });
   await page.getByLabel("Mot de passe", { exact: true }).fill(MOT_DE_PASSE);
   await page.getByLabel("Confirmation du mot de passe", { exact: true }).fill(MOT_DE_PASSE);
   await page.getByRole("button", { name: "Activer mon compte" }).click();
