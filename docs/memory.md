@@ -147,6 +147,15 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Correction** (amendement A1) : servie au téléphone de l'étudiant (`POST /api/etudiant/correction`) une fois la session terminée avec la correction visible et aucune session de la famille ouverte ; l'écran de fin est relu toutes les 15 s ; ses images passent par la route contrôlée.
 - **À retenir pour le lot 10** : purger les autorisations avec leurs sessions ; les résultats suivent la conservation des résultats.
 
+## Serveur MCP (lot 8)
+
+- **Jetons** (`src/modules/mcp/jetons.ts`) : `carreau_` suivi de 32 octets en base64url, empreinte SHA-256 seule en base, préfixe de 12 caractères pour la liste, portée `lecture` ou `ecriture`, 10 jetons actifs au plus par compte, révocation sans erreur si déjà faite. Gérés depuis la page « Connexion MCP » (`/enseignant/mcp`), jamais par un assistant.
+- **Acteur d'un appel MCP** (D2) : `ActeurUtilisateur` avec `jetonMcp` et `sessionId` nul. Les services le reconnaissent à `jetonMcp` : brouillons seulement (`listerQcm`, `lireQcm`), origine `mcp` (`creerQcm`), question illustrée refusée (`enregistrerQuestion`), noms des classes non archivées (`nomsDesClasses`) ; ses refus d'accès portent `jetonMcpId`.
+- **Serveur** (`src/modules/mcp/serveur.ts`, route `POST /api/mcp`) : `verifierJetonMcp` avant `withMcpAuth` (401 sans lien OAuth), limiteur `mcp:jeton:<id>` (60 requêtes par minute, chaque requête HTTP compte), corps borné à 512 Kio (413), `createMcpHandler` sans état (`maxSubscriptions: 0`), réponses `no-store, no-transform`.
+- **Outils** (`src/modules/mcp/outils.ts`) : `classes_lister`, `qcm_lister`, `qcm_lire`, `qcm_creer`, `question_ajouter`, `question_modifier`, `question_supprimer`, `questions_lier`, `questions_delier`. Portée vérifiée avant les arguments ; schéma strict publié au SDK, validation faite par Carreau (`src/lib/schema-mcp.ts`) ; journal `mcp.<outil>` au nom du jeton, sans arguments ; aucune image.
+- **Identité transmise au SDK** (`src/lib/identite-mcp.ts`) : `token` = identifiant du jeton, jamais le jeton ; l'acteur est relu et revalidé à chaque appel d'outil.
+- **À retenir pour le lot 10** : `proxy_buffering off` sur `/api/mcp` dans Nginx Proxy Manager (spec §2) : les réponses du serveur MCP sont des flux.
+
 ## Ports locaux
 
 | Usage | Port |

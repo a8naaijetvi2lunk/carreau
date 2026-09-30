@@ -3,8 +3,9 @@
  * `npm run captures`. Compte enseignant fictif, classe importée, QCM de quatre questions,
  * aperçu sur téléphone, puis une session : six téléphones dans la salle d'attente et un
  * septième qui demande un nom déjà pris ; puis l'examen : une question avec du code et l'écran
- * de fin sur le téléphone de Léa ; enfin les résultats, le rapport d'un étudiant et la correction
- * sur le téléphone de Léa. Données fictives (`@exemple.fr`). Ne tourne jamais
+ * de fin sur le téléphone de Léa ; puis les résultats, le rapport d'un étudiant et la correction
+ * sur le téléphone de Léa ; enfin la page Connexion MCP, avec un jeton déjà utilisé par un
+ * assistant et un second tout juste créé. Données fictives (`@exemple.fr`). Ne tourne jamais
  * avec `npm run test:e2e` (voir playwright.captures.config.ts).
  */
 import { devices, expect, test, type Page } from "@playwright/test";
@@ -55,7 +56,7 @@ async function capturerHautDePage(page: Page, nom: string, hauteur = 900) {
 }
 
 test("captures du README", async ({ page, browser }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(270_000);
   viderCaptures();
 
   // 1. Super-admin fictif : conservation des données renseignée (le bandeau RGPD ne doit apparaître
@@ -406,6 +407,35 @@ test("captures du README", async ({ page, browser }) => {
     window.scrollTo(0, bloc.getBoundingClientRect().top + window.scrollY - 16);
   });
   await lea.page.screenshot({ path: capture("correction-telephone") });
+
+  // 9. Connexion MCP : un jeton en lecture seule déjà utilisé par un assistant, puis un second, en
+  // lecture et écriture, tout juste créé et montré une seule fois.
+  await page
+    .getByRole("navigation", { name: "Navigation principale" })
+    .getByRole("link", { name: "Connexion MCP", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connexion MCP");
+  await page.getByLabel("Nom du nouveau jeton", { exact: true }).fill("Ordinateur du bureau");
+  await page.getByRole("radio", { name: /^Lecture seule/ }).check();
+  await page.getByRole("button", { name: "Générer un jeton" }).click();
+  const premierJeton = await page.getByLabel("Nouveau jeton", { exact: true }).inputValue();
+  const usage = await page.request.post(`${URL_E2E}/api/mcp`, {
+    headers: {
+      authorization: `Bearer ${premierJeton}`,
+      accept: "application/json, text/event-stream",
+      "mcp-protocol-version": "2025-06-18",
+    },
+    data: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  });
+  expect(usage.status()).toBe(200);
+  await page.getByLabel("Nom du nouveau jeton", { exact: true }).fill("Portable perso");
+  await page.getByRole("radio", { name: /^Lecture et écriture/ }).check();
+  await page.getByRole("button", { name: "Générer un jeton" }).click();
+  await expect(
+    page.getByText("Jeton « Portable perso » créé. Copie-le maintenant : il ne sera plus jamais affiché."),
+  ).toBeVisible();
+  await expect(page.locator('[data-jeton="Ordinateur du bureau"]')).toContainText("dernier usage le");
+  await capturerHautDePage(page, "connexion-mcp", 1180);
 
   await Promise.all([...telephones, doublon].map((t) => t.contexte.close()));
 });

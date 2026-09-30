@@ -77,6 +77,9 @@ Le nom tient en un mot : les petits carrés du QR code, les cases qu’on coche,
 
 *La correction sur le téléphone de l’étudiant, une fois l’examen et ses rattrapages terminés.*
 
+![Page Connexion MCP : adresse du serveur, un jeton tout juste créé et montré une seule fois, la liste des jetons avec leur portée et leur dernier usage](docs/captures/connexion-mcp.png)
+*La connexion MCP : l’enseignant crée un jeton pour son assistant IA, montré une seule fois ; l’assistant ne prépare que des brouillons.*
+
 ## Fonctionnement
 
 ### Pour l’étudiant
@@ -99,7 +102,7 @@ Aucun compte ni installation n’est nécessaire. L’application peut être ins
 - **Suivi en direct** : statut, progression, indice de suspicion et dernier événement de chaque étudiant, compteurs, alertes (sortie de l’application avec sa durée, copier-coller, écran partagé, connexion perdue), sur ordinateur comme sur téléphone.
 - **Résultats** : tableau de chaque examen, rattrapages compris (moyenne, médiane, présents ; note, bonnes réponses, durée et indice de chacun), export CSV pour Excel et classeur Excel avec une feuille par question, rapport par étudiant (détail de l’indice, chronologie de l’examen, évolution d’un examen à l’autre), note et correction visibles ou non par les étudiants.
 - **Rattrapage** : un étudiant arrivé après le démarrage ne peut plus rejoindre la session ; depuis les résultats, l’enseignant ouvre un rattrapage pour les absents qu’il choisit, sur le même contenu. Seuls ces étudiants peuvent y entrer, et leurs résultats rejoignent ceux de la classe.
-- **Connexion MCP** : l’enseignant peut connecter son assistant IA pour préparer des QCM. Tout arrive en brouillon, à relire avant usage.
+- **Connexion MCP** : l’enseignant connecte son assistant IA (Claude ou tout client compatible MCP) avec un jeton personnel, en lecture seule ou en lecture et écriture, révocable à tout moment. L’assistant crée des QCM et écrit leurs questions (code compris, sans images) ; tout arrive en brouillon, signalé « Créé via MCP · à relire », et seul l’enseignant le passe en « prêt ».
 
 ### Pour l’administration
 
@@ -134,7 +137,7 @@ Principes retenus :
 - **Minimisation** : nom, prénom, réponses et événements horodatés. Rien d’autre.
 - **Information** : chaque étudiant lit, avant l’examen, ce qui est enregistré et à quoi cela sert.
 - **Conservation** : durées réglables par l’établissement, suppression automatique à l’échéance.
-- **Assistant IA** : via MCP, il ne voit que les brouillons de QCM et le nom des classes, jamais les étudiants ni les résultats.
+- **Assistant IA** : via MCP, il ne voit que les brouillons de QCM et le nom des classes, jamais les étudiants, les sessions ni les résultats ; chaque appel est journalisé sans son contenu.
 
 ## Architecture
 
@@ -157,7 +160,7 @@ flowchart LR
 | Import et export | `papaparse` (CSV et collage), `read-excel-file` et `write-excel-file` (Excel), archives contrôlées par `fflate` |
 | Images et code | `sharp` (ré-encodage WebP, métadonnées retirées), `shiki` (coloration du code côté serveur, en texte) |
 | Emails | Resend |
-| Assistant IA | Serveur MCP (`mcp-handler`) |
+| Assistant IA | Serveur MCP en Streamable HTTP sans état (`mcp-handler`, `@modelcontextprotocol/server`), jeton par enseignant |
 | Tests | Vitest (unitaires et intégration), Playwright (parcours complets, dont téléphone) |
 | Intégration continue | GitHub Actions : lint, format, types, tests unitaires et d’intégration, build, tests de bout en bout |
 | Déploiement | Image Docker autonome (build `standalone`), Coolify |
@@ -207,6 +210,16 @@ Ouvre le lien, choisis ton mot de passe et configure la double authentification 
 
 L’image Docker de production applique les migrations au démarrage, puis lance le serveur ; son état est exposé sur `/api/sante`. La procédure de mise en ligne sera documentée avec le dernier lot.
 
+### Connecter un assistant IA
+
+Dans Carreau, menu **Connexion MCP**, génère un jeton, puis, avec Claude Code :
+
+```bash
+claude mcp add --transport http carreau http://localhost:50173/api/mcp --header "Authorization: Bearer carreau_…"
+```
+
+Tout client MCP compatible Streamable HTTP se configure avec la même adresse et le même en-tête. Demande-lui par exemple : « Crée un QCM de 10 questions sur les tris, dont 2 avec du code Python ». Le brouillon apparaît dans tes QCM, à relire.
+
 ## Feuille de route
 
 Chaque lot est livré avec ses tests, sa documentation et une intégration continue verte.
@@ -221,7 +234,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | 5 | Passage de l’examen : mélange, chrono serveur, reprise après coupure, tiers-temps, notation | ✅ Livré |
 | 6 | Surveillance et suivi en direct : détection des écarts, indice de suspicion, tableau de bord | ✅ Livré |
 | 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | ✅ Livré |
-| 8 | Connexion MCP : jetons par enseignant, création de brouillons | À venir |
+| 8 | Connexion MCP : jetons par enseignant, création de brouillons | ✅ Livré |
 | 9 | PWA et identité visuelle : installation, scanner intégré, icônes | À venir |
 | 10 | Mise en production : Coolify, purges automatiques, sauvegardes | À venir |
 
@@ -239,6 +252,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Passage de l’examen** : le téléphone ne reçoit que la question courante, sans l’indicateur de bonne réponse ; ses réponses y sont identifiées par leur position affichée, jamais par leur place dans le QCM. Ordre, chrono (tolérance réseau de 3 s), points et note sont calculés par le serveur, dans une transaction verrouillée ; une validation rejouée ne change rien ; un QCM modifié après le départ ne change pas l’examen en cours (instantané figé au démarrage).
 - **Surveillance** : le téléphone n’envoie que la nature d’un événement et un numéro d’ordre, jamais d’heure ni de durée ; lots bornés (50 événements, 4 Ko), dédoublonnés, 1 000 événements au plus par passage, 120 lots par minute ; un silence de plus de 15 s est constaté par le serveur, même si le téléphone se tait.
 - **Résultats** : exports réservés à l’enseignant de la session, téléchargés en pièce jointe privée ; dans un CSV, une cellule de texte qui commencerait une formule de tableur est neutralisée, et le classeur Excel n’écrit le texte que comme du texte ; la correction n’est servie qu’au téléphone de l’étudiant, une fois l’examen et ses rattrapages terminés.
+- **Serveur MCP** : jeton `carreau_…` de 256 bits montré une seule fois et stocké haché, en lecture seule ou en lecture et écriture, révocable, coupé à la désactivation du compte ; vérifié avant tout traitement, sans découverte OAuth ; 60 requêtes par minute et par jeton, corps limité à 512 Ko ; l’assistant n’atteint que les brouillons de QCM et le nom des classes, par les mêmes services que l’interface ; chaque appel est journalisé sans ses arguments.
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
 - **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire, à l’étudiant dont c’est la question courante pendant l’examen, puis à l’étudiant de l’examen quand la correction est publiée ; jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.

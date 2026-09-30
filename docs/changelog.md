@@ -2,6 +2,23 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-09-30 — Lot 8 : connexion MCP
+
+### Ajouté
+- Dépendances `mcp-handler` 2.2.0 et `@modelcontextprotocol/server` 2.2.0.
+- Module `mcp` : jetons (création montrée une seule fois, liste, révocation), vérification du Bearer, neuf outils, serveur Streamable HTTP sans état.
+- Route `POST /api/mcp` : jeton vérifié avant `withMcpAuth`, 60 requêtes par minute et par jeton, corps borné à 512 Kio, réponses `no-store`.
+- Page `/enseignant/mcp` (« Connexion MCP ») et son entrée de navigation.
+- Contrats purs : `src/lib/regles-mcp.ts`, `resultats-mcp.ts`, `requete-bornee.ts`, `schema-mcp.ts`, `identite-mcp.ts`.
+- Tests unitaires, d'intégration (dont la matrice de sécurité par HTTP) et de bout en bout du lot ; capture du README `connexion-mcp.png`.
+
+### Modifié
+- Spec amendé A2 (vérification du Bearer dans `modules/mcp/verification`).
+- `ActeurUtilisateur` : champ `jetonMcp`, `sessionId` nul pour un appel MCP.
+- Services QCM : brouillons seulement, origine `mcp` et question illustrée protégée pour un acteur MCP ; `ajouterQuestion` accepte un contenu, écrit dans la même transaction.
+- Classes : `nomsDesClasses`.
+- Journal des refus d'accès : identifiant du jeton MCP quand le refus vient d'un assistant.
+
 ## 2026-09-30 — Lot 7 : résultats
 
 ### Ajouté

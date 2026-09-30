@@ -121,3 +121,8 @@ date,catégorie,choix,pourquoi
 2026-09-30,technique,"write-excel-file en dépendance d'exécution, hors bundle et vérifié au démarrage","Même chemin que read-excel-file : un paquet absent du build autonome casserait au premier export"
 2026-09-30,interface,"Questions numérotées dans l'ordre du QCM dans le rapport et les exports","Le rang de l'étudiant sert au suivi en direct ; après l'examen, l'enseignant raisonne sur son QCM"
 2026-09-30,sécurité,"Reprise autorisée neutralisée dans l'indice (amendement A3)","L'enseignant a autorisé le changement en connaissance de cause ; 20 points et une sortie jusqu'à 45 faisaient monter l'indice d'un étudiant dont le téléphone s'était éteint"
+2026-09-30,technique,"mcp-handler 2.2.0 et @modelcontextprotocol/server 2.2.0, dans le bundle","Stack validée ; versions essayées avant le plan (tools/list sans initialize, protocoles 2025-06-18 et 2025-11-25) ; aucun fichier chargé à l'exécution"
+2026-09-30,sécurité,"Acteur MCP reconnu par jetonMcp : brouillons seulement, dans les services","Les droits restent dans les services (spec §2) ; un jeton volé ne lit ni QCM prêt ni bonne réponse d'un examen à venir"
+2026-09-30,sécurité,"Limiteur MCP compté par requête HTTP, après l'authentification","Un anonyme ne consomme rien ; le serveur est protégé quel que soit le contenu de la requête"
+2026-09-30,interface,"question_modifier refuse une question illustrée","Les images restent l'affaire de l'éditeur ; les conserver en réécrivant les réponses serait fragile"
+2026-09-30,technique,"Route /api/mcp en POST seulement","Serveur sans état : GET (flux) et DELETE (fin de session) n'ont pas d'usage ; Next répond 405"
