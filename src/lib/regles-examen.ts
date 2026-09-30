@@ -23,4 +23,6 @@ export const MESSAGES_EXAMEN = {
   pasOuverte: "Cette question n'est pas encore ouverte.",
   selectionInvalide: "Ta sélection n'est pas valide : touche de nouveau tes réponses.",
   uneSeule: "Une seule réponse est possible pour cette question.",
+  prolongerGlobal: "Prolonger n'existe qu'en chrono global.",
+  sessionPasEnCours: "Cette session n'est pas en cours.",
 } as const;

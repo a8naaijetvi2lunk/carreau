@@ -11,7 +11,10 @@ import {
 } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { sha256Hex } from "@/lib/jetons";
+import { MESSAGES_EXAMEN } from "@/lib/regles-examen";
+import { cloturerSiFinie } from "@/modules/examen";
 import { acteurDe, creerUtilisateur, exiger } from "@/test/comptes";
+import { examenEnCours } from "@/test/examen";
 import {
   creerDemandeTest,
   creerParticipationTest,
@@ -22,7 +25,14 @@ import {
 } from "@/test/sessions";
 import { MESSAGES_SESSION } from "./commun";
 import { lireEtatEntree, reclamerNom } from "./entree";
-import { autoriserDemande, demarrerSession, refuserDemande, retirerParticipant } from "./pilotage";
+import {
+  autoriserDemande,
+  demarrerSession,
+  prolongerSession,
+  refuserDemande,
+  retirerParticipant,
+  terminerSession,
+} from "./pilotage";
 import { emettreTicket } from "./ticket";
 
 const horloge = horlogeFixe(INSTANT_CODE_TEST);
@@ -263,5 +273,83 @@ describe("demandes d'appareil", () => {
     });
     await expect(refuserDemande(intrus, { demandeId: d.id })).rejects.toMatchObject({ code: "INTROUVABLE" });
     expect(await refusDe(intrus.id)).toHaveLength(2);
+  });
+});
+
+describe("prolongerSession et terminerSession", () => {
+  it("prolonge un examen en cours et le journalise", async () => {
+    const x = await examenEnCours(horloge);
+    horloge.fixer(x.demarreLe.getTime() + 60_000);
+    await expect(prolongerSession(x.acteur, { sessionId: x.session.id, minutes: 10 })).resolves.toEqual({
+      participants: 3,
+    });
+    expect(await entree("sessions.prolonger", `session:${x.session.id}`)).toMatchObject({
+      acteurId: x.acteur.id,
+      details: { minutes: 10, participants: 3 },
+    });
+  });
+
+  it("refuse une durée hors bornes, une session en attente ou terminée, et la session d'un autre compte", async () => {
+    const x = await examenEnCours(horloge);
+    for (const minutes of [0, 61, 2.5]) {
+      await expect(prolongerSession(x.acteur, { sessionId: x.session.id, minutes })).rejects.toMatchObject({
+        code: "VALIDATION",
+      });
+    }
+    const intrus = acteurDe(await creerUtilisateur());
+    await expect(prolongerSession(intrus, { sessionId: x.session.id, minutes: 5 })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+    });
+    await expect(terminerSession(intrus, { sessionId: x.session.id })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+    });
+    expect((await refusDe(intrus.id)).map((r) => (r.details as { action?: string }).action)).toEqual([
+      "sessions.prolonger",
+      "sessions.terminer",
+    ]);
+    const s = await salle();
+    await expect(prolongerSession(s.acteur, { sessionId: s.session.id, minutes: 5 })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.pasDemarree,
+    });
+    await expect(terminerSession(s.acteur, { sessionId: s.session.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.pasDemarree,
+    });
+    await cloturerSiFinie(x.session.id, horloge.maintenant(), { forcer: true });
+    await expect(terminerSession(x.acteur, { sessionId: x.session.id })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_SESSION.terminee,
+    });
+  });
+
+  it("refuse de prolonger un examen en chrono par question", async () => {
+    const x = await examenEnCours(horloge, {
+      qcm: { modeChrono: "par_question", dureeGlobaleS: null, dureeQuestionS: 30 },
+    });
+    await expect(prolongerSession(x.acteur, { sessionId: x.session.id, minutes: 5 })).rejects.toMatchObject({
+      code: "ETAT",
+      message: MESSAGES_EXAMEN.prolongerGlobal,
+    });
+  });
+
+  it("termine l'examen pour tous et le journalise", async () => {
+    const x = await examenEnCours(horloge);
+    horloge.fixer(x.demarreLe.getTime() + 60_000);
+    await expect(terminerSession(x.acteur, { sessionId: x.session.id })).resolves.toEqual({
+      participants: 3,
+    });
+    const [s] = await db().select().from(sessionExamen).where(eq(sessionExamen.id, x.session.id));
+    expect(s?.statut).toBe("terminee");
+    const passages = await db().select().from(participation).where(eq(participation.sessionId, x.session.id));
+    expect(passages.every((p) => p.statut === "terminee")).toBe(true);
+    expect(await entree("sessions.terminer", `session:${x.session.id}`)).toMatchObject({
+      acteurId: x.acteur.id,
+      details: { participants: 3 },
+    });
+    expect((await entree("examen.cloturer_session", `session:${x.session.id}`))?.details).toEqual({
+      participants: 3,
+      forcee: true,
+    });
   });
 });

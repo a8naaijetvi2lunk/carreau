@@ -30,6 +30,7 @@ export const MESSAGES_SESSION = {
   dejaDemarree: "Cette session a déjà démarré.",
   terminee: "Cette session est terminée.",
   annulee: "Cette session a été annulée.",
+  pasDemarree: "L'examen n'a pas encore démarré.",
   aucunParticipant: "Aucun étudiant n'a encore rejoint la salle d'attente.",
   annulationImpossible: "Seule une session en salle d'attente peut être annulée.",
   retraitImpossible: "La session a démarré : ce participant ne peut plus être retiré.",

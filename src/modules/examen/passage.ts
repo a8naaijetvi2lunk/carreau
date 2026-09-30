@@ -7,9 +7,15 @@ import "server-only";
 import { and, count, eq, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
 import { db, type Transaction } from "@/db";
 import { evenement, participation, reponse, sessionExamen } from "@/db/schema";
+import { erreurs } from "@/lib/erreurs";
 import { maintenant } from "@/lib/horloge";
 import type { ContenuSession, OrdrePassage, QuestionInstantanee } from "@/lib/instantane";
-import { DELAI_CLOTURE_MS, TOLERANCE_ECHEANCE_MS, type OrigineReponse } from "@/lib/regles-examen";
+import {
+  DELAI_CLOTURE_MS,
+  MESSAGES_EXAMEN,
+  TOLERANCE_ECHEANCE_MS,
+  type OrigineReponse,
+} from "@/lib/regles-examen";
 import { SEUIL_SILENCE_MS } from "@/lib/regles-surveillance";
 import type { StatutParticipation, StatutSession } from "@/lib/regles-session";
 import { appliquer, echue, terminer, type EtatPassage, type Rattrapage } from "@/moteur/echeances";
@@ -273,12 +279,20 @@ export async function passageAJour(
 }
 
 /**
- * Clôture d'une session en cours (spec §6.5, D10) : toutes ses participations terminées, ou fin
- * prévue passée de 10 min (les passages encore ouverts sont alors rattrapés, puis terminés à cet
- * instant). Session en FOR UPDATE, puis participations : jamais appelée depuis une transaction qui
- * tient déjà une participation. Vrai si la session vient d'être close.
+ * Clôture d'une session en cours (spec §6.5, D10 du lot 5 ; D13 du lot 6) : toutes ses participations
+ * terminées, ou fin prévue passée de 10 min, ou `forcer` (« Terminer pour tous »). Les passages
+ * encore ouverts sont rattrapés, puis terminés à `instant` (question courante avec sa dernière
+ * sélection, suivantes sans réponse). Hors forçage, un pré-contrôle sans verrou évite de verrouiller
+ * la session à chaque réponse. Session en FOR UPDATE, puis participations : jamais appelée depuis une
+ * transaction qui tient déjà une participation. Vrai si la session vient d'être close.
  */
-export async function cloturerSiFinie(sessionId: string, instant: Date = maintenant()): Promise<boolean> {
+export async function cloturerSiFinie(
+  sessionId: string,
+  instant: Date = maintenant(),
+  options: { forcer?: boolean } = {},
+): Promise<boolean> {
+  const forcer = options.forcer === true;
+  if (!forcer && !(await clotureEnVue(sessionId, instant))) return false;
   return db().transaction(async (tx) => {
     const [session] = await tx
       .select({ ...COLONNES_SESSION, finPrevueLe: sessionExamen.finPrevueLe })
@@ -290,9 +304,7 @@ export async function cloturerSiFinie(sessionId: string, instant: Date = mainten
       .select({ id: participation.id })
       .from(participation)
       .where(and(eq(participation.sessionId, sessionId), ne(participation.statut, "terminee")));
-    const depassee =
-      session.finPrevueLe !== null && instant.getTime() > session.finPrevueLe.getTime() + DELAI_CLOTURE_MS;
-    if (ouvertes.length > 0 && !depassee) return false;
+    if (ouvertes.length > 0 && !forcer && !finPrevueDepassee(session.finPrevueLe, instant)) return false;
     if (ouvertes.length > 0) {
       const contenu = await lireContenu(tx, sessionId);
       for (const { id } of ouvertes) {
@@ -322,12 +334,32 @@ export async function cloturerSiFinie(sessionId: string, instant: Date = mainten
         acteur: { type: "systeme" },
         action: "examen.cloturer_session",
         cible: `session:${sessionId}`,
-        details: { participants: participants?.total ?? 0 },
+        details: { participants: participants?.total ?? 0, ...(forcer ? { forcee: true } : {}) },
       },
       tx,
     );
     return true;
   });
+}
+
+function finPrevueDepassee(finPrevueLe: Date | null, instant: Date): boolean {
+  return finPrevueLe !== null && instant.getTime() > finPrevueLe.getTime() + DELAI_CLOTURE_MS;
+}
+
+/** Pré-contrôle sans verrou (point d'attention du lot 5) : session en cours, et plus aucun passage ouvert ou fin prévue dépassée. */
+async function clotureEnVue(sessionId: string, instant: Date): Promise<boolean> {
+  const [session] = await db()
+    .select({ statut: sessionExamen.statut, finPrevueLe: sessionExamen.finPrevueLe })
+    .from(sessionExamen)
+    .where(eq(sessionExamen.id, sessionId));
+  if (!session || session.statut !== "en_cours") return false;
+  if (finPrevueDepassee(session.finPrevueLe, instant)) return true;
+  const [ouverte] = await db()
+    .select({ id: participation.id })
+    .from(participation)
+    .where(and(eq(participation.sessionId, sessionId), ne(participation.statut, "terminee")))
+    .limit(1);
+  return ouverte === undefined;
 }
 
 /**
@@ -349,4 +381,51 @@ export async function rattraperSession(sessionId: string): Promise<void> {
     );
   for (const { id } of echus) await passageAJour(id, instant);
   await cloturerSiFinie(sessionId, instant);
+}
+
+/**
+ * « Prolonger » (spec §6.5, D12 du plan du lot 6), dans la transaction de l'appelant : session en FOR
+ * UPDATE (en cours, chrono global), puis chaque passage en cours en FOR UPDATE, rattrapé ; s'il reste
+ * en cours, son échéance globale recule de `minutes`. La fin prévue de la session recule aussi.
+ * Renvoie le nombre de passages prolongés.
+ */
+export async function prolongerPassages(
+  tx: Transaction,
+  sessionId: string,
+  minutes: number,
+  instant: Date,
+): Promise<number> {
+  const [session] = await tx
+    .select({ ...COLONNES_SESSION, finPrevueLe: sessionExamen.finPrevueLe })
+    .from(sessionExamen)
+    .where(eq(sessionExamen.id, sessionId))
+    .for("update");
+  if (!session || session.statut !== "en_cours") throw erreurs.etat(MESSAGES_EXAMEN.sessionPasEnCours);
+  const contenu = await lireContenu(tx, sessionId);
+  if (contenu.modeChrono !== "global") throw erreurs.etat(MESSAGES_EXAMEN.prolongerGlobal);
+  const decalageMs = minutes * 60_000;
+  const enCours = await tx
+    .select({ id: participation.id })
+    .from(participation)
+    .where(and(eq(participation.sessionId, sessionId), eq(participation.statut, "en_cours")));
+  let prolonges = 0;
+  for (const { id } of enCours) {
+    const lu = await participationVerrouillee(tx, id, session);
+    if (!lu) continue;
+    const passage = await rattraper(tx, lu, instant);
+    const echeance = passage.etat.echeanceGlobaleLe;
+    if (passage.statut !== "en_cours" || echeance === null) continue;
+    await tx
+      .update(participation)
+      .set({ echeanceGlobaleLe: new Date(echeance.getTime() + decalageMs) })
+      .where(eq(participation.id, id));
+    prolonges += 1;
+  }
+  if (session.finPrevueLe !== null) {
+    await tx
+      .update(sessionExamen)
+      .set({ finPrevueLe: new Date(session.finPrevueLe.getTime() + decalageMs) })
+      .where(eq(sessionExamen.id, sessionId));
+  }
+  return prolonges;
 }

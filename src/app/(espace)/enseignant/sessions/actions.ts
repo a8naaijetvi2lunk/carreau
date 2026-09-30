@@ -10,8 +10,10 @@ import {
   autoriserDemande,
   creerSession,
   demarrerSession,
+  prolongerSession,
   refuserDemande,
   retirerParticipant,
+  terminerSession,
 } from "@/modules/sessions";
 
 /** Liste des sessions, accueil et page de pilotage : statut et participants y sont affichés. */
@@ -56,6 +58,17 @@ export async function demarrerSessionAction(sessionId: string): Promise<Resultat
 
 export async function annulerSessionAction(sessionId: string): Promise<ResultatAction<null>> {
   return executerEtRafraichir(async () => annulerSession(await exigerActeur(), { sessionId }));
+}
+
+export async function prolongerSessionAction(
+  sessionId: string,
+  minutes: number,
+): Promise<ResultatAction<null>> {
+  return executerEtRafraichir(async () => prolongerSession(await exigerActeur(), { sessionId, minutes }));
+}
+
+export async function terminerSessionAction(sessionId: string): Promise<ResultatAction<null>> {
+  return executerEtRafraichir(async () => terminerSession(await exigerActeur(), { sessionId }));
 }
 
 export async function retirerParticipantAction(participationId: string): Promise<ResultatAction<null>> {

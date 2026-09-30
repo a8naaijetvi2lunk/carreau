@@ -172,4 +172,36 @@ describe("rattrapage d'une session et clôture", () => {
     }
     expect(await cloturerSiFinie(x.session.id)).toBe(true);
   });
+
+  it("« Terminer pour tous » : chaque passage ouvert est clos à l'instant, la clôture est journalisée comme forcée", async () => {
+    const x = await examenEnCours(horloge);
+    const [lea, sacha, hugo] = x.telephones.map((t) => t.participation.id);
+    if (!lea || !sacha || !hugo) throw new Error("participations absentes");
+    await poserBrouillon(lea, 1, ["Oui"]);
+    const fin = apres(x.demarreLe, 90);
+    horloge.fixer(fin);
+    expect(await cloturerSiFinie(x.session.id, fin)).toBe(false);
+    expect(await cloturerSiFinie(x.session.id, fin, { forcer: true })).toBe(true);
+    const s = await statutSession(x.session.id);
+    expect(s?.statut).toBe("terminee");
+    expect(s?.termineLe?.getTime()).toBe(fin.getTime());
+    for (const p of [lea, sacha, hugo]) {
+      const enBase = await passageEnBase(p);
+      expect(enBase.statut).toBe("terminee");
+      expect(enBase.termineeLe?.getTime()).toBe(fin.getTime());
+      expect(enBase.indice).not.toBeNull();
+    }
+    // Léa : sa dernière sélection est validée à l'échéance, la question suivante reste sans réponse.
+    const reponses = await reponsesEnBase(lea);
+    expect(reponses.map((r) => r.origine).sort()).toEqual(["echeance", "fin"]);
+    expect((await passageEnBase(lea)).noteSur20).toBe(10);
+    const [entree] = await db()
+      .select()
+      .from(journal)
+      .where(
+        and(eq(journal.action, "examen.cloturer_session"), eq(journal.cible, `session:${x.session.id}`)),
+      );
+    expect(entree?.details).toEqual({ participants: 3, forcee: true });
+    expect(await cloturerSiFinie(x.session.id, fin, { forcer: true })).toBe(false);
+  });
 });

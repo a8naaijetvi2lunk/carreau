@@ -20,7 +20,14 @@ export {
   type ResultatEntree,
   type Telephone,
 } from "./entree";
-export { autoriserDemande, demarrerSession, refuserDemande, retirerParticipant } from "./pilotage";
+export {
+  autoriserDemande,
+  demarrerSession,
+  prolongerSession,
+  refuserDemande,
+  retirerParticipant,
+  terminerSession,
+} from "./pilotage";
 export {
   annulerSession,
   creerSession,
