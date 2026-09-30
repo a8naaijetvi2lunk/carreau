@@ -7,6 +7,7 @@ export {
   listerQcm,
   marquerPret,
   MESSAGE_LIMITE_QCM,
+  MESSAGE_QCM_HORS_MCP,
   modifierParametres,
   repasserEnBrouillon,
   restaurerQcm,
@@ -21,6 +22,8 @@ export {
   enregistrerQuestion,
   lierQuestion,
   MESSAGE_QCM_PLEIN,
+  MESSAGE_QUESTION_ILLUSTREE,
   supprimerQuestion,
+  type ContenuQuestion,
   type SaisieQuestion,
 } from "./questions";

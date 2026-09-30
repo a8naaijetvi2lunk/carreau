@@ -13,11 +13,14 @@ import {
   enregistrerQuestion,
   lierQuestion,
   MESSAGE_QCM_PLEIN,
+  MESSAGE_QUESTION_ILLUSTREE,
   supprimerQuestion,
+  type ContenuQuestion,
   type SaisieQuestion,
 } from "@/modules/qcm";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
 import { creerImageTest } from "@/test/images";
+import { acteurMcpDe } from "@/test/mcp";
 import { creerQcmTest, creerQuestionTest } from "@/test/qcm";
 
 const DEBUT = Date.parse("2026-09-29T08:00:00.000Z");
@@ -526,5 +529,121 @@ describe("refus d'autrui", () => {
       message: "Question introuvable.",
     });
     expect(await journalDe(a.id, "acces.refus")).toEqual([]);
+  });
+});
+
+function contenu(modifications: Partial<ContenuQuestion> = {}): ContenuQuestion {
+  return {
+    type: "unique",
+    enonce: "Quelle est la capitale de la France ?",
+    imageId: null,
+    code: null,
+    propositions: [
+      { texte: "Paris", imageId: null, correcte: true },
+      { texte: "Lyon", imageId: null, correcte: false },
+    ],
+    pointsBonne: 1,
+    pointsMauvaise: -0.25,
+    pointsVide: 0,
+    dureeS: null,
+    ...modifications,
+  };
+}
+
+describe("ajouterQuestion avec un contenu (décision D7 du plan du lot 8)", () => {
+  it("ajoute à la fin une question déjà écrite, dans la même transaction", async () => {
+    const a = await acteur();
+    const q = await creerQcmTest(a.id);
+    await creerQuestionTest(q.id);
+    const { id } = await ajouterQuestion(a, {
+      qcmId: q.id,
+      contenu: contenu({
+        type: "multiple",
+        enonce: "Quels tris sont stables ?",
+        code: { langage: "python", source: "sorted(t)" },
+        propositions: [
+          { texte: "Tri fusion", imageId: null, correcte: true },
+          { texte: "Tri par insertion", imageId: null, correcte: true },
+          { texte: "Tri rapide", imageId: null, correcte: false },
+        ],
+        pointsBonne: 2,
+        pointsMauvaise: -0.5,
+        dureeS: 45,
+      }),
+    });
+    expect(await ligne(id)).toMatchObject({
+      position: 2,
+      type: "multiple",
+      enonce: "Quels tris sont stables ?",
+      codeLangage: "python",
+      codeSource: "sorted(t)",
+      pointsBonne: 2,
+      pointsMauvaise: -0.5,
+      pointsVide: 0,
+      dureeS: 45,
+    });
+    expect((await reponsesDe(id)).map((r) => [r.texte, r.correcte])).toEqual([
+      ["Tri fusion", true],
+      ["Tri par insertion", true],
+      ["Tri rapide", false],
+    ]);
+  });
+
+  it("n'ajoute rien quand le contenu est invalide, et détaille le problème", async () => {
+    const a = await acteur();
+    const q = await creerQcmTest(a.id);
+    await creerQuestionTest(q.id);
+    const erreur = await ajouterQuestion(a, {
+      qcmId: q.id,
+      contenu: contenu({ enonce: "x".repeat(2001) }),
+    }).catch((e: unknown) => e);
+    expect(erreur).toMatchObject({ code: "VALIDATION" });
+    expect((erreur as { details: { chemin: string }[] }).details.map((d) => d.chemin)).toEqual([
+      "contenu.enonce",
+    ]);
+    expect(await ordre(q.id)).toHaveLength(1);
+  });
+
+  it("refuse d'ajouter à un QCM prêt, même avec un contenu", async () => {
+    const a = await acteur();
+    const q = await creerQcmTest(a.id, { statut: "pret" });
+    await expect(ajouterQuestion(a, { qcmId: q.id, contenu: contenu() })).rejects.toMatchObject({
+      code: "ETAT",
+      message: PRET,
+    });
+    expect(await ordre(q.id)).toEqual([]);
+  });
+});
+
+describe("enregistrerQuestion par un acteur MCP (décision D7 du plan du lot 8)", () => {
+  it("modifie une question sans image", async () => {
+    const u = await creerUtilisateur();
+    const q = await creerQcmTest(u.id);
+    const qu = await creerQuestionTest(q.id);
+    await enregistrerQuestion(acteurMcpDe(u), saisie(qu.id, { enonce: "Nouvel énoncé" }));
+    expect((await ligne(qu.id))?.enonce).toBe("Nouvel énoncé");
+  });
+
+  it("refuse une question dont l'énoncé ou une réponse porte une image, que l'interface modifie toujours", async () => {
+    const u = await creerUtilisateur();
+    const q = await creerQcmTest(u.id);
+    const image = await creerImageTest(u.id);
+    const illustree = await creerQuestionTest(q.id, { imageId: image.id });
+    const reponseIllustree = await creerQuestionTest(q.id, {
+      propositions: [
+        { texte: "", imageId: image.id, correcte: true },
+        { texte: "Non", correcte: false },
+      ],
+    });
+    for (const qu of [illustree, reponseIllustree]) {
+      await expect(enregistrerQuestion(acteurMcpDe(u), saisie(qu.id))).rejects.toMatchObject({
+        code: "ETAT",
+        message: MESSAGE_QUESTION_ILLUSTREE,
+      });
+    }
+    expect((await ligne(illustree.id))?.imageId).toBe(image.id);
+    expect((await reponsesDe(reponseIllustree.id))[0]?.imageId).toBe(image.id);
+    await enregistrerQuestion(acteurDe(u), saisie(illustree.id, { imageId: image.id }));
+    expect((await ligne(illustree.id))?.enonce).toBe("Quelle est la capitale de la France ?");
   });
 });

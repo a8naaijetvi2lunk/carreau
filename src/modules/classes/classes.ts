@@ -3,7 +3,7 @@
  * Toute classe appartient au compte qui l'a créée ; personne d'autre ne la voit.
  */
 import "server-only";
-import { count, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { classe, etudiant, utilisateur } from "@/db/schema";
@@ -65,6 +65,17 @@ export async function listerClasses(acteur: ActeurUtilisateur): Promise<ClasseRe
       .where(eq(classe.enseignantId, acteur.id))
       .groupBy(classe.id);
     return lignes.sort((a, b) => comparerNoms(a.nom, b.nom));
+  });
+}
+
+/** Noms des classes non archivées de l'acteur, en tri naturel : tout ce qu'un assistant MCP en voit (spec §10). */
+export async function nomsDesClasses(acteur: ActeurUtilisateur): Promise<string[]> {
+  return journaliserLesRefus(acteur, "classes.noms", async () => {
+    const lignes = await db()
+      .select({ nom: classe.nom })
+      .from(classe)
+      .where(and(eq(classe.enseignantId, acteur.id), eq(classe.archivee, false)));
+    return lignes.map((l) => l.nom).sort(comparerNoms);
   });
 }
 

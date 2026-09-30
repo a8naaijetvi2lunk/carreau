@@ -4,6 +4,7 @@ export {
   lireClasse,
   listerClasses,
   MESSAGE_LIMITE_CLASSES,
+  nomsDesClasses,
   renommerClasse,
   restaurerClasse,
   type ClasseDetaillee,

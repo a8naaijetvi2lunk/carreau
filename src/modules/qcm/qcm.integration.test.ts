@@ -13,6 +13,7 @@ import {
   listerQcm,
   marquerPret,
   MESSAGE_LIMITE_QCM,
+  MESSAGE_QCM_HORS_MCP,
   modifierParametres,
   repasserEnBrouillon,
   restaurerQcm,
@@ -20,6 +21,7 @@ import {
 } from "@/modules/qcm";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
 import { creerImageTest } from "@/test/images";
+import { acteurMcpDe } from "@/test/mcp";
 import { creerQcmTest, creerQuestionTest } from "@/test/qcm";
 
 const DEBUT = Date.parse("2026-09-29T08:00:00.000Z");
@@ -376,4 +378,53 @@ describe("refus d'autrui", () => {
       expect((await lu(q.id))?.statut).toBe("brouillon");
     },
   );
+});
+
+describe("acteur MCP (décisions D6 et D7 du plan du lot 8)", () => {
+  it("crée un QCM d'origine « mcp », toujours en brouillon", async () => {
+    const u = await creerUtilisateur();
+    const { id } = await creerQcm(acteurMcpDe(u), { titre: "Tris — Contrôle 1" });
+    expect(await lu(id)).toMatchObject({ enseignantId: u.id, statut: "brouillon", origine: "mcp" });
+  });
+
+  it("ne liste que les brouillons", async () => {
+    const u = await creerUtilisateur();
+    const brouillon = await creerQcmTest(u.id, { titre: "Brouillon" });
+    await creerQcmTest(u.id, { titre: "Prêt", statut: "pret" });
+    await creerQcmTest(u.id, { titre: "Archivé", statut: "archive" });
+    expect((await listerQcm(acteurMcpDe(u))).map((q) => q.id)).toEqual([brouillon.id]);
+    expect(await listerQcm(acteurDe(u))).toHaveLength(3);
+  });
+
+  it("ne lit qu'un brouillon : un QCM prêt ou archivé reste fermé à l'assistant", async () => {
+    const u = await creerUtilisateur();
+    const brouillon = await creerQcmTest(u.id);
+    await expect(lireQcm(acteurMcpDe(u, "lecture"), { qcmId: brouillon.id })).resolves.toMatchObject({
+      id: brouillon.id,
+      statut: "brouillon",
+    });
+    for (const statut of ["pret", "archive"] as const) {
+      const q = await creerQcmTest(u.id, { statut });
+      await expect(lireQcm(acteurMcpDe(u, "lecture"), { qcmId: q.id })).rejects.toMatchObject({
+        code: "ETAT",
+        message: MESSAGE_QCM_HORS_MCP,
+      });
+      await expect(lireQcm(acteurDe(u), { qcmId: q.id })).resolves.toMatchObject({ statut });
+    }
+  });
+
+  it("répond « QCM introuvable. » pour le QCM d'un autre compte, refus journalisé avec le jeton", async () => {
+    const u = await creerUtilisateur();
+    const autre = await creerUtilisateur();
+    const q = await creerQcmTest(autre.id);
+    await expect(lireQcm(acteurMcpDe(u), { qcmId: q.id })).rejects.toMatchObject({
+      code: "INTROUVABLE",
+      message: "QCM introuvable.",
+    });
+    const [refus] = await journalDe(u.id, "acces.refus");
+    expect(refus?.details).toMatchObject({
+      action: "qcm.lire",
+      jetonMcpId: "00000000-0000-4000-8000-000000000001",
+    });
+  });
 });

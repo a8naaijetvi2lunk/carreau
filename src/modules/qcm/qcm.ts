@@ -3,7 +3,7 @@
  * création, lecture pour l'éditeur, paramètres et statuts. Toute écriture verrouille le QCM.
  */
 import "server-only";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Transaction } from "@/db";
 import { qcm, question, utilisateur } from "@/db/schema";
@@ -77,6 +77,10 @@ export type SaisieParametres = {
 
 export const MESSAGE_LIMITE_QCM = `Tu as atteint la limite de ${LIMITES_QCM.qcmParCompte} QCM.`;
 
+/** Un assistant MCP ne lit que des brouillons (spec §1.1 et §11.1, décision D6 du plan du lot 8). */
+export const MESSAGE_QCM_HORS_MCP =
+  "Ce QCM n'est pas un brouillon : ton assistant n'y a pas accès. Repasse-le en brouillon dans Carreau pour qu'il le lise.";
+
 const schemaCreation = z.strictObject({ titre: schemaTitreQcm });
 const schemaQcm = z.strictObject({ qcmId: z.string() });
 const schemaParametres = z.strictObject({
@@ -113,7 +117,7 @@ async function journaliserStatut(
   await journaliser({ acteur: { type: "utilisateur", id: acteur.id }, action, cible: `qcm:${qcmId}` }, tx);
 }
 
-/** Tous les QCM de l'acteur, archivés compris, du plus récemment modifié au plus ancien. */
+/** Tous les QCM de l'acteur, archivés compris, du plus récemment modifié au plus ancien ; les seuls brouillons pour un assistant MCP (D6 du plan du lot 8). */
 export async function listerQcm(acteur: ActeurUtilisateur): Promise<QcmResume[]> {
   return journaliserLesRefus(acteur, "qcm.lister", async () =>
     db()
@@ -127,7 +131,11 @@ export async function listerQcm(acteur: ActeurUtilisateur): Promise<QcmResume[]>
       })
       .from(qcm)
       .leftJoin(question, eq(question.qcmId, qcm.id))
-      .where(eq(qcm.enseignantId, acteur.id))
+      .where(
+        acteur.jetonMcp
+          ? and(eq(qcm.enseignantId, acteur.id), eq(qcm.statut, "brouillon"))
+          : eq(qcm.enseignantId, acteur.id),
+      )
       .groupBy(qcm.id)
       .orderBy(desc(qcm.modifieLe)),
   );
@@ -152,7 +160,14 @@ export async function creerQcm(
       const le = maintenant();
       const [cree] = await tx
         .insert(qcm)
-        .values({ enseignantId: acteur.id, titre, creeLe: le, modifieLe: le })
+        .values({
+          enseignantId: acteur.id,
+          titre,
+          // Un QCM créé par un assistant est signalé « Créé via MCP · à relire » (D7 du plan du lot 8).
+          origine: acteur.jetonMcp ? "mcp" : "interface",
+          creeLe: le,
+          modifieLe: le,
+        })
         .returning({ id: qcm.id });
       if (!cree) throw new Error("QCM non créé.");
       const questionId = await insererQuestion(tx, cree.id, 1, MODELE_QUESTION);
@@ -167,6 +182,7 @@ export async function lireQcm(acteur: ActeurUtilisateur, saisie: { qcmId: string
   return journaliserLesRefus(acteur, "qcm.lire", async () => {
     const qcmId = lireIdentifiant(valider(schemaQcm, saisie, "QCM").qcmId, "QCM");
     const lu = await qcmDeLActeur(db(), acteur, qcmId);
+    if (acteur.jetonMcp && lu.statut !== "brouillon") throw erreurs.etat(MESSAGE_QCM_HORS_MCP);
     const questions = await chargerQuestions(db(), qcmId);
     return {
       id: lu.id,

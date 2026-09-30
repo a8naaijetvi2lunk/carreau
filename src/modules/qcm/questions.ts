@@ -5,9 +5,9 @@
  * les refus d'accès.
  */
 import "server-only";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db";
+import { db, type Transaction } from "@/db";
 import { proposition, question } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { erreurs } from "@/lib/erreurs";
@@ -39,8 +39,12 @@ import {
 
 export const MESSAGE_QCM_PLEIN = `Ce QCM compte déjà ${LIMITES_QCM.questionsMax} questions, le maximum.`;
 
-export type SaisieQuestion = {
-  questionId: string;
+/** Un assistant MCP ne pose ni ne retire d'image : il laisse les questions illustrées à l'éditeur (D7 du plan du lot 8). */
+export const MESSAGE_QUESTION_ILLUSTREE =
+  "Cette question contient des images : modifie-la dans l'éditeur de Carreau.";
+
+/** Contenu d'une question, tel que l'éditeur l'envoie (décision D8 du plan du lot 3). */
+export type ContenuQuestion = {
   type: TypeQuestion;
   enonce: string;
   imageId: string | null;
@@ -52,6 +56,8 @@ export type SaisieQuestion = {
   dureeS: number | null;
 };
 
+export type SaisieQuestion = { questionId: string } & ContenuQuestion;
+
 function schemaPoints(sorte: SortePoints) {
   return z.number({ error: MESSAGE_POINTS_NOMBRE }).superRefine((valeur, contexte) => {
     const probleme = problemePoints(valeur, sorte);
@@ -59,8 +65,7 @@ function schemaPoints(sorte: SortePoints) {
   });
 }
 
-const schemaEnregistrement = z.strictObject({
-  questionId: z.string(),
+const champsContenu = {
   type: z.enum(TYPES_QUESTION, { error: "Type de question inconnu." }),
   enonce: schemaTexte("L'énoncé", LIMITES_QCM.enonceMax, "\n\t"),
   imageId: z.string().nullable(),
@@ -87,8 +92,12 @@ const schemaEnregistrement = z.strictObject({
     .number({ error: MESSAGE_DUREE_QUESTION })
     .nullable()
     .refine((v) => v === null || problemeDureeQuestionS(v) === null, { error: MESSAGE_DUREE_QUESTION }),
-});
-const schemaQcm = z.strictObject({ qcmId: z.string() });
+};
+const schemaContenu = z.strictObject(champsContenu);
+const schemaEnregistrement = z.strictObject({ questionId: z.string(), ...champsContenu });
+const schemaAjout = z.strictObject({ qcmId: z.string(), contenu: schemaContenu.optional() });
+
+type ContenuValide = z.output<typeof schemaContenu>;
 const schemaQuestion = z.strictObject({ questionId: z.string() });
 const schemaDeplacement = z.strictObject({
   questionId: z.string(),
@@ -99,13 +108,75 @@ const schemaLiaison = z.strictObject({
   lieeASuivante: z.boolean({ error: "Liaison invalide." }),
 });
 
-/** Ajoute une question à la fin, sur le modèle de la dernière (décision D9). */
+/**
+ * Écrit le contenu d'une question dans la transaction de l'appelant (décision D8 du plan du lot 3) : ses
+ * champs, puis ses réponses remplacées en bloc. Les images citées doivent être à l'acteur.
+ */
+async function ecrireContenu(
+  tx: Transaction,
+  acteur: ActeurUtilisateur,
+  questionId: string,
+  contenu: ContenuValide,
+): Promise<void> {
+  const images = [contenu.imageId, ...contenu.propositions.map((p) => p.imageId)].filter(
+    (id): id is string => id !== null,
+  );
+  await verifierImagesDeLActeur(tx, acteur, images);
+  await tx
+    .update(question)
+    .set({
+      type: contenu.type,
+      enonce: contenu.enonce,
+      imageId: contenu.imageId,
+      codeLangage: contenu.code?.langage ?? null,
+      codeSource: contenu.code?.source ?? null,
+      pointsBonne: contenu.pointsBonne,
+      pointsMauvaise: contenu.pointsMauvaise,
+      pointsVide: contenu.pointsVide,
+      dureeS: contenu.dureeS,
+    })
+    .where(eq(question.id, questionId));
+  await tx.delete(proposition).where(eq(proposition.questionId, questionId));
+  if (contenu.propositions.length > 0) {
+    await tx.insert(proposition).values(
+      contenu.propositions.map((p, index) => ({
+        questionId,
+        position: index + 1,
+        texte: p.texte,
+        imageId: p.imageId,
+        correcte: p.correcte,
+      })),
+    );
+  }
+}
+
+/** Vrai si l'énoncé ou une réponse de la question porte une image. */
+async function questionIllustree(
+  tx: Transaction,
+  questionId: string,
+  imageEnonce: string | null,
+): Promise<boolean> {
+  if (imageEnonce !== null) return true;
+  const [illustree] = await tx
+    .select({ id: proposition.id })
+    .from(proposition)
+    .where(and(eq(proposition.questionId, questionId), isNotNull(proposition.imageId)))
+    .limit(1);
+  return illustree !== undefined;
+}
+
+/**
+ * Ajoute une question à la fin, sur le modèle de la dernière (décision D9). Avec un `contenu` (assistant
+ * MCP, décision D7 du plan du lot 8), la question est écrite dans la même transaction ; le contenu est
+ * validé avant, rien n'est ajouté s'il est invalide.
+ */
 export async function ajouterQuestion(
   acteur: ActeurUtilisateur,
-  saisie: { qcmId: string },
+  saisie: { qcmId: string; contenu?: ContenuQuestion },
 ): Promise<{ id: string }> {
   return journaliserLesRefus(acteur, "questions.ajouter", async () => {
-    const qcmId = lireIdentifiant(valider(schemaQcm, saisie, "Question").qcmId, "QCM");
+    const donnees = valider(schemaAjout, saisie, "Question");
+    const qcmId = lireIdentifiant(donnees.qcmId, "QCM");
     return db().transaction(async (tx) => {
       exigerBrouillon(await qcmDeLActeur(tx, acteur, qcmId, true));
       const [compte] = await tx.select({ total: count() }).from(question).where(eq(question.qcmId, qcmId));
@@ -123,6 +194,7 @@ export async function ajouterQuestion(
         .orderBy(desc(question.position))
         .limit(1);
       const id = await insererQuestion(tx, qcmId, total + 1, derniere ?? MODELE_QUESTION);
+      if (donnees.contenu) await ecrireContenu(tx, acteur, id, donnees.contenu);
       await toucherQcm(tx, qcmId);
       return { id };
     });
@@ -131,7 +203,8 @@ export async function ajouterQuestion(
 
 /**
  * Enregistre la question entière envoyée par l'éditeur (décision D8) : ses réponses sont remplacées en
- * bloc. Une question incomplète est acceptée (brouillon) ; les images citées doivent être à l'acteur.
+ * bloc. Une question incomplète est acceptée (brouillon) ; les images citées doivent être à l'acteur ;
+ * un assistant MCP ne modifie pas une question illustrée (D7 du plan du lot 8).
  */
 export async function enregistrerQuestion(
   acteur: ActeurUtilisateur,
@@ -141,38 +214,12 @@ export async function enregistrerQuestion(
     const donnees = valider(schemaEnregistrement, saisie, "Question");
     const questionId = lireIdentifiant(donnees.questionId, "Question");
     return db().transaction(async (tx) => {
-      const { qcm: lu } = await questionDeLActeur(tx, acteur, questionId);
+      const { qcm: lu, question: courante } = await questionDeLActeur(tx, acteur, questionId);
       exigerBrouillon(lu);
-      const images = [donnees.imageId, ...donnees.propositions.map((p) => p.imageId)].filter(
-        (id): id is string => id !== null,
-      );
-      await verifierImagesDeLActeur(tx, acteur, images);
-      await tx
-        .update(question)
-        .set({
-          type: donnees.type,
-          enonce: donnees.enonce,
-          imageId: donnees.imageId,
-          codeLangage: donnees.code?.langage ?? null,
-          codeSource: donnees.code?.source ?? null,
-          pointsBonne: donnees.pointsBonne,
-          pointsMauvaise: donnees.pointsMauvaise,
-          pointsVide: donnees.pointsVide,
-          dureeS: donnees.dureeS,
-        })
-        .where(eq(question.id, questionId));
-      await tx.delete(proposition).where(eq(proposition.questionId, questionId));
-      if (donnees.propositions.length > 0) {
-        await tx.insert(proposition).values(
-          donnees.propositions.map((p, index) => ({
-            questionId,
-            position: index + 1,
-            texte: p.texte,
-            imageId: p.imageId,
-            correcte: p.correcte,
-          })),
-        );
+      if (acteur.jetonMcp && (await questionIllustree(tx, questionId, courante.imageId))) {
+        throw erreurs.etat(MESSAGE_QUESTION_ILLUSTREE);
       }
+      await ecrireContenu(tx, acteur, questionId, donnees);
       return { modifieLe: await toucherQcm(tx, lu.id) };
     });
   });

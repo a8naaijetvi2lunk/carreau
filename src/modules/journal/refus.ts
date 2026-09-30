@@ -19,13 +19,12 @@ export async function journaliserLesRefus<T>(
     return await service();
   } catch (erreur) {
     if (erreur instanceof ErreurService && (erreur.code === "ACCES_REFUSE" || erreur.refusAcces)) {
-      await journaliser({
-        acteur: { type: "utilisateur", id: acteur.id },
-        action: "acces.refus",
-        details: erreur.refusAcces
-          ? { action, role: acteur.role, motif: "ressource_autrui" }
-          : { action, role: acteur.role },
-      });
+      const details: Record<string, unknown> = erreur.refusAcces
+        ? { action, role: acteur.role, motif: "ressource_autrui" }
+        : { action, role: acteur.role };
+      // Refus venu d'un assistant (décision D2 du plan du lot 8) : le jeton utilisé est retrouvable.
+      if (acteur.jetonMcp) details.jetonMcpId = acteur.jetonMcp.id;
+      await journaliser({ acteur: { type: "utilisateur", id: acteur.id }, action: "acces.refus", details });
     }
     throw erreur;
   }

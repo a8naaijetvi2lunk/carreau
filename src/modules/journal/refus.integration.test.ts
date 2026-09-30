@@ -5,6 +5,7 @@ import { journal } from "@/db/schema";
 import { erreurs } from "@/lib/erreurs";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
+import { acteurMcpDe } from "@/test/mcp";
 import { journaliserLesRefus } from "./refus";
 
 beforeEach(() => definirHorlogePourLesTests(horlogeFixe(Date.parse("2026-09-29T08:00:00.000Z"))));
@@ -88,5 +89,22 @@ describe("journaliserLesRefus", () => {
       }),
     ).rejects.toMatchObject({ code: "INTROUVABLE" });
     expect(await entreesRefus(a.id)).toEqual([]);
+  });
+
+  it("signale le jeton MCP d'un refus venu d'un assistant", async () => {
+    const u = await creerUtilisateur();
+    const mcp = acteurMcpDe(u, "lecture", "11111111-1111-4111-8111-111111111111");
+    await expect(
+      journaliserLesRefus(mcp, "qcm.lire", async () => {
+        throw erreurs.ressourceAutrui("QCM");
+      }),
+    ).rejects.toMatchObject({ code: "INTROUVABLE" });
+    const [entree] = await entreesRefus(u.id);
+    expect(entree?.details).toEqual({
+      action: "qcm.lire",
+      role: "enseignant",
+      motif: "ressource_autrui",
+      jetonMcpId: "11111111-1111-4111-8111-111111111111",
+    });
   });
 });

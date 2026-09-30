@@ -11,11 +11,13 @@ import {
   listerClasses,
   MAX_CLASSES_PAR_COMPTE,
   MESSAGE_LIMITE_CLASSES,
+  nomsDesClasses,
   renommerClasse,
   restaurerClasse,
 } from "@/modules/classes";
 import { creerClasseTest, creerEtudiantTest } from "@/test/classes";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
+import { acteurMcpDe } from "@/test/mcp";
 
 const DEBUT = Date.parse("2026-09-29T08:00:00.000Z");
 
@@ -240,5 +242,18 @@ describe("matrice des refus : la classe d'un autre compte", () => {
     expect(entree?.details).toMatchObject({ role, motif: "ressource_autrui" });
     const [intacte] = await db().select().from(classe).where(eq(classe.id, c.id));
     expect(intacte).toMatchObject({ nom: "TD1", archivee: service === "restaurerClasse" });
+  });
+});
+
+describe("nomsDesClasses (assistant MCP, décision D6 du plan du lot 8)", () => {
+  it("donne les seuls noms des classes non archivées de l'acteur, en tri naturel", async () => {
+    const u = await creerUtilisateur();
+    const autre = await creerUtilisateur();
+    await creerClasseTest(u.id, { nom: "TD10" });
+    await creerClasseTest(u.id, { nom: "TD2" });
+    await creerClasseTest(u.id, { nom: "Ancienne", archivee: true });
+    await creerClasseTest(autre.id, { nom: "TD1" });
+    expect(await nomsDesClasses(acteurMcpDe(u, "lecture"))).toEqual(["TD2", "TD10"]);
+    expect(await nomsDesClasses(acteurDe(u))).toEqual(["TD2", "TD10"]);
   });
 });
