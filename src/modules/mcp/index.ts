@@ -6,4 +6,5 @@ export {
   type JetonMcpCree,
   type JetonMcpResume,
 } from "./jetons";
+export { executerOutil, OUTILS, outilParNom, type DefinitionOutil } from "./outils";
 export { verifierJetonMcp } from "./verification";
