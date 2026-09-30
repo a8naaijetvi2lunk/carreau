@@ -7,13 +7,15 @@ import "server-only";
 import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, type Executeur } from "@/db";
-import { demandeAppareil, etudiant, participation } from "@/db/schema";
+import { demandeAppareil, etudiant, participation, sessionExamen } from "@/db/schema";
 import type { ActeurUtilisateur } from "@/lib/acteur";
 import { maintenant } from "@/lib/horloge";
-import { LIMITES_SESSION, nomCourt } from "@/lib/regles-session";
+import type { ModeChrono } from "@/lib/regles-qcm";
+import { LIMITES_SESSION, nomComplet, nomCourt } from "@/lib/regles-session";
+import { alerteFait, libelleFait, type Fait, type TypeFait } from "@/lib/regles-surveillance";
 import { lireIdentifiant, valider } from "@/lib/validation";
-import type { VueProjection, VueSuivi } from "@/lib/vue-session";
-import { rattraperSession } from "@/modules/examen";
+import type { AlerteSuivi, StatutSuivi, VueProjection, VueSuivi } from "@/lib/vue-session";
+import { rattraperSession, surveillanceDeLaSession } from "@/modules/examen";
 import { journaliserLesRefus } from "@/modules/journal";
 import { codeAffiche } from "./code";
 import { sessionDeLActeur, type SessionLue } from "./commun";
@@ -41,6 +43,21 @@ export async function expirerDemandes(executeur: Executeur, sessionId: string): 
     );
 }
 
+/** Nombre d'alertes en direct renvoyées (D10). */
+const ALERTES_MAX = 10;
+/** Ordre des faits de même heure dans les alertes : une sortie d'abord. */
+const ORDRE_ALERTES: TypeFait[] = ["sortie", "ecran_partage", "presse_papiers", "coupure"];
+
+function statutSuivi(statut: "attente" | "en_cours" | "terminee", deconnecte: boolean): StatutSuivi {
+  if (statut === "en_cours" && deconnecte) return "deconnecte";
+  return statut;
+}
+
+function dernierFait(faits: readonly Fait[]): string | null {
+  const dernier = faits.at(-1);
+  return dernier ? libelleFait(dernier) : null;
+}
+
 /** Participants, absents et demandes en attente d'une session, triés par nom, et son code s'il sert encore. */
 export async function construireSuivi(executeur: Executeur, session: SessionLue): Promise<VueSuivi> {
   await expirerDemandes(executeur, session.id);
@@ -53,6 +70,7 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
       informationLueLe: participation.informationLueLe,
       statut: participation.statut,
       indexCourant: participation.indexCourant,
+      echeanceGlobaleLe: participation.echeanceGlobaleLe,
       // Requête avec jointure : la colonne reste qualifiée (piège DevBrain).
       total: sql<number | null>`jsonb_array_length(${participation.ordre})`,
     })
@@ -84,12 +102,48 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
     .where(and(eq(participation.sessionId, session.id), eq(demandeAppareil.statut, "en_attente")))
     .orderBy(asc(demandeAppareil.creeLe));
   const ouverte = session.statut === "attente" || session.statut === "en_cours";
+  const instant = maintenant();
+  const surveillance = await surveillanceDeLaSession(executeur, session.id, instant);
+  const [chrono] = await executeur
+    .select({ modeChrono: sql<ModeChrono | null>`${sessionExamen.contenu} ->> 'modeChrono'` })
+    .from(sessionExamen)
+    .where(eq(sessionExamen.id, session.id));
+  const modeChrono = chrono?.modeChrono ?? null;
+  const lignes = participants.map((p) => {
+    const s = surveillance.get(p.participationId) ?? { indice: null, faits: [], deconnecte: false };
+    return { ...p, surveillance: s, statutSuivi: statutSuivi(p.statut, s.deconnecte) };
+  });
+  const fins = lignes
+    .filter((l) => l.statut === "en_cours" && l.echeanceGlobaleLe !== null)
+    .map((l) => l.echeanceGlobaleLe?.getTime() ?? 0);
+  const alertes: (AlerteSuivi & { type: TypeFait; nom: string; instant: number })[] = [];
+  for (const l of lignes) {
+    const nom = nomComplet(l.prenom, l.nom);
+    for (const fait of l.surveillance.faits) {
+      const alerte = alerteFait(fait, nom);
+      if (!alerte) continue;
+      alertes.push({
+        ...alerte,
+        cle: `${l.participationId}:${fait.type}:${fait.le.getTime()}`,
+        le: fait.le.toISOString(),
+        type: fait.type,
+        nom,
+        instant: fait.le.getTime(),
+      });
+    }
+  }
+  alertes.sort(
+    (a, b) =>
+      b.instant - a.instant ||
+      ORDRE_ALERTES.indexOf(a.type) - ORDRE_ALERTES.indexOf(b.type) ||
+      a.nom.localeCompare(b.nom, "fr"),
+  );
   return {
-    serveurMaintenant: maintenant().toISOString(),
+    serveurMaintenant: instant.toISOString(),
     statut: session.statut,
     demarreLe: session.demarreLe?.toISOString() ?? null,
     effectif: participants.length + absents.length,
-    participants: participants.map((p) => ({
+    participants: lignes.map((p) => ({
       participationId: p.participationId,
       nom: p.nom,
       prenom: p.prenom,
@@ -99,6 +153,9 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
         p.total === null
           ? null
           : { repondues: p.indexCourant, total: Number(p.total), terminee: p.statut === "terminee" },
+      statut: p.statutSuivi,
+      indice: p.surveillance.indice,
+      dernierFait: dernierFait(p.surveillance.faits),
     })),
     absents,
     demandes: demandes.map((d) => ({
@@ -109,6 +166,15 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
       creeLe: d.creeLe.toISOString(),
     })),
     code: ouverte ? await codeAffiche(session.codeSecret) : null,
+    compteurs: {
+      connectes: lignes.filter((l) => l.statutSuivi === "en_cours").length,
+      termines: lignes.filter((l) => l.statutSuivi === "terminee").length,
+      absents: absents.length,
+      alertes: demandes.length,
+    },
+    finLe: modeChrono === "global" && fins.length > 0 ? new Date(Math.max(...fins)).toISOString() : null,
+    modeChrono,
+    alertes: alertes.slice(0, ALERTES_MAX).map(({ cle, le, titre, detail }) => ({ cle, le, titre, detail })),
   };
 }
 

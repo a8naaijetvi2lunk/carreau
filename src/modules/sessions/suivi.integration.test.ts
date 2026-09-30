@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { demandeAppareil, journal, sessionExamen } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
-import { validerQuestion } from "@/modules/examen";
+import { enregistrerEvenements, validerQuestion } from "@/modules/examen";
 import { acteurDe, creerUtilisateur } from "@/test/comptes";
 import { examenEnCours, identifiants } from "@/test/examen";
 import {
@@ -137,5 +137,47 @@ describe("suivi pendant l'examen", () => {
     expect(vue.statut).toBe("terminee");
     expect(vue.participants.every((p) => p.avancement?.terminee)).toBe(true);
     expect((await projeterSession(x.acteur, { sessionId: x.session.id })).statut).toBe("terminee");
+  });
+
+  it("donne statut, indice, dernier événement, compteurs, fin et alertes", async () => {
+    const x = await examenEnCours(horloge);
+    const [lea, sacha, hugo] = x.telephones.map((t) => t.participation.id);
+    if (!lea || !sacha || !hugo) throw new Error("participations absentes");
+    const chargement = "chargement-a1";
+    horloge.fixer(x.demarreLe.getTime() + 2_000);
+    await enregistrerEvenements(lea, { chargement, evenements: [{ n: 1, type: "masquee" }] });
+    horloge.fixer(x.demarreLe.getTime() + 10_000);
+    await enregistrerEvenements(lea, { chargement, evenements: [{ n: 2, type: "visible" }] });
+    await enregistrerEvenements(sacha, { chargement, evenements: [{ n: 1, type: "copie" }] });
+    await validerQuestion(sacha, { rang: 1, selection: [] });
+    await validerQuestion(sacha, { rang: 2, selection: [] });
+    horloge.fixer(x.demarreLe.getTime() + 20_000);
+    await enregistrerEvenements(lea, { chargement, evenements: [{ n: 3, type: "debut" }] });
+    const vue = await suivreSession(x.acteur, { sessionId: x.session.id });
+    const parNom = new Map(vue.participants.map((p) => [p.prenom, p]));
+    expect(parNom.get("Léa")).toMatchObject({ statut: "en_cours", indice: 8 });
+    expect(parNom.get("Léa")?.dernierFait).toMatch(/^Sortie 8 s · Q1 · \d{2}:\d{2}:\d{2}$/);
+    expect(parNom.get("Sacha")).toMatchObject({ statut: "terminee", indice: 10 });
+    expect(parNom.get("Sacha")?.dernierFait).toMatch(/^Copier-coller · Q1 · \d{2}:\d{2}:\d{2}$/);
+    // Hugo : aucun contact depuis le départ, 20 s plus tôt.
+    expect(parNom.get("Hugo")).toMatchObject({ statut: "deconnecte", indice: 20 });
+    expect(vue.compteurs).toEqual({ connectes: 1, termines: 1, absents: 0, alertes: 0 });
+    expect(vue.modeChrono).toBe("global");
+    expect(vue.finLe).toBe(new Date(x.demarreLe.getTime() + 1_200_000).toISOString());
+    expect(vue.alertes.map((a) => [a.titre, a.detail])).toEqual([
+      ["Sortie de l’application · 20 s", "DUPUIS Hugo — pendant la question 1."],
+      ["Sortie de l’application · 8 s", "DUPONT Léa — pendant la question 1."],
+      ["Copier-coller", "DUPRÉ Sacha — pendant la question 1."],
+    ]);
+    expect(new Set(vue.alertes.map((a) => a.cle)).size).toBe(3);
+  });
+
+  it("avant le départ : aucun indice, aucune fin, aucun mode", async () => {
+    const { acteur, session } = await salle();
+    const vue = await suivreSession(acteur, { sessionId: session.id });
+    expect(vue.participants.every((p) => p.indice === null && p.dernierFait === null)).toBe(true);
+    expect(vue.participants.map((p) => p.statut)).toEqual(["attente", "attente"]);
+    expect(vue).toMatchObject({ finLe: null, modeChrono: null, alertes: [] });
+    expect(vue.compteurs).toEqual({ connectes: 0, termines: 0, absents: 1, alertes: 0 });
   });
 });
