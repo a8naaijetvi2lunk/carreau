@@ -21,6 +21,11 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 - `BarreIndice` partagée entre le tableau de bord et les pages de résultats.
 - indice : une demande d'appareil autorisée et l'absence qui l'entoure ne comptent plus (A3).
 
+### Corrigé
+- Page des résultats : deux bascules rapides de « Note visible » et « Correction visible » ne s'annulent plus (état des interrupteurs tenu par la page, mis à jour dès que le serveur accepte le réglage).
+- Téléphone : une correction déjà affichée disparaît dès qu'elle n'est plus publiée (correction masquée ou rattrapage créé, A1).
+- Test d'export CSV : l'entrée du journal est lue par sa cible (base de test isolée par fichier, pas par cas).
+
 ## 2026-09-30 — Lot 6 : surveillance et suivi en direct
 
 ### Ajouté
