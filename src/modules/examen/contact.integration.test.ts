@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { evenement } from "@/db/schema";
+import { evenement, participation } from "@/db/schema";
 import { definirHorlogePourLesTests, horlogeFixe } from "@/lib/horloge";
 import { examenEnCours, identifiants, passageEnBase } from "@/test/examen";
 import { INSTANT_CODE_TEST } from "@/test/sessions";
-import { passageAJour } from "./passage";
+import { noterContact, passageAJour, verrouillerPassage } from "./passage";
 import { enregistrerBrouillon, validerQuestion } from "./reponses";
 import { vuePassage } from "./vue";
 
@@ -80,6 +80,20 @@ describe("contacts et silences (décision D3)", () => {
     horloge.fixer(apres(x.demarreLe, 700));
     await vuePassage(p);
     expect(await evenementsDe(p)).toHaveLength(1);
+  });
+
+  it("ne fait jamais reculer le dernier contact (requête plus ancienne traitée après une plus récente)", async () => {
+    const x = await examenEnCours(horloge);
+    const p = x.telephones[0]?.participation.id ?? "";
+    const plusRecent = apres(x.demarreLe, 20);
+    await db().update(participation).set({ dernierContactLe: plusRecent }).where(eq(participation.id, p));
+    await db().transaction(async (tx) => {
+      const passage = await verrouillerPassage(tx, p);
+      if (!passage) throw new Error("passage introuvable");
+      await noterContact(tx, passage, apres(x.demarreLe, 10));
+    });
+    expect(await evenementsDe(p)).toEqual([]);
+    expect((await passageEnBase(p)).dernierContactLe.getTime()).toBe(plusRecent.getTime());
   });
 
   it("passage mené jusqu'au bout sans écart : indice 0, détail vide", async () => {

@@ -125,15 +125,19 @@ async function insererSilence(
 }
 
 /**
- * Contact du téléphone à `instant` (spec §8.2 et §8.3, décision D3 du plan du lot 6) : pendant
- * l'examen, un écart de plus de 15 s depuis le contact précédent (ou le départ) est enregistré comme
- * silence, mesuré par le serveur. Le dernier contact est ensuite mis à jour.
+ * Contact du téléphone à `instant` (spec §8.2 et §8.3, décisions D3 et correctif de la tâche 3 du plan
+ * du lot 6) : pendant l'examen, un écart de plus de 15 s depuis le contact précédent (ou le départ) est
+ * enregistré comme silence, mesuré par le serveur. Le dernier contact écrit ensuite est le plus récent
+ * de l'ancien et de `instant` : une requête plus ancienne, servie après une plus récente (verrou obtenu
+ * en retard), ne fait jamais reculer `dernier_contact_le`.
  */
 export async function noterContact(tx: Transaction, passage: Passage, instant: Date): Promise<Passage> {
   const ecart = passage.statut === "en_cours" ? ecartDepuisContact(passage, instant) : null;
   if (ecart !== null && ecart > SEUIL_SILENCE_MS) await insererSilence(tx, passage, instant, ecart);
-  await tx.update(participation).set({ dernierContactLe: instant }).where(eq(participation.id, passage.id));
-  return { ...passage, dernierContactLe: instant };
+  const dernierContactLe =
+    instant.getTime() > passage.dernierContactLe.getTime() ? instant : passage.dernierContactLe;
+  await tx.update(participation).set({ dernierContactLe }).where(eq(participation.id, passage.id));
+  return { ...passage, dernierContactLe };
 }
 
 /** Question au rang `index` (0…) de l'étudiant, et l'ordre affiché de ses réponses. */
