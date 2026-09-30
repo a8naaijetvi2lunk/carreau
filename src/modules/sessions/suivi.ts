@@ -119,12 +119,15 @@ export async function construireSuivi(executeur: Executeur, session: SessionLue)
   const alertes: (AlerteSuivi & { type: TypeFait; nom: string; instant: number })[] = [];
   for (const l of lignes) {
     const nom = nomComplet(l.prenom, l.nom);
-    for (const fait of l.surveillance.faits) {
+    // Le rang du fait dans la chronologie du participant distingue les faits d'un même lot (même
+    // heure de réception, par exemple trois copier-coller d'un coup) : sans lui leurs clés seraient
+    // identiques (clé de liste React du tableau de bord).
+    for (const [index, fait] of l.surveillance.faits.entries()) {
       const alerte = alerteFait(fait, nom);
       if (!alerte) continue;
       alertes.push({
         ...alerte,
-        cle: `${l.participationId}:${fait.type}:${fait.le.getTime()}`,
+        cle: `${l.participationId}:${index}:${fait.type}:${fait.le.getTime()}`,
         le: fait.le.toISOString(),
         type: fait.type,
         nom,

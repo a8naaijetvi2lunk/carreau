@@ -172,6 +172,25 @@ describe("suivi pendant l'examen", () => {
     expect(new Set(vue.alertes.map((a) => a.cle)).size).toBe(3);
   });
 
+  it("distingue les clés d'alerte des faits d'un même lot (trois copier-coller d'un coup)", async () => {
+    const x = await examenEnCours(horloge);
+    const [lea] = x.telephones.map((t) => t.participation.id);
+    if (!lea) throw new Error("participation absente");
+    horloge.fixer(x.demarreLe.getTime() + 5_000);
+    await enregistrerEvenements(lea, {
+      chargement: "chargement-cc",
+      evenements: [
+        { n: 1, type: "copie" },
+        { n: 2, type: "coupe" },
+        { n: 3, type: "colle" },
+      ],
+    });
+    const vue = await suivreSession(x.acteur, { sessionId: x.session.id });
+    const alertesCopierColler = vue.alertes.filter((a) => a.titre === "Copier-coller");
+    expect(alertesCopierColler).toHaveLength(3);
+    expect(new Set(alertesCopierColler.map((a) => a.cle)).size).toBe(3);
+  });
+
   it("avant le départ : aucun indice, aucune fin, aucun mode", async () => {
     const { acteur, session } = await salle();
     const vue = await suivreSession(acteur, { sessionId: session.id });
