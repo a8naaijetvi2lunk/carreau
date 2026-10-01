@@ -8,6 +8,7 @@ docs
 coverage
 e2e
 playwright.config.ts
+playwright.captures.config.ts
 test-results
 playwright-report
 CLAUDE.md
