@@ -21,6 +21,7 @@
     "test:e2e": "playwright test",
     "captures": "playwright test -c playwright.captures.config.ts",
     "icones": "node scripts/icones.mjs",
+    "fumee": "node scripts/fumee.mjs",
     "db:up": "docker compose -f docker-compose.dev.yml up -d --wait",
     "db:generate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrer.mjs",
