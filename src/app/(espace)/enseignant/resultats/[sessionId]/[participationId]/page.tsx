@@ -138,9 +138,9 @@ export default async function PageRapport(
             </h2>
             {vue.evenementsSupprimes ? (
               <p className="pb-2 text-[15px] text-encre-2">
-                Les événements enregistrés pendant cet examen ont été supprimés à l’échéance de leur
-                conservation : la chronologie ne garde que le départ, les réponses et la fin. Le détail de
-                l’indice ci-dessus reste celui calculé à la fin du passage.
+                La durée de conservation des événements de cet examen est échue : ils ne sont plus en base, et
+                la chronologie ne garde que le départ, les réponses et la fin. Le détail de l’indice ci-dessus
+                reste celui calculé à la fin du passage.
               </p>
             ) : null}
             <ol className="flex flex-col">
