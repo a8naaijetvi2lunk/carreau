@@ -2,6 +2,24 @@
 
 Toutes les évolutions notables de Carreau sont consignées ici, de la plus récente à la plus ancienne.
 
+## 2026-10-01 — Lot 10 : exploitation
+
+### Ajouté
+- Purges nocturnes (`src/modules/purges`, route `POST /api/cron/purges` protégée par `CRON_SECRET`, `scripts/purger.mjs`) : événements et sessions selon la conservation, comptée depuis la fin de la session ; images orphelines ; connexions, liens de réinitialisation, invitations closes, limiteur et journal de plus de 12 mois.
+- Sauvegarde quotidienne des images (`scripts/sauvegarder-images.mjs`, 14 archives).
+- Tests de fumée d’une instance en ligne (`npm run fumee -- <url>`), aussi lancés contre le serveur de test.
+- Procédure de déploiement (`docs/deploiement.md`) : Coolify, Nginx Proxy Manager, tâches planifiées, sauvegardes et restauration, mises à jour.
+
+### Modifié
+- Image Docker : `IMAGES_DIR` et `SAUVEGARDES_DIR` posées, dossier des sauvegardes, healthcheck qui suit `PORT`.
+- Serveur MCP : `X-Accel-Buffering: no` sur toutes ses réponses.
+- `reactMaxHeadersLength` à 1 500.
+- Activation : prénom et nom non contrôlés, conservés après une erreur et jamais effacés par l’hydratation.
+- Rapport d’un étudiant : une note signale les événements supprimés à l’échéance de leur conservation.
+
+### Corrigé
+- Image Docker : `playwright.captures.config.ts` exclu du contexte de build ; il importait `e2e/`, absent de l’image, et faisait échouer `next build`.
+
 ## 2026-09-30 — Lot 9 : PWA et identité
 
 ### Ajouté

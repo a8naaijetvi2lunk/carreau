@@ -142,7 +142,7 @@ Principes retenus :
 
 - **Minimisation** : nom, prénom, réponses et événements horodatés. Rien d’autre.
 - **Information** : chaque étudiant lit, avant l’examen, ce qui est enregistré et à quoi cela sert.
-- **Conservation** : durées réglables par l’établissement, suppression automatique à l’échéance.
+- **Conservation** : durées réglables par l’établissement, comptées depuis la fin de la session ; suppression automatique chaque nuit (les événements, puis la session et ses résultats) ; les sauvegardes gardent 14 jours.
 - **Assistant IA** : via MCP, il ne voit que les brouillons de QCM et le nom des classes, jamais les étudiants, les sessions ni les résultats ; chaque appel est journalisé sans son contenu.
 
 ## Architecture
@@ -169,7 +169,7 @@ flowchart LR
 | Assistant IA | Serveur MCP en Streamable HTTP sans état (`mcp-handler`, `@modelcontextprotocol/server`), jeton par enseignant |
 | Tests | Vitest (unitaires et intégration), Playwright (parcours complets, dont téléphone) |
 | Intégration continue | GitHub Actions : lint, format, types, tests unitaires et d’intégration, build, tests de bout en bout |
-| Déploiement | Image Docker autonome (build `standalone`), Coolify |
+| Déploiement | Image Docker autonome (build `standalone`), Coolify derrière Nginx Proxy Manager, purges et sauvegardes planifiées |
 
 ### Organisation du code
 
@@ -213,8 +213,9 @@ Ouvre le lien, choisis ton mot de passe et configure la double authentification 
 | `npm run build && npm run captures` | Captures du README, sur le build de production, avec des données fictives |
 | `npm run admin:creer -- <email>` | Invitation du premier super-admin, lien affiché une fois |
 | `npm run admin:reinitialiser-totp -- <email>` | Double authentification perdue : nouvel enrôlement à la prochaine connexion |
+| `npm run fumee -- <url>` | Tests de fumée d’une instance en ligne, en lecture seule |
 
-L’image Docker de production applique les migrations au démarrage, puis lance le serveur ; son état est exposé sur `/api/sante`. La procédure de mise en ligne sera documentée avec le dernier lot.
+L’image Docker de production applique les migrations au démarrage, puis lance le serveur ; son état est exposé sur `/api/sante`. La mise en ligne est décrite dans [`docs/deploiement.md`](docs/deploiement.md).
 
 ### Connecter un assistant IA
 
@@ -236,6 +237,15 @@ Carreau fonctionne dans le navigateur ; l’installer est facultatif.
 L’application installée s’ouvre sur « Rejoindre un examen » : l’étudiant y scanne le QR code projeté, sans passer par l’appareil photo. Hors connexion, elle affiche une page d’attente ; un examen ne se passe jamais hors ligne.
 
 Les icônes dérivent d’une source unique, `docs/identite/carreau-icone-source.png`, par `npm run icones`.
+
+## Mettre en production
+
+Carreau se déploie en image Docker (Coolify, derrière un reverse proxy qui termine le TLS), avec une base PostgreSQL 17 et deux volumes : les images téléversées et les archives de leur sauvegarde. La procédure complète est dans [`docs/deploiement.md`](docs/deploiement.md) :
+
+- variables d’environnement, secrets et premier compte ;
+- purges nocturnes : événements et résultats selon la conservation réglée par l’établissement, images orphelines, traces techniques ;
+- sauvegardes de la base et des images, et leur restauration ;
+- tests de fumée : `npm run fumee -- https://votre-instance`.
 
 ## Feuille de route
 
@@ -271,6 +281,7 @@ Carreau sert à évaluer : une faille peut fausser des notes ou exposer des donn
 - **Résultats** : exports réservés à l’enseignant de la session, téléchargés en pièce jointe privée ; dans un CSV, une cellule de texte qui commencerait une formule de tableur est neutralisée, et le classeur Excel n’écrit le texte que comme du texte ; la correction n’est servie qu’au téléphone de l’étudiant, une fois l’examen et ses rattrapages terminés.
 - **Serveur MCP** : jeton `carreau_…` de 256 bits montré une seule fois et stocké haché, en lecture seule ou en lecture et écriture, révocable, coupé à la désactivation du compte ; vérifié avant tout traitement, sans découverte OAuth ; 60 requêtes par minute et par jeton, corps limité à 512 Ko ; l’assistant n’atteint que les brouillons de QCM et le nom des classes, par les mêmes services que l’interface ; chaque appel est journalisé sans ses arguments.
 - **Application installable** : le service worker ne garde rien en cache (aucune page ni réponse d’examen ne reste sur un téléphone partagé) et ne répond qu’aux navigations ; la caméra n’est permise que sur l’écran « Rejoindre un examen » et s’arrête à la première lecture ; du QR code scanné, seul le code de session est tiré, l’adresse n’est jamais suivie.
+- **Exploitation** : purges lancées depuis le serveur lui-même, par une route fermée sans son secret (comparé à temps constant) ; sauvegardes de la base et des images, restaurations éprouvées ; tests de fumée de la production (en-têtes, routes protégées).
 - **Imports bornés** : le type d’un fichier se décide sur ses octets et non sur son extension ; taille (512 Ko) et nombre de lignes (500) limités ; un classeur Excel est contrôlé avant sa décompression, qui s’arrête au-delà de 10 Mo (bombe de décompression).
 - **Images assainies** : le format se décide sur les octets (PNG, JPEG, WebP, GIF non animé), taille (5 Mo) et nombre de pixels bornés, ré-encodage en WebP qui retire les métadonnées (position GPS comprise), lecture réservée au propriétaire, à l’étudiant dont c’est la question courante pendant l’examen, puis à l’étudiant de l’examen quand la correction est publiée ; jamais de SVG.
 - **Aucun HTML injecté** : énoncés, réponses et code sont affichés comme du texte ; la coloration du code est calculée côté serveur en jetons, jamais en HTML.

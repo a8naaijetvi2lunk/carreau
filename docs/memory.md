@@ -31,7 +31,7 @@ Application web unique (Next.js 16) servant trois publics :
 6. **Indice de suspicion.** Somme pondérée d’événements bruts, bornée à 100, recalculable si la pondération évolue. Les coupures réseau ne comptent pas. L’indice n’est affiché qu’aux enseignants ; l’interface étudiante n’emploie ni « surveillance » ni « suspicion ».
 7. **MCP limité.** Un jeton par enseignant, révocable. Outils : créer et modifier des brouillons, lister les QCM et le nom des classes. Aucun accès aux étudiants, aux résultats ni au lancement de session.
 8. **Rôles.** `super-admin` : tout, dont les rôles et les paramètres (Resend, invitations, conservation). `admin` : inviter, relancer, désactiver des enseignants. `enseignant` : ses classes, QCM, sessions et résultats.
-9. **Conservation.** Durées des événements et des résultats laissées vides à l’initialisation, renseignées par le super-admin ; suppression automatique à l’échéance.
+9. **Conservation.** Durées des événements et des résultats laissées vides à l’initialisation, renseignées par le super-admin ; comptées depuis la fin de la session, suppression automatique chaque nuit (lot 10).
 
 ## Architecture technique
 
@@ -155,7 +155,7 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Outils** (`src/modules/mcp/outils.ts`) : `classes_lister`, `qcm_lister`, `qcm_lire`, `qcm_creer`, `question_ajouter`, `question_modifier`, `question_supprimer`, `questions_lier`, `questions_delier`. Portée vérifiée avant les arguments ; schéma strict publié au SDK, validation faite par Carreau (`src/lib/schema-mcp.ts`) ; journal `mcp.<outil>` au nom du jeton, sans arguments ; aucune image.
 - **Identité transmise au SDK** (`src/lib/identite-mcp.ts`) : `token` = identifiant du jeton, jamais le jeton ; l'acteur est relu et revalidé à chaque appel d'outil.
 - **Révocation** (amendement A1) : désactivation, réinitialisation du mot de passe et de la double authentification (service et script) révoquent les jetons MCP du compte (`src/modules/comptes/jetons-mcp.ts`).
-- **À retenir pour le lot 10** : `proxy_buffering off` sur `/api/mcp` dans Nginx Proxy Manager (spec §2) : les réponses du serveur MCP sont des flux.
+- **Proxy** (lot 10) : `X-Accel-Buffering: no` sur toutes les réponses de `/api/mcp` : nginx relaie le flux sans tampon, sans réglage dans Nginx Proxy Manager.
 
 ## PWA et identité (lot 9)
 
@@ -165,6 +165,18 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Scanner** (`src/app/rejoindre/ScannerQr.tsx`, `qr-scanner` chargé à la demande) : code tiré par `codeDepuisQr` (`src/lib/qr-rejoindre.ts`) d'une adresse `/rejoindre` de la même origine, jamais suivie ; caméra arrêtée à la première lecture et à la fermeture. CSP `worker-src 'self' blob:` ; `Permissions-Policy` `camera=(self)` sur `/rejoindre` seulement. Le lien de l'accueil vers `/rejoindre` est un `<a>` ordinaire : la `Permissions-Policy` est figée au chargement du document, une navigation côté client garderait `camera=()`.
 - **Tests** : `e2e/pwa.spec.ts` et `e2e/scanner.spec.ts` (caméra factice de Chromium : vidéo Y4M d'un QR code, `e2e/outils/camera.ts`).
 - **À retenir pour le lot 10** : dans Nginx Proxy Manager, ne pas activer la mise en cache des ressources pour `sw.js` et `manifest.webmanifest` ; vérifier en production le type `application/manifest+json` et l'en-tête `Cache-Control` de `sw.js` : une copie servie d’abord par un cache montrerait d’anciennes versions après une mise en ligne.
+
+## Exploitation (lot 10)
+
+- **Purges** : `src/modules/purges` (seul export `executerPurges`), route `POST /api/cron/purges` fermée sans `CRON_SECRET` (`secretCronValide` : Bearer, empreintes SHA-256 comparées à temps constant), `scripts/purger.mjs` lancé dans le conteneur chaque nuit (tâche planifiée Coolify, 2 h 30 UTC). Étapes isolées, dans l'ordre : événements, sessions, images, connexions, jetons, invitations, limiteur, journal ; bilan journalisé (`purges.executer`) après la purge du journal ; 500 seulement si toutes échouent ; le script sort en erreur si une étape échoue.
+- **Conservation** (amendements A1 et A2) : comptée depuis la fin de la session (`termine_le` ; création pour une salle d'attente jamais démarrée ; jamais une session en cours). Les événements partent à leur échéance (l'indice reste dans la participation). À l'échéance des résultats, le groupe (session de classe et rattrapages) est supprimé en cascade, rattrapages d'abord. Conservation non renseignée : rien n'est purgé côté examen. Verrou de tout le groupe (session de classe et rattrapages) avant le recalcul ; jamais de suppression d'une session en cours. Après la purge des événements, le rapport de l'enseignant le signale (`evenementsSupprimes`) : la chronologie ne garde que le départ, les réponses et la fin ; le détail de l'indice reste.
+- **Traces** (A3, A4) : journal 12 mois ; invitations utilisées ou annulées 30 jours (les expirées en attente restent) ; liens de réinitialisation utilisés ou expirés ; connexions expirées ou inactives ; limiteur 24 h.
+- **Images orphelines** (`src/modules/images/purge.ts`) : 24 h de grâce, citées ni par une question, ni par une proposition, ni par un instantané (`jsonb_path_exists`) ; ligne puis fichier ; fichiers sans ligne et téléversements interrompus d'après leur date.
+- **Sauvegardes** (A6) : base par Coolify (3 h UTC, 14) ; images par `scripts/sauvegarder-images.mjs` (tar de l'image, 2 h 45 UTC, 14 archives dans `/data/sauvegardes`). Sur l'hôte seulement. Restaurations éprouvées à la mise en service.
+- **Image Docker** : `IMAGES_DIR` et `SAUVEGARDES_DIR` posées dans l'image, dossiers possédés par `node`, healthcheck sur `${PORT}`.
+- **Fumée** : `npm run fumee -- <url>` (`scripts/fumee.mjs`), aussi lancé contre le serveur de test (`e2e/fumee.spec.ts`).
+- **Durcissements** : `reactMaxHeadersLength: 1500` ; activation avec prénom et nom non contrôlés, valeurs renvoyées par l'action (une saisie avant l'hydratation n'est plus effacée).
+- **Mise en ligne** : `docs/deploiement.md`.
 
 ## Ports locaux
 
