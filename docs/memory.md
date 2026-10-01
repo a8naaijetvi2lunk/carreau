@@ -176,7 +176,7 @@ Décrite dans [`docs/specs/2026-09-28-carreau-architecture-design.md`](specs/202
 - **Image Docker** : `IMAGES_DIR` et `SAUVEGARDES_DIR` posées dans l'image, dossiers possédés par `node`, healthcheck sur `${PORT}`.
 - **Fumée** : `npm run fumee -- <url>` (`scripts/fumee.mjs`), aussi lancé contre le serveur de test (`e2e/fumee.spec.ts`).
 - **Durcissements** : `reactMaxHeadersLength: 1500` ; activation avec prénom et nom non contrôlés, valeurs renvoyées par l'action (une saisie avant l'hydratation n'est plus effacée).
-- **Mise en ligne** : `docs/deploiement.md`.
+- **Mise en ligne** : `docs/deploiement.md` ; en production depuis le 2026-10-01 (https://carreau.yvescharvis.fr), fumée verte, restaurations éprouvées (sauvegarde Coolify de la base, archive des images). Tâches planifiées créées par l'API de Coolify (pas par le formulaire).
 
 ## Ports locaux
 

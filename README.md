@@ -263,7 +263,7 @@ Chaque lot est livré avec ses tests, sa documentation et une intégration conti
 | 7 | Résultats : exports CSV et Excel, rapport par étudiant, rattrapage | ✅ Livré |
 | 8 | Connexion MCP : jetons par enseignant, création de brouillons | ✅ Livré |
 | 9 | PWA et identité visuelle : installation, scanner intégré, icônes | ✅ Livré |
-| 10 | Mise en production : Coolify, purges automatiques, sauvegardes | À venir |
+| 10 | Mise en production : Coolify, purges automatiques, sauvegardes | ✅ Livré |
 
 ## Sécurité
 

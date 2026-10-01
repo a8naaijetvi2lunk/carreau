@@ -20,6 +20,9 @@ Toutes les évolutions notables de Carreau sont consignées ici, de la plus réc
 ### Corrigé
 - Image Docker : `playwright.captures.config.ts` exclu du contexte de build ; il importait `e2e/`, absent de l’image, et faisait échouer `next build`.
 
+### Mise en production
+- 2026-10-01 : Carreau en ligne sur https://carreau.yvescharvis.fr (Coolify, Nginx Proxy Manager). Tests de fumée verts (huit contrôles) ; tâches planifiées des purges et de la sauvegarde des images exécutées sans erreur ; restauration éprouvée d’une sauvegarde Coolify de la base et d’une archive des images.
+
 ## 2026-09-30 — Lot 9 : PWA et identité
 
 ### Ajouté
